@@ -3,7 +3,7 @@
 ## Units and firms
 One tick is one calendar day. Quantities are whole units, currency integer cents,
 quality an integer 1–100. Every company starts with contributed equity and cash;
-there is no credit, tax, depreciation or dividend in milestone 1. Every facility
+there is no credit, tax, depreciation or dividend yet. Every facility
 has one owner and city, a data-defined type, capacity and local inventory.
 
 ## Production and sourcing
@@ -13,12 +13,16 @@ a component pays external conversion/resource costs. Factories buy missing
 inputs from available same-city offers, limited by cash and stock, then produce
 up to daily capacity. Production is atomic per batch. Inputs and conversion cash
 become output carrying value; they are not expensed again at production time.
-Producers offer at the reference price in this milestone. Facilities operate in
-stable ID order; same-day upstream output may serve downstream facilities.
-This deliberately simple order can favor earlier buyers; future market clearing
-should replace it with explicit allocation rather than silently changing it.
+Producers start at the reference price. Eligible same-city production offers are
+ranked by price per quality point with stable facility-ID ties. A facility may use
+the automatic ranking or pin one supplier for each sourced product; a pinned
+supplier does not silently fall back when unavailable. Facilities operate in stable
+ID order, so same-day upstream output may serve downstream facilities. This still
+favors earlier buyers when supply is scarce; future wholesale market clearing
+should replace sequential allocation explicitly.
 
-Retailers replenish up to twice their daily capacity, then sell at posted prices.
+Facilities keep a configurable one-to-seven-day finished-stock target. Retailers
+replenish to that target, then sell at posted prices.
 Wholesale transfers move inventory and cash between firms, recognizing seller
 revenue and COGS and buyer inventory assets. Same-company transfers carry book
 cost and create no revenue. Inventory uses pooled carrying cost with proportional

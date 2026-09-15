@@ -13,6 +13,11 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers and quality |
 | Demand | Pure price/quality preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
+| SupplierMarket | Produce deterministic eligible offers ranked by price per quality point |
+| GameSession | Own the Economy, player authorization, mode, save/load and Debug access |
+| GameTime | Convert frame deltas and selected speed into bounded calls to `Economy.step` |
+| SaveStore | Validate, encode, atomically write and transactionally restore session state |
+| City / management UI | Render snapshots, select facilities and submit plain-data commands |
 | Debug screen / CLI | Construct Economy, submit commands, advance ticks, read snapshots |
 
 Dependencies flow from hosts to Economy to domain objects; Inventory and Demand
@@ -22,11 +27,13 @@ companies, products, technologies, facilities and cities.
 
 ## Commands, reads and reproducibility
 UI queues validated plain-data commands with a target company and facility ID.
-Milestone 1 supports `set_price`; later commands add build/source/research/finance.
-Commands execute at the next tick boundary in submission order. A later player
-session layer supplies authorization; the engine validates economic preconditions.
-Hosts explicitly call `step`; real-time playback must use an accumulator around
-this same method. UI reads detached snapshots, never edits inventory or cash.
+The current command set changes price, operating state, stock target and
+per-product supplier policy. Commands execute at the next tick boundary in
+submission order. GameSession injects the authorized player company; Economy
+validates ownership, types, bounds and economic preconditions. AI pricing uses the
+same queue. GameTime is an accumulator around the same explicit daily `step`, with
+a 64-tick per-frame cap that retains excess elapsed time. UI reads snapshots and
+read models and does not mutate inventory or cash.
 
 One seeded RandomNumberGenerator belongs to each economy. Demand draws occur in
 sorted product-ID order, even for unavailable products. Firms and facilities are
@@ -34,14 +41,17 @@ processed in sorted ID order. Recipe inputs also use sorted IDs. Never use wall
 time, global random functions, frame deltas or unordered iteration to make decisions.
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
-## State and persistence direction
-Snapshots contain schema version, catalog version, scenario/era, clock, initial
-seed, RNG state as a decimal string, pending commands, accounts, facilities,
-inventories and market reports. Money is integer cents and goods integer units.
-Snapshot export is implemented; restore, migrations and atomic disk saves are
-future work. Preserve stable definition IDs and add migration aliases rather than
-renaming persisted IDs. Before implementing saves, add round-trip and continuation
-tests and definition-version compatibility checks.
+## State and persistence
+Schema-2 economy snapshots contain catalog/scenario/era identity, clock, initial
+seed, RNG state as a decimal string, pending commands and results, accounts,
+facilities, inventories, sourcing state, recent activity, market reports and Debug
+effects. The session snapshot adds mode, authorized company and time-controller
+state. SaveStore tags every integer before JSON encoding, fingerprints the catalog,
+pins the Godot engine version, writes through a same-directory temporary file, and
+validates all restored state before replacing the live session. Unsupported format,
+schema, engine or catalog versions are rejected; migrations are not yet provided.
+Money is integer cents and goods integer units. Preserve stable definition IDs and
+add migration aliases rather than renaming persisted IDs.
 
 ## Extension seams (planned, not implemented)
 - Logistics: replace instantaneous trade delivery with shipments between facility

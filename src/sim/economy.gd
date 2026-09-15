@@ -6,6 +6,7 @@ const Clock = preload("res://src/sim/sim_clock.gd")
 const Company = preload("res://src/sim/company.gd")
 const Facility = preload("res://src/sim/facility.gd")
 const Demand = preload("res://src/sim/demand.gd")
+const Sourcing = preload("res://src/sim/sourcing.gd")
 
 var catalog: SimCatalog
 var clock: SimClock
@@ -19,6 +20,8 @@ var command_results: Array[Dictionary] = []
 var market: Dictionary = {}
 var cumulative_consumer_units: int = 0
 var cumulative_consumer_revenue: int = 0
+var unlocked_technologies: Array[String] = []
+var debug_actions: Array[Dictionary] = []
 
 func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json") -> bool:
 	catalog = Catalog.new()
@@ -40,6 +43,8 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	pending_commands.clear()
 	command_results.clear()
 	market.clear()
+	unlocked_technologies.clear()
+	debug_actions.clear()
 	cumulative_consumer_units = 0
 	cumulative_consumer_revenue = 0
 	var definitions: Array = catalog.scenario.companies.duplicate(true)
@@ -63,17 +68,49 @@ func facility(id: String) -> SimFacility:
 func queue_command(command: Dictionary) -> void:
 	pending_commands.append(command.duplicate(true))
 
+func available(product: String) -> bool:
+	return catalog.products.has(product) and (str(catalog.products[product].technology) in unlocked_technologies or catalog.available(product, clock.year))
+
+func command_error(command: Dictionary) -> String:
+	var target: SimFacility = facility(str(command.get("facility", "")))
+	if target == null or target.company_id != str(command.get("company", "")):
+		return "Unknown facility or company does not own it."
+	match str(command.get("type", "")):
+		"set_price":
+			if not command.get("price") is int or int(command.price) <= 0 or int(command.price) > 100000000:
+				return "Price must be integer cents between 1 and 100000000."
+		"set_supplier":
+			var product: String = str(command.get("product", ""))
+			var inputs: Dictionary = catalog.products[target.product_id].inputs
+			if not (product == target.product_id and _behavior(target) == "retail") and not inputs.has(product):
+				return "Facility does not source that product."
+			var supplier_id: String = str(command.get("supplier", ""))
+			if supplier_id != "":
+				var seller: SimFacility = facility(supplier_id)
+				if seller == null or seller == target or seller.product_id != product or seller.city_id != target.city_id or _behavior(seller) != "production":
+					return "Supplier cannot supply this product in this city."
+		"set_operating":
+			if not command.get("operating") is bool:
+				return "Operating setting must be true or false."
+		"set_stock_days":
+			if not command.get("days") is int or int(command.days) < 1 or int(command.days) > 7:
+				return "Stock target must be 1–7 days."
+		_:
+			return "Unknown management command."
+	return ""
+
 func _apply_commands() -> void:
 	command_results.clear()
 	for command: Dictionary in pending_commands:
 		var target: SimFacility = facility(str(command.get("facility", "")))
-		var accepted: bool = false
-		if str(command.get("type", "")) == "set_price" and target != null:
-			var price: int = int(command.get("price", 0))
-			if target.company_id == str(command.get("company", "")) and price > 0 and price <= 100000000:
-				target.price = price
-				accepted = true
-		command_results.append({"command": command, "accepted": accepted})
+		var error: String = command_error(command)
+		if error.is_empty():
+			match str(command.type):
+				"set_price": target.price = int(command.price)
+				"set_supplier": target.suppliers[str(command.product)] = str(command.get("supplier", ""))
+				"set_operating": target.operating = bool(command.operating)
+				"set_stock_days": target.stock_days = int(command.days)
+		command_results.append({"command": command, "accepted": error.is_empty(), "error": error})
 	pending_commands.clear()
 
 func _ai_decisions() -> void:
@@ -81,7 +118,7 @@ func _ai_decisions() -> void:
 		return
 	for f: SimFacility in facilities:
 		var owner: SimCompany = companies[f.company_id]
-		if not owner.ai or _behavior(f) != "retail" or not catalog.available(f.product_id, clock.year):
+		if not owner.ai or _behavior(f) != "retail" or not available(f.product_id):
 			continue
 		var reference: int = int(catalog.products[f.product_id].reference_price)
 		var change: int = -maxi(1, int(f.price * 0.02)) if f.inventory.quantity(f.product_id) > f.capacity else maxi(1, int(f.price * 0.01))
@@ -93,7 +130,7 @@ func _behavior(f: SimFacility) -> String:
 
 # Cash and inventory change together; same-company transfers use carrying value.
 func trade(seller: SimFacility, buyer: SimFacility, product: String, requested: int) -> int:
-	if requested <= 0 or seller == buyer or seller.city_id != buyer.city_id or seller.product_id != product or seller.price <= 0 or not catalog.available(product, clock.year):
+	if requested <= 0 or seller == buyer or seller.city_id != buyer.city_id or seller.product_id != product or seller.price <= 0 or not available(product):
 		return 0
 	var selling_company: SimCompany = companies[seller.company_id]
 	var buying_company: SimCompany = companies[buyer.company_id]
@@ -113,21 +150,30 @@ func trade(seller: SimFacility, buyer: SimFacility, product: String, requested: 
 	return units
 
 func _source(buyer: SimFacility, product: String, target: int) -> void:
-	for seller: SimFacility in facilities:
-		if not seller.active or _behavior(seller) != "production":
+	var manual: String = str(buyer.suppliers.get(product, ""))
+	for offer: Dictionary in supplier_offers(buyer.id, product):
+		if not offer.eligible or (manual != "" and str(offer.id) != manual):
 			continue
 		var missing: int = target - buyer.inventory.quantity(product)
 		if missing <= 0:
 			break
-		trade(seller, buyer, product, missing)
+		var bought: int = trade(facility(str(offer.id)), buyer, product, missing)
+		if bought > 0:
+			if not buyer.last_sources.has(product):
+				buyer.last_sources[product] = []
+			buyer.last_sources[product].append({"supplier": str(offer.id), "units": bought, "price": int(offer.price), "quality": int(offer.quality), "score": float(offer.score)})
+
+func supplier_offers(buyer_id: String, product: String) -> Array[Dictionary]:
+	var buyer: SimFacility = facility(buyer_id)
+	return Sourcing.offers(self, buyer, product) if buyer != null else []
 
 func produce(f: SimFacility) -> int:
-	if not f.active or _behavior(f) != "production" or not catalog.available(f.product_id, clock.year):
+	if not f.active or _behavior(f) != "production" or not available(f.product_id):
 		return 0
 	var definition: Dictionary = catalog.products[f.product_id]
 	var inputs: Dictionary = definition.inputs
-	# Limit finished stock to two days of capacity, preventing endless accumulation.
-	var units: int = mini(f.capacity - f.produced_today, maxi(0, f.capacity * 2 - f.inventory.quantity(f.product_id)))
+	# Limit finished stock to the facility's configured stock target.
+	var units: int = mini(f.capacity - f.produced_today, maxi(0, f.capacity * f.stock_days - f.inventory.quantity(f.product_id)))
 	var owner: SimCompany = companies[f.company_id]
 	var conversion: int = int(definition.conversion_cost)
 	if conversion > 0:
@@ -147,7 +193,7 @@ func produce(f: SimFacility) -> int:
 	return units
 
 func consumer_sale(f: SimFacility, requested: int) -> int:
-	if requested <= 0 or not f.active or _behavior(f) != "retail" or not catalog.available(f.product_id, clock.year):
+	if requested <= 0 or not f.active or _behavior(f) != "retail" or not available(f.product_id):
 		return 0
 	var units: int = mini(requested, mini(f.inventory.quantity(f.product_id), f.capacity - f.sold_today))
 	if units <= 0:
@@ -167,7 +213,8 @@ func step() -> void:
 	for f: SimFacility in facilities:
 		f.sold_today = 0
 		f.produced_today = 0
-		f.active = catalog.available(f.product_id, clock.year)
+		f.last_sources.clear()
+		f.active = f.operating and available(f.product_id)
 		if f.active:
 			var owner: SimCompany = companies[f.company_id]
 			f.active = owner.pay_expense(int(catalog.facility_types[f.type_id].overhead))
@@ -182,8 +229,12 @@ func step() -> void:
 		produce(f)
 	for f: SimFacility in facilities:
 		if f.active and _behavior(f) == "retail":
-			_source(f, f.product_id, f.capacity * 2)
+			_source(f, f.product_id, f.capacity * f.stock_days)
 	_clear_consumer_markets()
+	for f: SimFacility in facilities:
+		f.recent_sales.append({"tick": clock.tick, "units": f.sold_today, "revenue": f.sold_today * f.price, "produced": f.produced_today})
+		if f.recent_sales.size() > 7:
+			f.recent_sales.pop_front()
 	clock.advance()
 
 func _clear_consumer_markets() -> void:
@@ -192,7 +243,7 @@ func _clear_consumer_markets() -> void:
 	for product: String in product_ids:
 		var definition: Dictionary = catalog.products[product]
 		var potential: int = int(int(definition.daily_demand) * rng.randi_range(90, 110) / 100.0)
-		if not catalog.available(product, clock.year):
+		if not available(product):
 			continue
 		var offers: Array[Dictionary] = []
 		var stores: Array[SimFacility] = []
@@ -247,10 +298,11 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 1, "catalog_version": catalog.version,
+	return {"schema_version": 2, "catalog_version": catalog.version,
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,
 		"pending_commands": pending_commands.duplicate(true),
 		"command_results": command_results.duplicate(true), "market": market.duplicate(true),
+		"unlocked_technologies": unlocked_technologies.duplicate(), "debug_actions": debug_actions.duplicate(true),
 		"consumer_units": cumulative_consumer_units, "consumer_revenue": cumulative_consumer_revenue}

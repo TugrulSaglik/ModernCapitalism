@@ -52,19 +52,21 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 1
+## Milestone 2
 
-Implemented: a deterministic, daily headless electronics economy with five
-companies, nine facilities and five products. Components feed phone assembly;
-retailers source phones and compete on price/quality. Inventory carrying values,
-cash, revenue, COGS, overhead and profit are tracked. Starting years 2012 and 2022
-use data-driven public technology gates. Weekly AI pricing participates in the
-same command processing as player commands.
+Implemented: the deterministic daily economy from Milestone 1 plus a continuous
+game session with pause, 1x, 2x, 4x and Max speeds; player price, operation, stock
+target and supplier commands; ranked and manually selectable suppliers; versioned
+atomic save/load with deterministic continuation; and a playable management host.
+The main scene presents an orthographic isometric city, selectable facilities,
+facility and company information, sandbox settings, and a session-scoped Debug
+panel. Starting years 2012 and 2022 continue to use the same data-driven public
+technology gates.
 
-Open `project.godot` in Godot 4 (tested with **4.7.2**) and press **F6** for the
-debug scene or **F5** for the project. The debug screen offers era selection,
-reset, and 1/30/365-day advances. Changing era takes effect when Reset is pressed.
-No city renderer is required for any economic calculation.
+Open `project.godot` in Godot 4 (tested with **4.7.2**) and press **F5**. Game time
+runs continuously at one simulated day per real second at 1x. The legacy economic
+debug scene remains available through **F6**. Rendering and UI are hosts only; no
+city node is required for an economic calculation.
 
 ### Command line (PowerShell, from repository root)
 
@@ -74,16 +76,18 @@ Use your installed Godot console executable. On this machine:
 $godot = 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe'
 # Register classes on a fresh checkout (opening the editor also does this).
 & $godot --headless --path . --editor --quit
-# Run the debug project.
+# Run the management game.
 & $godot --path .
-# Automated harness, including one-year runs for both eras.
+# Complete automated harness: foundation, Milestone 2, and game-scene smoke tests.
 ./tests/run_tests.ps1 -Godot $godot
 # Direct Godot-native harness (also works outside Windows).
 & $godot --headless --path . --script res://tests/run_tests.gd
 # Longer headless scenario; output is a state snapshot followed by a summary.
 & $godot --headless --path . --script res://src/headless.gd -- --days=3650 --era=2012 --seed=42
-# Load the actual debug scene and exercise its 30-day advance.
+# Load the legacy debug scene and exercise its 30-day advance.
 & $godot --path . --script res://tests/debug_smoke.gd
+# Load the real game scene, exercise management integration, and capture a frame.
+& $godot --path . --script res://tests/game_smoke.gd
 ```
 
 The PowerShell wrapper fails on nonzero exit codes, failed assertions and Godot
@@ -101,6 +105,6 @@ to avoid attempts to write the default user log directory.
 - [Full-project roadmap](docs/ROADMAP.md)
 - [Validation results and limitations](docs/VALIDATION.md)
 
-This foundation deliberately defers actual company research, logistics, save
-restore, full financial statements and city gameplay. The next milestone is
-player operation commands, management panels, and versioned save/load/replay.
+Milestone 2 deliberately defers construction and placement, shipments and
+transport costs, actual company research, full financial statements, and broader
+catalog content. Those belong to later roadmap milestones.

@@ -28,9 +28,10 @@ commands and reports. Tutorials must not implement an alternative economy.
 Difficulty changes scenario parameters and AI decision budgets; any economic
 advantages must be explicit settings, never hidden exceptions in core systems.
 
-## Milestone 1 boundary
+## Implemented foundation
 Daily headless economy, a small electronic-device chain, one abstract city,
 cash-constrained production and trade, consumer sales, basic accrual accounts,
-price-adjusting AI and two starting eras. There is no graphical city, player
-construction, active research, stock exchange, credit or complete save/load yet.
-The debug screen advances time and reports results; it is not a gameplay UI.
+price-adjusting AI and two starting eras. Milestone 2 adds continuous time,
+player management commands, ranked/manual sourcing, deterministic save/load,
+an orthographic city host and facility/company panels. Player construction,
+logistics, active research, stock exchange and credit are not implemented.

@@ -13,6 +13,11 @@ var quality: int
 var active: bool = true
 var sold_today: int = 0
 var produced_today: int = 0
+var operating: bool = true
+var stock_days: int = 2
+var suppliers: Dictionary = {}
+var last_sources: Dictionary = {}
+var recent_sales: Array[Dictionary] = []
 var inventory: SimInventory = Inventory.new()
 
 func _init(definition: Dictionary) -> void:
@@ -29,4 +34,7 @@ func snapshot() -> Dictionary:
 	return {"id": id, "company": company_id, "city": city_id, "type": type_id,
 		"product": product_id, "capacity": capacity, "price": price, "quality": quality,
 		"active": active, "sold_today": sold_today, "produced_today": produced_today,
+		"operating": operating, "stock_days": stock_days,
+		"suppliers": suppliers.duplicate(true), "last_sources": last_sources.duplicate(true),
+		"recent_sales": recent_sales.duplicate(true),
 		"inventory": inventory.snapshot()}

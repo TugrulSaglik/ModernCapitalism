@@ -16,4 +16,22 @@ $testOutput | ForEach-Object { Write-Host $_ }
 if ($testExit -ne 0 -or ($testOutput -match 'SCRIPT ERROR:|Parse Error:|FAIL:') -or -not ($testOutput -match 'TEST RESULT: \d+ checks, 0 failures')) {
     exit 1
 }
+$m2Output = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot '.godot/m2-tests.log') --script res://tests/milestone2_tests.gd 2>&1
+$m2Exit = $LASTEXITCODE
+$m2Output | ForEach-Object { Write-Host $_ }
+if ($m2Exit -ne 0 -or ($m2Output -match 'SCRIPT ERROR:|Parse Error:|FAIL:') -or -not ($m2Output -match 'M2 TEST RESULT: \d+ checks, 0 failures')) {
+    exit 1
+}
+$smokeOutput = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot '.godot/game-smoke.log') --script res://tests/game_smoke.gd 2>&1
+$smokeExit = $LASTEXITCODE
+$smokeOutput | ForEach-Object { Write-Host $_ }
+if ($smokeExit -ne 0 -or ($smokeOutput -match 'SCRIPT ERROR:|Parse Error:|FAIL:') -or -not ($smokeOutput -match 'GAME SMOKE RESULT: \d+ checks, 0 failures')) {
+    exit 1
+}
+$debugOutput = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot '.godot/debug-smoke.log') --script res://tests/debug_smoke.gd 2>&1
+$debugExit = $LASTEXITCODE
+$debugOutput | ForEach-Object { Write-Host $_ }
+if ($debugExit -ne 0 -or ($debugOutput -match 'SCRIPT ERROR:|Parse Error:|FAIL:') -or -not ($debugOutput -match 'DEBUG SMOKE: scene loaded and advanced 30 days successfully')) {
+    exit 1
+}
 exit 0

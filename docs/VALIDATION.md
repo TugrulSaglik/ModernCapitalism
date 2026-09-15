@@ -1,4 +1,6 @@
-# Milestone 1 validation
+# Validation
+
+## Milestone 1 baseline
 
 Tested on Windows with Godot 4.7.2 stable, September 14, 2026. No external test
 framework or runtime dependency was added.
@@ -42,12 +44,13 @@ settings and graphical shader caching also cannot write to the host's global
 user directory in this sandbox. These are environment messages; local log paths
 were used for execution. No simulation or UI script errors remain.
 
-## Design compromises and observed behavior
+## Milestone 1 historical compromises
 - Cash grows steadily because consumer spending comes from an external sector
   and no expansion/capital spending, taxes or household budgets exist yet. This
   validates operations, not a balanced complete-game macroeconomy.
-- Stable first-supplier/first-buyer order favors Orion over Nova. Both remain
-  viable; fair allocation and supplier selection belong in milestone 2.
+- At the Milestone 1 checkpoint, stable first-supplier/first-buyer order favored
+  Orion over Nova. Milestone 2 replaced first-supplier choice with ranked and
+  manually selectable sourcing; sequential scarce-stock allocation remains.
 - Wholesale delivery is instantaneous within one city; facilities do not yet
   have capital costs or spatial footprints.
 - Components stand in for paid external resources. Recipe and public technology
@@ -57,4 +60,55 @@ were used for execution. No simulation or UI script errors remain.
 - Snapshots are detached/versioned, but restore/migration/replay persistence is
   not implemented. Deterministic comparisons require matching engine/data.
 
-No later milestone has been implemented, and no commit or branch was created.
+At that checkpoint no later milestone had been implemented, and no commit or branch
+was created.
+
+## Milestone 2 validation
+
+Finalized on Windows with Godot 4.7.2 stable, September 15, 2026. The complete
+PowerShell harness imports the project and runs all foundation, Milestone 2,
+management-game and legacy-debug entry points.
+
+- Foundation harness: **1,524 checks, zero failures**.
+- Milestone 2 harness: **809 checks, zero failures**. Coverage includes all time
+  speeds and pause/resume, command validation and tick-boundary timing, observable
+  price effects on sales, deterministic supplier ranking and manual selection,
+  definition-order independence, exact save/load round trips, queued commands,
+  transactional rejection of invalid saves, and 365-day deterministic continuation
+  after loading in both starting eras.
+- Management-game smoke: **15 checks, zero failures**. The real main scene covers
+  continuous advancement and pause, facility price submission, wheel zoom, camera
+  translation, physics-ray facility selection, rival read-only controls, HUD
+  save/load, Settings/Debug unlock, Debug cash, 2012 era-lock presentation and
+  tutorial Debug hiding.
+- Legacy debug-scene smoke: loaded and advanced 30 days with clean invariants.
+
+Independent seed-42 headless runs also completed **3,650 days in each era**, with
+daily balance and inventory invariants checked after every tick:
+
+| Starting era | Days | Next date | Consumer units | Consumer revenue |
+| --- | ---: | --- | ---: | ---: |
+| 2012 | 3,650 | 2021-12-29 | 103,236 | $30,391,197.21 |
+| 2022 | 3,650 | 2031-12-30 | 129,466 | $41,369,506.79 |
+
+The 2012 run crossed the 2020 public technology gate without special era code.
+Both runs ended with nonnegative company cash. A non-headless OpenGL run loaded
+the real game scene, passed all 15 smoke checks and produced an inspected 1280×800
+frame with the city, HUD and facility-management panel visible without clipping.
+`git diff --check` passes; only the host root-certificate-store warning remains.
+
+## Current compromises and deferred work
+
+- Supplier offers are ranked fairly, but scarce wholesale stock is still allocated
+  sequentially by stable buyer/facility order rather than through market clearing.
+- The isometric city provides spatial context, camera controls and selection only.
+  Construction, placement, warehouses, shipments, lead times and transport costs
+  remain Milestone 3 work.
+- Saves deliberately require the same format, schema, engine and catalog hash.
+  No migration path or user-facing save browser exists yet.
+- Debug unlock is a local development convenience, not a security boundary. Its
+  effects are audited and saved; session access itself is always relocked on load.
+- The original simplified economy still has external consumer funds, no household
+  budgets, fixed quality, no active company research and only weekly retail-price AI.
+
+Milestone 2 was finalized without creating a commit or branch.

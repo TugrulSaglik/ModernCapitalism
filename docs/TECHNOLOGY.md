@@ -13,7 +13,7 @@ smartphones can be produced in both eras; advanced smartphones only in 2022 or
 after the date gate opens in a 2012 game. Dates are illustrative balancing data,
 not a claim to accurately date commercial inventions.
 
-Milestone 1 models public availability, not completed firm research. All firms
+The current simulation models public availability, not completed firm research. All firms
 can use publicly available technologies. Later work separates public discovery
 from company knowledge: starting-era scenarios grant baseline knowledge, research
 projects unlock newly public technology and improve existing products in either
@@ -26,3 +26,7 @@ technical quality and brand; current quality is a single bounded scalar. Keep
 improvements generic and versioned rather than creating a special script for
 each phone generation. Continuous improvement remains useful in 2022 even when
 most baseline categories are unlocked.
+
+Sandbox Debug can temporarily override public availability for the example
+technologies. The override is explicit simulation state, is included in saves and
+the Debug audit trail, and does not represent company research completion.
