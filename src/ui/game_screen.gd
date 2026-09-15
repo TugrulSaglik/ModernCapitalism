@@ -23,8 +23,19 @@ var save_directory: String = "user://saves"
 var speed_buttons: Dictionary = {}
 var selected_id: String = "20_player"
 var refresh_elapsed: float = 0.0
+var construction: VBoxContainer
+var build_choices: OptionButton
+var build_products: OptionButton
+var build_details: Label
+var build_reason: Label
+var demolition: ConfirmationDialog
 
 func _ready() -> void:
+	var backdrop: ColorRect = ColorRect.new()
+	backdrop.color = Color("182833")
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(backdrop)
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--save-dir="):
 			save_directory = argument.trim_prefix("--save-dir=")
@@ -48,6 +59,7 @@ func _ready() -> void:
 			refresh())
 		speed_buttons[speed] = button
 	_button(toolbar, "Company", _show_company)
+	_button(toolbar, "Build", _show_construction)
 	slot = SpinBox.new()
 	slot.min_value = 1
 	slot.max_value = 3
@@ -76,6 +88,7 @@ func _ready() -> void:
 	left.add_child(container)
 	city_viewport = SubViewport.new()
 	city_viewport.size = Vector2i(800, 650)
+	city_viewport.msaa_3d = Viewport.MSAA_4X
 	city_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	container.add_child(city_viewport)
 	_build_city()
@@ -88,6 +101,7 @@ func _ready() -> void:
 	inspector.command_requested.connect(func(command: Dictionary) -> void:
 		session.submit(command)
 		refresh())
+	_build_construction(body)
 	status = Label.new()
 	status.add_theme_font_size_override("font_size", 13)
 	status.clip_text = true
@@ -110,13 +124,30 @@ func _build_city() -> void:
 		city.queue_free()
 	city = City.new()
 	city_viewport.add_child(city)
+	city.session = session
 	city.build(session.sim.snapshot())
 	city.facility_selected.connect(select_facility)
+	city.placement_requested.connect(_place)
+	city.placement_changed.connect(func(reason: String) -> void:
+		if build_reason != null: build_reason.text = reason
+		if status != null: status.text = "Construction: " + reason)
+	city.placement_cancelled.connect(func() -> void:
+		if construction != null:
+			construction.hide()
+			inspector.visible = session.sim.facility(selected_id) != null)
+	_refresh_facility_list()
 
 func select_facility(id: String) -> void:
+	if session.sim.facility(id) == null:
+		selected_id = ""
+		inspector.selected_id = ""
+		inspector.hide()
+		city.select("")
+		return
 	selected_id = id
 	city.select(id)
 	inspector.bind(session, id)
+	inspector.visible = construction == null or not construction.visible
 	for index: int in range(facility_list.item_count):
 		if facility_list.get_item_metadata(index) == id:
 			facility_list.select(index)
@@ -136,6 +167,7 @@ func _input(event: InputEvent) -> void:
 	if settings.visible or overview.visible or get_viewport().gui_get_focus_owner() is LineEdit:
 		return
 	match event.keycode:
+		KEY_ESCAPE: city.cancel_placement()
 		KEY_SPACE: session.time.toggle_pause()
 		KEY_1: session.time.set_speed(1)
 		KEY_2: session.time.set_speed(2)
@@ -146,6 +178,10 @@ func _input(event: InputEvent) -> void:
 	refresh()
 
 func refresh() -> void:
+	if city.buildings.keys() != session.sim.city.plots.keys():
+		city.sync(session.sim.snapshot())
+		_refresh_facility_list()
+		select_facility(selected_id)
 	var owner: SimCompany = session.sim.companies[session.player_company]
 	date_label.text = "%s | %s" % [session.sim.clock.date_string(), "PAUSED" if session.time.speed == 0 else "%dx" % session.time.speed]
 	finance_label.text = "%s | Cash $%.2f | Today's profit $%.2f | Total profit $%.2f" % [owner.display_name, owner.cash / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0, owner.profit() / 100.0]
@@ -153,6 +189,9 @@ func refresh() -> void:
 		speed_buttons[speed].modulate = Color("ffe190") if session.time.speed == speed else Color.WHITE
 	inspector.refresh()
 	status.text = "%s | Pending commands: %d" % [session.message, session.sim.pending_commands.size()]
+	if not city.build_type.is_empty():
+		city.update_preview(city.preview_cell.x, city.preview_cell.y)
+		status.text = "Construction: " + build_reason.text
 	if overview.visible:
 		_update_company()
 
@@ -166,6 +205,7 @@ func _save() -> void:
 func _load() -> void:
 	if session.load_game(slot_path()):
 		_build_city()
+		city.cancel_placement()
 		select_facility(selected_id)
 		debug_panel.hide()
 		debug_entry.clear()
@@ -228,6 +268,7 @@ func _build_dialogs() -> void:
 func _new_session(era: int) -> void:
 	session.start(era)
 	_build_city()
+	city.cancel_placement()
 	select_facility("20_player")
 	debug_entry.clear()
 	debug_panel.hide()
@@ -259,3 +300,89 @@ func _update_company() -> void:
 	for owner: SimCompany in session.sim.companies.values():
 		lines.append("%s\nCash $%.2f | Inventory assets $%.2f\nRevenue $%.2f | COGS $%.2f | Overhead $%.2f | Profit $%.2f\n" % [owner.display_name, owner.cash / 100.0, session.sim.inventory_assets(owner.id) / 100.0, owner.revenue / 100.0, owner.cogs / 100.0, owner.expenses / 100.0, owner.profit() / 100.0])
 	overview_text.text = "\n".join(lines)
+
+func _refresh_facility_list() -> void:
+	facility_list.clear()
+	for f: SimFacility in session.sim.facilities:
+		facility_list.add_item(f.id + " / " + str(session.sim.companies[f.company_id].display_name))
+		facility_list.set_item_metadata(facility_list.item_count - 1, f.id)
+
+func _build_construction(parent: Node) -> void:
+	construction = VBoxContainer.new()
+	construction.custom_minimum_size.x = 410
+	parent.add_child(construction)
+	var title: Label = Label.new()
+	title.text = "CONSTRUCTION / METRO CITY"
+	title.add_theme_font_size_override("font_size", 22)
+	construction.add_child(title)
+	build_choices = OptionButton.new()
+	construction.add_child(build_choices)
+	for category: String in ["Retail", "Industrial"]:
+		build_choices.add_separator(category)
+		for id: String in session.sim.catalog.facility_types:
+			var definition: Dictionary = session.sim.catalog.facility_types[id]
+			if definition.category == category:
+				build_choices.add_item(str(definition.name))
+				build_choices.set_item_metadata(build_choices.item_count - 1, id)
+	build_choices.item_selected.connect(func(_index: int) -> void: _choose_build())
+	build_products = OptionButton.new()
+	construction.add_child(build_products)
+	build_products.item_selected.connect(func(_index: int) -> void: _begin_preview())
+	build_details = Label.new()
+	build_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	build_details.custom_minimum_size = Vector2(400, 160)
+	construction.add_child(build_details)
+	build_reason = Label.new()
+	build_reason.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	build_reason.custom_minimum_size = Vector2(400, 100)
+	construction.add_child(build_reason)
+	var hint: Label = Label.new()
+	hint.text = "Green: valid • Red: invalid\nClick land to build; right-click / Esc to cancel.\nCosts apply immediately, including while paused.\nEarlier queued management commands apply first."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	construction.add_child(hint)
+	_button(construction, "Cancel construction", func() -> void: city.cancel_placement())
+	construction.hide()
+	demolition = ConfirmationDialog.new()
+	demolition.title = "Demolish owned facility"
+	demolition.dialog_text = "Remove the selected facility permanently?\nRemaining inventory is written off. No refund."
+	add_child(demolition)
+	demolition.confirmed.connect(func() -> void:
+		session.submit({"type": "demolish_facility", "facility": selected_id})
+		refresh())
+	inspector.demolition_requested.connect(func() -> void: demolition.popup_centered())
+
+func _show_construction() -> void:
+	construction.show()
+	inspector.hide()
+	if build_choices.selected < 0 or build_choices.is_item_separator(build_choices.selected):
+		build_choices.select(1)
+	_choose_build()
+
+func _choose_build() -> void:
+	var id: String = str(build_choices.get_item_metadata(build_choices.selected))
+	var definition: Dictionary = session.sim.catalog.facility_types[id]
+	build_products.clear()
+	for product: String in definition.products:
+		if session.sim.available(product):
+			build_products.add_item(str(session.sim.catalog.products[product].name))
+			build_products.set_item_metadata(build_products.item_count - 1, product)
+	build_details.text = "$%.2f • %d × %d cells\nCapacity: %d/day • Overhead: $%.2f/day\n\n%s" % [definition.cost / 100.0, definition.width, definition.depth, definition.capacity, definition.overhead / 100.0, definition.description]
+	if definition.behavior == "storage":
+		build_details.text = "$%.2f • %d × %d cells\nOverhead: $%.2f/day\n\n%s" % [definition.cost / 100.0, definition.width, definition.depth, definition.overhead / 100.0, definition.description]
+	_begin_preview()
+
+func _begin_preview() -> void:
+	if build_products.selected >= 0:
+		city.begin_placement(str(build_choices.get_item_metadata(build_choices.selected)), str(build_products.get_item_metadata(build_products.selected)))
+
+func _place(x: int, y: int) -> void:
+	var next_id: String = "built_%06d" % session.sim.city.next_facility
+	var accepted: bool = session.submit({"type": "build_facility", "archetype": city.build_type, "product": city.build_product, "x": x, "y": y})
+	if accepted:
+		city.sync(session.sim.snapshot())
+		_refresh_facility_list()
+		city.cancel_placement()
+		select_facility(next_id)
+	else:
+		build_reason.text = session.message
+	refresh()

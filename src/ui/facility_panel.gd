@@ -2,6 +2,7 @@ class_name FacilityPanel
 extends PanelContainer
 
 signal command_requested(command: Dictionary)
+signal demolition_requested
 var selected_id: String = ""
 var session: GameSession
 var info: RichTextLabel
@@ -14,6 +15,7 @@ var apply_price: Button
 var apply_supplier: Button
 var apply_stock: Button
 var sourcing_info: RichTextLabel
+var demolish: Button
 
 func _ready() -> void:
 	custom_minimum_size.x = 410
@@ -38,6 +40,7 @@ func _ready() -> void:
 	operating = _button(column, "Suspend operation", func() -> void:
 		var f: SimFacility = session.sim.facility(selected_id)
 		command_requested.emit({"type": "set_operating", "facility": selected_id, "operating": not f.operating}))
+	demolish = _button(column, "Demolish facility…", func() -> void: demolition_requested.emit())
 	var stock_row: HBoxContainer = HBoxContainer.new()
 	column.add_child(stock_row)
 	stock = SpinBox.new()
@@ -78,7 +81,7 @@ func bind(game_session: GameSession, id: String) -> void:
 	var inputs: Dictionary = session.sim.catalog.products[f.product_id].inputs
 	if str(session.sim.catalog.facility_types[f.type_id].behavior) == "retail":
 		product.add_item(f.product_id)
-	else:
+	elif str(session.sim.catalog.facility_types[f.type_id].behavior) == "production":
 		var ids: Array = inputs.keys()
 		ids.sort()
 		for input: String in ids:
@@ -104,6 +107,8 @@ func refresh() -> void:
 	if session == null or selected_id.is_empty():
 		return
 	var f: SimFacility = session.sim.facility(selected_id)
+	if f == null:
+		return
 	var owner: SimCompany = session.sim.companies[f.company_id]
 	var definition: Dictionary = session.sim.catalog.products[f.product_id]
 	var lines: PackedStringArray = [f.id + " / " + owner.display_name,
@@ -113,16 +118,21 @@ func refresh() -> void:
 		"Today: made %d | consumer sales %d" % [f.produced_today, f.sold_today], "Inventory (units / book value):"]
 	for id: String in f.inventory.quantities:
 		lines.append("  %s: %d / $%.2f" % [id, f.inventory.quantity(id), f.inventory.value(id) / 100.0])
-	lines.append("Recipe inputs: " + str(definition.inputs))
+	if session.sim.catalog.facility_types[f.type_id].behavior == "production":
+		lines.append("Recipe inputs: " + str(definition.inputs))
+	elif session.sim.catalog.facility_types[f.type_id].behavior == "storage":
+		lines[3] = "Passive storage • automated logistics deferred"
 	var weekly: int = 0
 	for sale: Dictionary in f.recent_sales: weekly += int(sale.units)
 	lines.append("Recent 7 days: %d consumer units" % weekly)
 	lines.append("Owner daily revenue $%.2f / costs $%.2f / profit $%.2f" % [owner.daily_revenue / 100.0, (owner.daily_cogs + owner.daily_expenses) / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0])
 	info.text = "\n".join(lines)
 	var own: bool = f.company_id == session.player_company
-	apply_price.disabled = not own
+	demolish.disabled = not own
+	var storage: bool = session.sim.catalog.facility_types[f.type_id].behavior == "storage"
+	apply_price.disabled = not own or storage
 	apply_supplier.disabled = not own or product.item_count == 0
-	apply_stock.disabled = not own
+	apply_stock.disabled = not own or storage
 	operating.disabled = not own
 	operating.text = "Suspend operation" if f.operating else "Resume operation"
 	var details: PackedStringArray = []

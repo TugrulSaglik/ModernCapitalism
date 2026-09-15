@@ -22,6 +22,7 @@ var cumulative_consumer_units: int = 0
 var cumulative_consumer_revenue: int = 0
 var unlocked_technologies: Array[String] = []
 var debug_actions: Array[Dictionary] = []
+var city: CityMap = CityMap.new()
 
 func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json") -> bool:
 	catalog = Catalog.new()
@@ -57,7 +58,8 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 		var new_facility: SimFacility = Facility.new(definition)
 		new_facility.active = catalog.available(new_facility.product_id, era)
 		facilities.append(new_facility)
-	return true
+	city = CityMap.new()
+	return city.initialize(facilities, catalog)
 
 func facility(id: String) -> SimFacility:
 	for candidate: SimFacility in facilities:
@@ -72,17 +74,21 @@ func available(product: String) -> bool:
 	return catalog.products.has(product) and (str(catalog.products[product].technology) in unlocked_technologies or catalog.available(product, clock.year))
 
 func command_error(command: Dictionary) -> String:
+	if str(command.get("type", "")) == "build_facility":
+		return construction_error(command)
 	var target: SimFacility = facility(str(command.get("facility", "")))
 	if target == null or target.company_id != str(command.get("company", "")):
 		return "Unknown facility or company does not own it."
 	match str(command.get("type", "")):
+		"demolish_facility":
+			pass
 		"set_price":
 			if not command.get("price") is int or int(command.price) <= 0 or int(command.price) > 100000000:
 				return "Price must be integer cents between 1 and 100000000."
 		"set_supplier":
 			var product: String = str(command.get("product", ""))
 			var inputs: Dictionary = catalog.products[target.product_id].inputs
-			if not (product == target.product_id and _behavior(target) == "retail") and not inputs.has(product):
+			if not (product == target.product_id and _behavior(target) == "retail") and not (_behavior(target) == "production" and inputs.has(product)):
 				return "Facility does not source that product."
 			var supplier_id: String = str(command.get("supplier", ""))
 			if supplier_id != "":
@@ -106,12 +112,69 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"build_facility": _construct(command)
+				"demolish_facility": _demolish(target)
 				"set_price": target.price = int(command.price)
 				"set_supplier": target.suppliers[str(command.product)] = str(command.get("supplier", ""))
 				"set_operating": target.operating = bool(command.operating)
 				"set_stock_days": target.stock_days = int(command.days)
 		command_results.append({"command": command, "accepted": error.is_empty(), "error": error})
 	pending_commands.clear()
+
+# Hosts may explicitly flush the FIFO at a between-day boundary, without a tick.
+func process_commands() -> void:
+	_apply_commands()
+
+func construction_error(command: Dictionary) -> String:
+	if not companies.has(str(command.get("company", ""))):
+		return "Unknown construction owner."
+	if city.next_facility >= 1000000:
+		return "Facility ID limit reached."
+	var type_id: String = str(command.get("archetype", ""))
+	if not catalog.facility_types.has(type_id):
+		return "Unknown facility archetype."
+	var definition: Dictionary = catalog.facility_types[type_id]
+	var product: String = str(command.get("product", ""))
+	if product not in definition.products or not available(product):
+		return "Product is unsupported or era locked."
+	if command.get("city", "metro") != city.id or not command.get("x") is int or not command.get("y") is int:
+		return "Choose integer cells in this city."
+	var error: String = city.placement_error(command.x, command.y, int(definition.width), int(definition.depth))
+	if not error.is_empty():
+		return error
+	if companies[str(command.company)].cash < int(definition.cost):
+		return "Insufficient cash for construction."
+	return ""
+
+func _construct(command: Dictionary) -> void:
+	var definition: Dictionary = catalog.facility_types[str(command.archetype)]
+	var owner: SimCompany = companies[str(command.company)]
+	owner.pay_expense(int(definition.cost))
+	var product: String = str(command.product)
+	var price: int = int(catalog.products[product].reference_price)
+	if definition.behavior == "retail":
+		price = int(price * 1.3)
+	var f: SimFacility = Facility.new({"id": "built_%06d" % city.next_facility,
+		"company": owner.id, "city": city.id, "type": str(command.archetype),
+		"product": product, "capacity": int(definition.capacity), "price": price, "quality": 50})
+	city.next_facility += 1
+	facilities.append(f)
+	facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
+	city.occupy(f, command.x, command.y, definition)
+
+func _demolish(f: SimFacility) -> void:
+	var owner: SimCompany = companies[f.company_id]
+	var loss: int = f.inventory.total_value()
+	owner.expenses += loss
+	owner.daily_expenses += loss
+	facilities.erase(f)
+	city.plots.erase(f.id)
+	for other: SimFacility in facilities:
+		for product: String in other.suppliers.keys():
+			if other.suppliers[product] == f.id:
+				other.suppliers.erase(product)
+		for product: String in other.last_sources.keys():
+			other.last_sources[product] = other.last_sources[product].filter(func(source: Dictionary) -> bool: return source.supplier != f.id)
 
 func _ai_decisions() -> void:
 	if clock.tick % 7 != 0:
@@ -298,7 +361,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 2, "catalog_version": catalog.version,
+	return {"schema_version": 3, "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

@@ -52,7 +52,7 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 2
+## Milestone 3
 
 Implemented: the deterministic daily economy from Milestone 1 plus a continuous
 game session with pause, 1x, 2x, 4x and Max speeds; player price, operation, stock
@@ -62,6 +62,18 @@ The main scene presents an orthographic isometric city, selectable facilities,
 facility and company information, sandbox settings, and a session-scoped Debug
 panel. Starting years 2012 and 2022 continue to use the same data-driven public
 technology gates.
+
+Milestone 3 adds a deterministic city grid, roads and occupied footprints; six
+data-defined construction choices; placement previews; immediate paused
+construction; and owned-facility demolition. Shops, factories and warehouses
+have distinct procedural silhouettes and ownership colors. City and economy
+restore together using schema 3 / save format 2 (older saves are rejected).
+
+Use **Build**, choose a facility and product, then click a green site touching a
+road. Red previews explain invalid sites. Right-click or Escape cancels. Select
+an owned facility to manage or demolish it. Demolition requires confirmation,
+writes off its inventory and pays no refund. Construction is expensed immediately.
+Warehouses currently provide passive storage infrastructure; logistics is deferred.
 
 Open `project.godot` in Godot 4 (tested with **4.7.2**) and press **F5**. Game time
 runs continuously at one simulated day per real second at 1x. The legacy economic
@@ -78,7 +90,7 @@ $godot = 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe'
 & $godot --headless --path . --editor --quit
 # Run the management game.
 & $godot --path .
-# Complete automated harness: foundation, Milestone 2, and game-scene smoke tests.
+# Complete automated harness, including construction, persistence and long runs.
 ./tests/run_tests.ps1 -Godot $godot
 # Direct Godot-native harness (also works outside Windows).
 & $godot --headless --path . --script res://tests/run_tests.gd
@@ -88,6 +100,8 @@ $godot = 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe'
 & $godot --path . --script res://tests/debug_smoke.gd
 # Load the real game scene, exercise management integration, and capture a frame.
 & $godot --path . --script res://tests/game_smoke.gd
+# Repeatable construction workflow and eight rendered screenshots.
+& $godot --path . --log-file .godot/m3-visual.log --script res://tests/construction_smoke.gd
 ```
 
 The PowerShell wrapper fails on nonzero exit codes, failed assertions and Godot
@@ -105,6 +119,6 @@ to avoid attempts to write the default user log directory.
 - [Full-project roadmap](docs/ROADMAP.md)
 - [Validation results and limitations](docs/VALIDATION.md)
 
-Milestone 2 deliberately defers construction and placement, shipments and
-transport costs, actual company research, full financial statements, and broader
-catalog content. Those belong to later roadmap milestones.
+Screenshots are written to `.godot/m3-screenshots/`. Milestone 3 deliberately
+defers shipments and transport costs, active company research, full financial
+statements, multi-product stores and broader catalog content. See the roadmap.

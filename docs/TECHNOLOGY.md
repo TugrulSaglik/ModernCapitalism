@@ -30,3 +30,9 @@ most baseline categories are unlocked.
 Sandbox Debug can temporarily override public availability for the example
 technologies. The override is explicit simulation state, is included in saves and
 the Debug audit trail, and does not represent company research completion.
+
+Construction uses the same availability checks as production. Each archetype lists
+supported products; the Build menu filters those by the current year and Debug
+technology overrides. The simulation rechecks availability when the command runs.
+Ordinary facilities can be built in 2012 and 2022; advanced-phone production/retail
+construction is blocked in 2012 until public availability or an explicit Debug unlock.

@@ -1,7 +1,0 @@
-{
-  "facilities": {
-    "01_processors": [-9, -7], "02_displays": [-1, -7], "03_batteries": [7, -7],
-    "10_orion": [-9, 1], "11_nova": [-1, 1], "12_advanced": [7, 1],
-    "20_player": [-9, 9], "21_rival": [-1, 9], "22_advanced_store": [7, 9]
-  }
-}

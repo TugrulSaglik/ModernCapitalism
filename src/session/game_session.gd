@@ -32,6 +32,11 @@ func submit(command: Dictionary) -> bool:
 	if not message.is_empty():
 		return false
 	sim.queue_command(request)
+	if str(request.type) in ["build_facility", "demolish_facility"]:
+		sim.process_commands()
+		var result: Dictionary = sim.command_results.back()
+		message = "Applied at current boundary: " + str(request.type) if result.accepted else str(result.error)
+		return bool(result.accepted)
 	message = "Queued for next day: " + str(request.type)
 	return true
 

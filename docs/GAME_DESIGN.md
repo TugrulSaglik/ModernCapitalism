@@ -29,9 +29,34 @@ Difficulty changes scenario parameters and AI decision budgets; any economic
 advantages must be explicit settings, never hidden exceptions in core systems.
 
 ## Implemented foundation
-Daily headless economy, a small electronic-device chain, one abstract city,
+Daily headless economy, a small electronic-device chain, one city,
 cash-constrained production and trade, consumer sales, basic accrual accounts,
 price-adjusting AI and two starting eras. Milestone 2 adds continuous time,
 player management commands, ranked/manual sourcing, deterministic save/load,
-an orthographic city host and facility/company panels. Player construction,
-logistics, active research, stock exchange and credit are not implemented.
+an orthographic city host and facility/company panels. Milestone 3 adds city
+occupancy, roads, construction, demolition and category-specific procedural
+buildings. Logistics, active research, stock exchange and credit remain deferred.
+
+## Construction loop and starter archetypes
+Open Build, choose a facility/product, inspect its cost and size, and click a valid
+road-adjacent site. Construction works while paused. The new facility immediately
+appears in the management inspector, while its economic activity begins on the
+next day. Existing price, stock, supplier and suspension controls apply according
+to role. Owned demolition asks for confirmation and discards inventory, with no refund.
+
+| Archetype | Footprint | Cost | Role |
+| --- | --- | ---: | --- |
+| Small general store | 2 × 2 | $10,000 | Small retail, 10 units/day |
+| Electronics store | 3 × 2 | $20,000 | Device retail, 24 units/day |
+| Department store | 4 × 3 | $32,000 | Larger retail, 35 units/day |
+| Component plant | 4 × 3 | $35,000 | Component production, 40 units/day |
+| Assembly factory | 4 × 3 | $45,000 | Device production, 18 units/day |
+| Warehouse | 5 × 3 | $25,000 | Passive storage foundation |
+
+Definitions specify construction cost, footprint, category, visual style, behavior,
+capacity, overhead and supported products. All retail currently sells one selected
+phone product; the small catalog has not been expanded into groceries or general
+merchandise. Warehouse transfer controls/capacity enforcement await logistics;
+building one is currently an infrastructure expense, not an income opportunity.
+Debug cash controls remain sandbox-only and session-unlocked. No new cheat or
+free-building mode was added.

@@ -101,9 +101,8 @@ frame with the city, HUD and facility-management panel visible without clipping.
 
 - Supplier offers are ranked fairly, but scarce wholesale stock is still allocated
   sequentially by stable buyer/facility order rather than through market clearing.
-- The isometric city provides spatial context, camera controls and selection only.
-  Construction, placement, warehouses, shipments, lead times and transport costs
-  remain Milestone 3 work.
+- Milestone 3 adds construction, placement, roads and warehouse buildings.
+  Warehouse operations, shipments, lead times and transport costs remain deferred.
 - Saves deliberately require the same format, schema, engine and catalog hash.
   No migration path or user-facing save browser exists yet.
 - Debug unlock is a local development convenience, not a security boundary. Its
@@ -112,3 +111,110 @@ frame with the city, HUD and facility-management panel visible without clipping.
   budgets, fixed quality, no active company research and only weekly retail-price AI.
 
 Milestone 2 was finalized without creating a commit or branch.
+
+## Milestone 3 validation
+
+Validated on Windows / Godot 4.7.2, September 16, 2026. Git was clean before edits;
+history and all project documentation were inspected. No branch or commit was made.
+No Computer Use, external art, dependency or visible-editor automation was used.
+
+### Baseline and complete regression results
+
+| Suite | Before changes | Milestone 3 |
+| --- | ---: | ---: |
+| Foundation | 1,524 / 0 failures | 1,524 / 0 failures |
+| Milestone 2 | 809 / 0 failures | 809 / 0 failures |
+| Existing game smoke | 15 / 0 failures | 15 / 0 failures |
+| Legacy debug smoke | Passed 30-day flow | Passed 30-day flow |
+| Milestone 3 simulation | — | 7,410 / 0 failures |
+| Construction smoke, headless | — | 18 / 0 failures |
+| Construction smoke, rendered | — | 26 / 0 failures, including 8 PNG writes |
+
+The complete `tests/run_tests.ps1` imports and runs all six headless entry points.
+New tests cover deterministic/detached city serialization; every archetype;
+bounds, roads/access, overlap, wrong city, unsupported products, era gates,
+noninteger coordinates, insufficient cash and forged ownership; construction cost
+and account invariants; real retail sourcing/sales; warehouse role; FIFO conflicts;
+paused timing; suspension; demolition/inventory loss; supplier cleanup; stable IDs;
+rebuilding freed land; exact saves with dynamic facilities and pending commands;
+corrupt city rejection; replay and post-load long-run continuation. Existing Debug
+unlock/cash controls are preserved and used in the new tests.
+
+### Long runs with constructed businesses
+
+Each era has a replay pair: construct a retailer, component plant and warehouse,
+demolish the warehouse, modify retail price, save/load one copy and run 3,650 days.
+Both copies check cash/inventory/account invariants every day, compare full state
+annually and at completion, and finish identically.
+
+| Era | Days per copy | Final date | Consumer units | Revenue, cents |
+| --- | ---: | --- | ---: | ---: |
+| 2012 | 3,650 | 2021-12-29 | 115,350 | 3,493,052,102 |
+| 2022 | 3,650 | 2031-12-30 | 141,530 | 4,589,243,489 |
+
+The new exact-load test exposed JSON rounding of floating-point market ratios;
+format 2 now preserves their binary values in tagged records. Integer and RNG
+precision protections remain. Schema 3 validates reconstructed city occupancy and
+all dynamic facilities before replacing the live session. Old saves are rejected.
+
+### Repeatable graphical validation
+
+Run from the project root using the installed Godot console executable:
+
+```powershell
+& $godot --path . --log-file .godot/m3-visual.log --script res://tests/construction_smoke.gd
+```
+
+The harness loads the real main scene, pauses 2022, opens Build, chooses retail,
+projects synthetic cursor motion onto invalid and valid ground, clicks placement,
+checks cash/state/selection, ray-selects the built facility, changes price, builds
+an assembly factory and warehouse, saves, confirms demolition, loads, compares
+exact state, demolishes again, and repeats retail construction in 2012. It also
+checks cancellation and the 2012 product menu. Headless mode runs the same actions
+without image capture. Rendered mode uses `frame_post_draw` and viewport texture
+capture, writing ignored artifacts to `.godot/m3-screenshots/`:
+
+1. `01-overview.png`
+2. `02-selected-retail.png`
+3. `03-selected-factory.png`
+4. `04-preview-invalid.png`
+5. `05-preview-valid.png`
+6. `06-expanded-city.png`
+7. `07-after-demolition.png`
+8. `08-city-2012.png`
+
+Screenshots were directly inspected, then refined and recaptured. The first pass
+had tiny labels, speckled cell seams and weak selection/ownership differentiation.
+The refinement removed ground seams, enabled MSAA, enlarged selected-only labels,
+added gold footprint outlines, tinted roofs by owner and unified the HUD background.
+Warehouse text now states its passive role; demolition is near the operation button.
+At 1280×800 the city fits, silhouettes differ, controls/preview reasons are readable,
+and the scrollable inspector contains the longer sourcing list. The initial framing
+leaves margin around the map for navigation; zoom reveals closer building detail.
+These are procedural placeholders, not final art or a claim of final UI polish.
+
+### Remaining limits
+
+The map is fixed, flat and single-city; land is free, building orientation fixed,
+construction instantaneous and costs expensed. Warehouses are passive placeholders
+for operational logistics, with no transfer UI/capacity enforcement. Retail is
+single-product using the existing small catalog. No HQ/R&D/advertising/stock-market
+simulation, broader products, strategic AI, traffic, tutorial campaign or full
+sandbox setup was added. Debug remains session-unlocked and relocks on load.
+The host still reports its pre-existing root-certificate-store warning; no script
+errors or failing assertions remain. `git diff --check` is part of final review.
+
+### File inventory
+
+New: `src/sim/city_map.gd`, `tests/milestone3_tests.gd`,
+`tests/construction_smoke.gd`, and their Godot-generated `.uid` companions.
+
+Modified: `src/sim/catalog.gd`, `src/sim/economy.gd`,
+`src/session/game_session.gd`, `src/session/save_store.gd`,
+`src/ui/city_view.gd`, `src/ui/game_screen.gd`, `src/ui/facility_panel.gd`,
+`data/example_economy.json`, `tests/run_tests.ps1`, `README.md`, and existing
+`docs/ARCHITECTURE.md`, `docs/ECONOMY.md`, `docs/GAME_DESIGN.md`,
+`docs/TECHNOLOGY.md`, `docs/ROADMAP.md`, `docs/VALIDATION.md`.
+
+Removed: `data/city_layout.json`; starting positions now belong to scenario data.
+Main scene wiring remains unchanged and the existing tests were preserved.

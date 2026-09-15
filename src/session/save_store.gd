@@ -2,12 +2,14 @@ class_name SaveStore
 extends RefCounted
 
 const Simulation = preload("res://src/sim/economy.gd")
-const FORMAT_VERSION: int = 1
+const FORMAT_VERSION: int = 2
 const DATA_PATH: String = "res://data/example_economy.json"
 var error: String = ""
 
 # Tag integer values so JSON parsing never rounds a 64-bit cash or RNG value.
 static func encode(value: Variant) -> Variant:
+	if value is float:
+		return {"$f64": var_to_bytes(value).hex_encode()}
 	if value is int:
 		return {"$i64": str(value)}
 	if value is Dictionary:
@@ -24,6 +26,12 @@ static func encode(value: Variant) -> Variant:
 
 static func decode(value: Variant) -> Variant:
 	if value is Dictionary:
+		if value.size() == 1 and value.get("$f64") is String:
+			var bytes: PackedByteArray = str(value["$f64"]).hex_decode()
+			if ((bytes.size() == 8 and str(value["$f64"]).begins_with("03000000")) or (bytes.size() == 12 and str(value["$f64"]).begins_with("03000100"))) and bytes.hex_encode() == value["$f64"]:
+				var decoded_float: Variant = bytes_to_var(bytes)
+				if decoded_float is float and is_finite(decoded_float):
+					return decoded_float
 		if value.size() == 1 and value.get("$i64") is String:
 			var number: String = value["$i64"]
 			if number.is_valid_int() and str(int(number)) == number:
@@ -106,9 +114,31 @@ func restore(state: Dictionary) -> Economy:
 		return null
 	if not sim.initialize(int(state.seed), int(state.starting_year)):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 2 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 3 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
-	if state.companies.size() != sim.companies.size() or state.facilities.size() != sim.facilities.size():
+	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
+		return null
+	var facility_template: Dictionary = sim.facilities[0].snapshot()
+	var restored: Array[SimFacility] = []
+	var restored_ids: Dictionary = {}
+	for item: Variant in state.facilities:
+		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.products.has(item.product) or item.city != sim.city.id:
+			return null
+		var original: SimFacility = sim.facility(item.id)
+		if original != null:
+			if item.company != original.company_id or item.type != original.type_id or item.product != original.product_id or item.capacity != original.capacity or item.quality != original.quality:
+				return null
+		else:
+			var definition: Dictionary = sim.catalog.facility_types[item.type]
+			if not item.id.begins_with("built_") or not item.id.trim_prefix("built_").is_valid_int() or int(item.id.trim_prefix("built_")) < 1 or item.id != "built_%06d" % int(item.id.trim_prefix("built_")) or item.product not in definition.products or item.capacity != int(definition.capacity) or item.quality != 50:
+				return null
+		var created: SimFacility = SimFacility.new(item)
+		restored.append(created)
+		restored_ids[item.id] = true
+	# Deleted scenario facilities are valid. All live IDs must exist before supplier validation.
+	sim.facilities = restored
+	sim.facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
+	if not sim.city.restore(state.city, sim.facilities, sim.catalog):
 		return null
 	var saved_clock: Dictionary = state.clock
 	if not nonnegative(saved_clock.tick) or saved_clock.tick > 365000:

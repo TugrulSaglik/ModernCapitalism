@@ -34,4 +34,15 @@ $debugOutput | ForEach-Object { Write-Host $_ }
 if ($debugExit -ne 0 -or ($debugOutput -match 'SCRIPT ERROR:|Parse Error:|FAIL:') -or -not ($debugOutput -match 'DEBUG SMOKE: scene loaded and advanced 30 days successfully')) {
     exit 1
 }
+foreach ($suite in @(
+    @{ Script = 'milestone3_tests.gd'; Marker = 'M3 TEST RESULT' },
+    @{ Script = 'construction_smoke.gd'; Marker = 'M3 VISUAL RESULT' }
+)) {
+    $suiteOutput = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot ('.godot/' + $suite.Script + '.log')) --script ('res://tests/' + $suite.Script) 2>&1
+    $suiteExit = $LASTEXITCODE
+    $suiteOutput | ForEach-Object { Write-Host $_ }
+    if ($suiteExit -ne 0 -or ($suiteOutput -match 'SCRIPT ERROR:|Parse Error:|FAIL:') -or -not ($suiteOutput -match ($suite.Marker + ': \d+ checks, 0 failures'))) {
+        exit 1
+    }
+}
 exit 0

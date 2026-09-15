@@ -17,6 +17,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | GameSession | Own the Economy, player authorization, mode, save/load and Debug access |
 | GameTime | Convert frame deltas and selected speed into bounded calls to `Economy.step` |
 | SaveStore | Validate, encode, atomically write and transactionally restore session state |
+| CityMap | Serializable cells, road mask, ownership/footprints and monotonic facility IDs |
 | City / management UI | Render snapshots, select facilities and submit plain-data commands |
 | Debug screen / CLI | Construct Economy, submit commands, advance ticks, read snapshots |
 
@@ -42,11 +43,11 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-2 economy snapshots contain catalog/scenario/era identity, clock, initial
+Schema-3 economy snapshots contain city state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
-state. SaveStore tags every integer before JSON encoding, fingerprints the catalog,
+state. SaveStore format 2 tags integers and binary floating-point values before JSON encoding, fingerprints the catalog,
 pins the Godot engine version, writes through a same-directory temporary file, and
 validates all restored state before replacing the live session. Unsupported format,
 schema, engine or catalog versions are rejected; migrations are not yet provided.
@@ -75,3 +76,54 @@ add migration aliases rather than renaming persisted IDs.
 
 Do not create empty framework classes for every future system now. Extract phase
 services when complexity requires them, preserving the phase order and test seams.
+
+## City, construction and rendering (Milestone 3)
+Economy owns one CityMap for `metro`: a 32 × 24 grass grid with roads on rows
+6/13/20 and columns 1/30. All other in-bounds, unoccupied cells are buildable.
+Plots map facility IDs to integer origin, width, depth and owner. The facility
+holds its city/type ID; type is the archetype. Scenario starting positions live
+in the catalog's `scenario.city_layout`, replacing the former presentation file.
+Save validation reconstructs occupancy and rejects overlaps, changed roads,
+wrong owners, invalid footprints and reused construction IDs.
+
+`build_facility` specifies archetype, product, integer x/y and optional city ID.
+The session injects the player owner. Economy validates type/product availability,
+cash, bounds, non-overlap, road exclusion and at least one orthogonally adjacent
+road cell. Successful construction expenses the catalog cost, assigns a monotonic
+`built_000001`-style ID, creates an ordinary SimFacility and occupies the plot.
+Manufacturing and retail use the existing daily phases, sourcing and accounts.
+Storage has no production or retail phase; warehouse logistics is deferred.
+
+`demolish_facility` requires ownership. It writes off inventory, removes the plot
+and facility, clears supplier policies pointing to it (returning them to automatic),
+and removes live last-source references. Historical company/market totals remain.
+There is no refund, land purchase, construction delay, depreciation or rotation.
+
+GameSession submits build/demolish to the existing FIFO and immediately flushes
+all pending commands at the current between-day boundary. Earlier management
+commands execute first. Preconditions are rechecked per command; rejection consumes
+neither money nor an ID. No clock, demand RNG or production advances. This explicit
+boundary action works identically when running or paused. Normal management alone
+still waits for the next daily tick. Direct headless queued construction also works
+at the normal tick boundary and survives saving. Placement UI state is transient;
+load/new session cancels the preview, while accepted commands and city state persist.
+
+CityView reads snapshots and builds procedural meshes and collision bodies tagged
+with facility IDs. Its ground-ray projection maps cursor position to integer cells;
+the preview calls the same economic validation as construction. The HUD submits
+commands and refreshes buildings/list selection after structural changes. Scene
+nodes never own city state. Owner-tinted roofs/signs, shop windows/awnings, factory
+equipment/stacks and warehouse loading bays express category and ownership. Selected
+facilities show a footprint outline and billboard label. Orthographic navigation
+retains WASD/arrows and wheel zoom, with focus limits ±22/±17 and zoom 18–65.
+
+Future land prices/districts/zones can attach cell metadata; logistics can use grid
+positions and road cells. Multiple cities can index CityMap by city ID without
+moving simulation into scenes. Corporate archetypes can extend the same catalog
+and command path when their behavior exists; no empty HQ/R&D systems were added.
+
+Save format 2 preserves floating-point report values through binary tags because
+Godot JSON parsing can otherwise change the final bits of ratios. Schema 3 restores
+both scenario and constructed facilities, including deletions. Old schema/format
+saves are deliberately rejected, not migrated. Engine/catalog matching and
+transactional candidate validation still apply.

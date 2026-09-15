@@ -2,21 +2,26 @@
 
 | Milestone | Deliverable | Dependencies |
 | --- | --- | --- |
-| 1 — Foundation (implemented) | Headless daily economy, data, companies, production, trade, retail, accounts, minimal AI, era gates, tests/debug host | Empty Godot project |
-| 2 — Reliable player operations and persistence (implemented) | Configure/source commands, validation feedback, company/market panels, versioned save/load and deterministic continuation; ranked sourcing; initial isometric management host | 1 |
-| 3 — Playable city and logistics | Placeholder isometric city, placement, warehouses, shipments, transport costs, facility upgrades | 2 |
-| 4 — Rich markets and statements | Household segments/budgets, substitution, brand/advertising, quality lots, full journals, balance sheet/cash flow, borrowing | 2; logistics costs from 3 |
-| 5 — Research and catalog expansion | Company research, technology progression, efficiency, resources, farming, broader modern chains | 3–4; era definitions from 1 |
-| 6 — Competitive management | AI investment/sourcing/research, headquarters, hiring, difficulty settings and long-run balancing | 2–5 |
-| 7 — Corporate finance | Public/private ownership, share registry, exchange, valuation, issuance, dividends, acquisitions/control | 4 and 6 |
-| 8 — Modes and scale | Guided tutorials, configurable sandbox, multiple cities, regional markets, performance budgets | 3–7 |
-| 9 — Complete-game production | Catalog breadth, polished dense UI/city art, accessibility, audio, scenarios, balancing and regression suites | 1–8 |
+| 1 — Foundation (implemented) | Deterministic daily economy, catalog, production, trade, retail, accounting, AI pricing and era gates | Empty Godot project |
+| 2 — Player operations and persistence (implemented) | Management/sourcing commands, continuous time, versioned saves, session Debug and isometric host | 1 |
+| 3 — City, construction and visual foundation (implemented) | Serializable city/roads/footprints, paused construction, archetypes, owned demolition, procedural buildings and screenshot regression workflow | 2 |
+| 4 — Warehouses and explicit logistics (recommended next) | Usable storage transfers/capacity, shipments, delivery timing, distance/cost accounting, supplier reliability and logistics UI | 3 |
+| 5 — Rich markets and financial statements | Household budgets/segments, substitution, broader retail, brand/advertising, quality lots, journals, fixed assets/depreciation, balance sheet/cash flow and borrowing | 2–4 |
+| 6 — Research and catalog expansion | Active company R&D, technology progression, efficiency, resources, agriculture and broader modern product chains | 3–5; era gates from 1 |
+| 7 — Competitive management | AI investment/sourcing/research, headquarters, hiring, difficulty and long-run balancing | 2–6 |
+| 8 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 5 and 7 |
+| 9 — Modes and scale | Tutorial campaign, configurable sandbox, multiple cities, regional demand/markets and performance budgets | 3–8 |
+| 10 — Complete-game production | Catalog breadth, polished dense UI/city art, accessibility, audio, scenarios, balancing and regression suites | 1–9 |
 
-Milestone 2 makes the existing economy controllable and restorable without
-enlarging the catalog. Construction was not pulled forward; the initial city is a
-selection/management host, while placement and logistics remain Milestone 3.
-Every milestone retains headless runs and adds
-invariant tests for its new systems. Tutorial content follows stable gameplay;
-scenario definitions and shared simulation support both modes from the start.
-Stock trading must wait for trustworthy statements and ownership semantics.
-Multiple cities must wait for explicit delivery and locality.
+Milestone 3 intentionally separated construction from logistics. Warehouse buildings
+and inventories exist, but automated transfers, transport costs, shipments and
+capacity management do not. Milestone 4 should make those buildings operationally
+useful with explicit payment/ownership/delivery timing and deterministic tests.
+Do not add vehicles or traffic merely to visualize shipments.
+
+Later milestones retain the broad Capitalism-style scope: HQ, R&D, advertising,
+stock market/control, advanced AI, broad retail/product catalogs and multiple cities.
+Every milestone preserves headless execution and expands invariants and save tests.
+Tutorials use the same commands and simulation as sandbox. Stock trading waits for
+trustworthy statements and ownership semantics; multiple cities wait for explicit
+locality and delivery. No branch or commit is created automatically.

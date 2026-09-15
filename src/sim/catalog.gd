@@ -45,8 +45,25 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 			errors.append("Invalid facility: " + id)
 	for id: String in facility_types:
 		var f: Dictionary = facility_types[id]
-		if str(f.get("behavior", "")) not in ["production", "retail"] or int(f.get("overhead", -1)) < 0:
+		if str(f.get("behavior", "")) not in ["production", "retail", "storage"] or int(f.get("overhead", -1)) < 0 or int(f.get("width", 0)) < 1 or int(f.get("depth", 0)) < 1 or int(f.get("cost", 0)) <= 0 or int(f.get("capacity", 0)) <= 0:
 			errors.append("Invalid facility type: " + id)
+		if not f.get("products") is Array or f.get("products", []).is_empty():
+			errors.append("Facility type requires supported products: " + id)
+		else:
+			for product: Variant in f.products:
+				if not product is String or not products.has(product):
+					errors.append("Unknown archetype product: " + id)
+	if not scenario.get("city_layout") is Dictionary:
+		errors.append("Scenario requires city layout")
+	else:
+		for id: String in facilities:
+			var point: Variant = scenario.city_layout.get(id)
+			if not point is Array or point.size() != 2:
+				errors.append("Missing city position: " + id)
+			else:
+				for coordinate: Variant in point:
+					if not (coordinate is int or coordinate is float) or float(coordinate) != floor(float(coordinate)):
+						errors.append("Invalid city coordinate: " + id)
 	if companies.is_empty() or products.is_empty() or scenario.get("starting_years", []).is_empty():
 		errors.append("Catalog requires companies, products and starting years")
 	return errors.is_empty()

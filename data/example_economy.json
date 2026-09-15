@@ -1,41 +1,45 @@
 {
   "version": 1,
   "technologies": [
-    {"id": "electronics", "year": 2000, "prerequisites": []},
-    {"id": "mobile_computing", "year": 2007, "prerequisites": ["electronics"]},
-    {"id": "advanced_mobile", "year": 2020, "prerequisites": ["mobile_computing"]}
+    {"id":"electronics","year":2000,"prerequisites":[]},
+    {"id":"mobile_computing","year":2007,"prerequisites":["electronics"]},
+    {"id":"advanced_mobile","year":2020,"prerequisites":["mobile_computing"]}
   ],
   "products": [
-    {"id": "processor", "name": "Mobile processor", "category": "components", "technology": "electronics", "reference_price": 6000, "conversion_cost": 3500, "daily_demand": 0, "inputs": {}},
-    {"id": "display", "name": "Device display", "category": "components", "technology": "electronics", "reference_price": 4000, "conversion_cost": 2000, "daily_demand": 0, "inputs": {}},
-    {"id": "battery", "name": "Battery pack", "category": "energy_storage", "technology": "electronics", "reference_price": 2000, "conversion_cost": 1000, "daily_demand": 0, "inputs": {}},
-    {"id": "smartphone", "name": "Smartphone", "category": "consumer_devices", "technology": "mobile_computing", "reference_price": 24000, "conversion_cost": 3000, "daily_demand": 44, "inputs": {"processor": 1, "display": 1, "battery": 1}},
-    {"id": "advanced_phone", "name": "Advanced smartphone", "category": "consumer_devices", "technology": "advanced_mobile", "reference_price": 38000, "conversion_cost": 5000, "daily_demand": 18, "inputs": {"processor": 2, "display": 1, "battery": 2}}
+    {"id":"processor","name":"Mobile processor","category":"components","technology":"electronics","reference_price":6000,"conversion_cost":3500,"daily_demand":0,"inputs":{}},
+    {"id":"display","name":"Device display","category":"components","technology":"electronics","reference_price":4000,"conversion_cost":2000,"daily_demand":0,"inputs":{}},
+    {"id":"battery","name":"Battery pack","category":"energy_storage","technology":"electronics","reference_price":2000,"conversion_cost":1000,"daily_demand":0,"inputs":{}},
+    {"id":"smartphone","name":"Smartphone","category":"consumer_devices","technology":"mobile_computing","reference_price":24000,"conversion_cost":3000,"daily_demand":44,"inputs":{"processor":1,"display":1,"battery":1}},
+    {"id":"advanced_phone","name":"Advanced smartphone","category":"consumer_devices","technology":"advanced_mobile","reference_price":38000,"conversion_cost":5000,"daily_demand":18,"inputs":{"processor":2,"display":1,"battery":2}}
   ],
   "facility_types": [
-    {"id": "component_plant", "behavior": "production", "overhead": 12000},
-    {"id": "assembly_plant", "behavior": "production", "overhead": 18000},
-    {"id": "electronics_store", "behavior": "retail", "overhead": 10000}
+    {"width":4,"id":"component_plant","cost":3500000,"capacity":40,"behavior":"production","style":"factory","category":"Industrial","depth":3,"overhead":12000,"name":"Component plant","description":"Produces components from paid external resources.","products":["processor","display","battery"]},
+    {"width":4,"id":"assembly_plant","cost":4500000,"capacity":18,"behavior":"production","style":"factory","category":"Industrial","depth":3,"overhead":18000,"name":"Assembly factory","description":"Sources components and manufactures devices.","products":["smartphone","advanced_phone"]},
+    {"width":3,"id":"electronics_store","cost":2000000,"capacity":24,"behavior":"retail","style":"shop","category":"Retail","depth":2,"overhead":10000,"name":"Electronics store","description":"Sources devices and sells to local consumers.","products":["smartphone","advanced_phone"]},
+    {"width":2,"id":"convenience_store","cost":1000000,"capacity":10,"behavior":"retail","style":"shop","category":"Retail","depth":2,"overhead":5000,"name":"Small general store","description":"Small retail outlet; starter catalog currently offers phones.","products":["smartphone"]},
+    {"width":4,"id":"department_store","cost":3200000,"capacity":35,"behavior":"retail","style":"department","category":"Retail","depth":3,"overhead":16000,"name":"Department store","description":"Higher throughput retail; one selected product for now.","products":["smartphone","advanced_phone"]},
+    {"width":5,"id":"warehouse","cost":2500000,"capacity":100,"behavior":"storage","style":"warehouse","category":"Industrial","depth":3,"overhead":3000,"name":"Warehouse","description":"Passive inventory storage. Automated logistics is deferred.","products":["processor","display","battery","smartphone","advanced_phone"]}
   ],
   "scenario": {
     "id": "device_competition", "starting_years": [2012, 2022],
     "companies": [
-      {"id": "components", "name": "Circuit Supply", "ai": false, "cash": 50000000},
-      {"id": "maker_a", "name": "Orion Devices", "ai": false, "cash": 30000000},
-      {"id": "maker_b", "name": "Nova Devices", "ai": false, "cash": 30000000},
-      {"id": "player", "name": "Player Electronics", "ai": false, "cash": 20000000},
-      {"id": "rival", "name": "Metro Electronics", "ai": true, "cash": 20000000}
+      {"id":"components","name":"Circuit Supply","ai":false,"cash":50000000},
+      {"id":"maker_a","name":"Orion Devices","ai":false,"cash":30000000},
+      {"id":"maker_b","name":"Nova Devices","ai":false,"cash":30000000},
+      {"id":"player","name":"Player Electronics","ai":false,"cash":20000000},
+      {"id":"rival","name":"Metro Electronics","ai":true,"cash":20000000}
     ],
     "facilities": [
-      {"id": "01_processors", "company": "components", "city": "metro", "type": "component_plant", "product": "processor", "capacity": 55, "price": 6000, "quality": 50},
-      {"id": "02_displays", "company": "components", "city": "metro", "type": "component_plant", "product": "display", "capacity": 40, "price": 4000, "quality": 50},
-      {"id": "03_batteries", "company": "components", "city": "metro", "type": "component_plant", "product": "battery", "capacity": 55, "price": 2000, "quality": 50},
-      {"id": "10_orion", "company": "maker_a", "city": "metro", "type": "assembly_plant", "product": "smartphone", "capacity": 18, "price": 24000, "quality": 55},
-      {"id": "11_nova", "company": "maker_b", "city": "metro", "type": "assembly_plant", "product": "smartphone", "capacity": 18, "price": 24000, "quality": 50},
-      {"id": "12_advanced", "company": "maker_b", "city": "metro", "type": "assembly_plant", "product": "advanced_phone", "capacity": 12, "price": 38000, "quality": 65},
-      {"id": "20_player", "company": "player", "city": "metro", "type": "electronics_store", "product": "smartphone", "capacity": 24, "price": 31000, "quality": 55},
-      {"id": "21_rival", "company": "rival", "city": "metro", "type": "electronics_store", "product": "smartphone", "capacity": 24, "price": 30000, "quality": 50},
-      {"id": "22_advanced_store", "company": "rival", "city": "metro", "type": "electronics_store", "product": "advanced_phone", "capacity": 15, "price": 49000, "quality": 65}
-    ]
+      {"id":"01_processors","company":"components","city":"metro","type":"component_plant","product":"processor","capacity":55,"price":6000,"quality":50},
+      {"id":"02_displays","company":"components","city":"metro","type":"component_plant","product":"display","capacity":40,"price":4000,"quality":50},
+      {"id":"03_batteries","company":"components","city":"metro","type":"component_plant","product":"battery","capacity":55,"price":2000,"quality":50},
+      {"id":"10_orion","company":"maker_a","city":"metro","type":"assembly_plant","product":"smartphone","capacity":18,"price":24000,"quality":55},
+      {"id":"11_nova","company":"maker_b","city":"metro","type":"assembly_plant","product":"smartphone","capacity":18,"price":24000,"quality":50},
+      {"id":"12_advanced","company":"maker_b","city":"metro","type":"assembly_plant","product":"advanced_phone","capacity":12,"price":38000,"quality":65},
+      {"id":"20_player","company":"player","city":"metro","type":"electronics_store","product":"smartphone","capacity":24,"price":31000,"quality":55},
+      {"id":"21_rival","company":"rival","city":"metro","type":"electronics_store","product":"smartphone","capacity":24,"price":30000,"quality":50},
+      {"id":"22_advanced_store","company":"rival","city":"metro","type":"electronics_store","product":"advanced_phone","capacity":15,"price":49000,"quality":65}
+    ],
+    "city_layout": {"01_processors":[3,3.0],"21_rival":[10,18],"02_displays":[10,3.0],"11_nova":[10,10.0],"03_batteries":[17,3.0],"10_orion":[3,10.0],"12_advanced":[17,10.0],"22_advanced_store":[17,18],"20_player":[3,18]}
   }
 }

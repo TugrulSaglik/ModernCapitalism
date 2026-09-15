@@ -63,3 +63,20 @@ Do not sum intercompany revenue to measure final consumer spending.
 Reports describe the day just completed; displayed clock is the next day to run.
 Quality is fixed per facility output/offer initially; provenance and quality-mixed
 lots are deferred. Negative inventory, free purchases and overdrafts are rejected.
+
+## Construction and demolition (Milestone 3)
+Construction costs are immediate operating expenses in this simplified ledger,
+not capitalized buildings. Thus cash falls and expense rises by the same amount,
+preserving the existing cash + inventory balance invariant. Scenario buildings
+have no opening fixed-asset book value. A later finance milestone should introduce
+fixed assets and depreciation explicitly, rather than silently changing this rule.
+
+Demolition discards inventory at its exact carrying value, recognizing that value
+as expense without a cash payment or refund. No disposal charge or salvage applies.
+Land becomes available immediately. Suspending a facility retains its inventory
+and plot. Warehouse buildings incur their configured overhead when operating but
+do not automatically source, manufacture, ship or retail goods.
+
+Build/demolish commands flush the FIFO between days, including while paused.
+Their expenses appear in daily totals immediately; the next tick resets daily
+accounts as usual, while cumulative expenses persist. The UI states this timing.
