@@ -36,7 +36,9 @@ if ($debugExit -ne 0 -or ($debugOutput -match 'SCRIPT ERROR:|Parse Error:|FAIL:'
 }
 foreach ($suite in @(
     @{ Script = 'milestone3_tests.gd'; Marker = 'M3 TEST RESULT' },
-    @{ Script = 'construction_smoke.gd'; Marker = 'M3 VISUAL RESULT' }
+    @{ Script = 'construction_smoke.gd'; Marker = 'M3 VISUAL RESULT' },
+    @{ Script = 'milestone4_tests.gd'; Marker = 'M4 TEST RESULT' },
+    @{ Script = 'logistics_smoke.gd'; Marker = 'M4 VISUAL RESULT' }
 )) {
     $suiteOutput = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot ('.godot/' + $suite.Script + '.log')) --script ('res://tests/' + $suite.Script) 2>&1
     $suiteExit = $LASTEXITCODE

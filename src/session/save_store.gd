@@ -114,7 +114,7 @@ func restore(state: Dictionary) -> Economy:
 		return null
 	if not sim.initialize(int(state.seed), int(state.starting_year)):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 3 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 4 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -158,13 +158,25 @@ func restore(state: Dictionary) -> Economy:
 		template["inventory_assets"] = 0
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
 		if absi(item.capital) > 100000000000000:
 			return null
 		owner.capital = item.capital
+		if item.freight + item.depreciation > item.expenses or absi(item.recorded_profit) > 100000000000000 or item.daily_history.size() > 367 or item.monthly_history.size() > 13: return null
+		owner.recorded_profit = item.recorded_profit
+		var previous: String = ""
+		for entry: Variant in item.daily_history:
+			if not shape(entry, {"date": "", "profit": 0}) or entry.date <= previous or entry.date > sim.clock.date_string() or absi(entry.profit) > 100000000000000: return null
+			previous = entry.date
+			owner.daily_history.append(entry.duplicate(true))
+		previous = ""
+		for entry: Variant in item.monthly_history:
+			if not shape(entry, {"month": "", "profit": 0}) or entry.month <= previous or entry.month > sim.clock.date_string().substr(0, 7) or absi(entry.profit) > 100000000000000: return null
+			previous = entry.month
+			owner.monthly_history.append(entry.duplicate(true))
 	seen.clear()
 	for item: Variant in state.facilities:
 		if not item is Dictionary:
@@ -183,6 +195,14 @@ func restore(state: Dictionary) -> Economy:
 		f.operating = item.operating
 		f.active = item.active
 		f.stock_days = item.stock_days
+		if not nonnegative(item.asset_cost) or not nonnegative(item.asset_days) or item.asset_days > 3650 or not nonnegative(item.accumulated_depreciation) or item.accumulated_depreciation != item.asset_cost * item.asset_days / 3650: return null
+		if item.asset_cost != (int(sim.catalog.facility_types[f.type_id].cost) if f.id.begins_with("built_") else 0): return null
+		f.asset_cost = item.asset_cost
+		f.asset_days = item.asset_days
+		f.accumulated_depreciation = item.accumulated_depreciation
+		for product: String in item.replenishment_targets:
+			if not sim.command_error({"type": "set_warehouse_target", "company": f.company_id, "facility": f.id, "product": product, "quantity": item.replenishment_targets[product]}).is_empty(): return null
+		f.replenishment_targets = item.replenishment_targets.duplicate(true)
 		var quantities: Dictionary = item.inventory.quantities
 		var costs: Dictionary = item.inventory.costs
 		if quantities.size() != costs.size():
@@ -212,6 +232,7 @@ func restore(state: Dictionary) -> Economy:
 				if not shape(source, {"supplier": "", "units": 0, "price": 0, "quality": 0, "score": 0.0}) or sim.facility(source.supplier) == null:
 					return null
 		f.last_sources = item.last_sources.duplicate(true)
+	if not _restore_logistics(sim, state.logistics): return null
 	for technology: Variant in state.unlocked_technologies:
 		if not technology is String or not sim.catalog.technologies.has(technology) or technology in sim.unlocked_technologies:
 			return null
@@ -256,3 +277,27 @@ func restore(state: Dictionary) -> Economy:
 			return null
 	error = ""
 	return sim
+
+func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
+	for field: String in sim.logistics.config:
+		if not nonnegative(state.config[field]) or state.config[field] > 1000000: return false
+	if state.config.cells_per_day < 1 or not nonnegative(state.next_id) or state.next_id < 1: return false
+	sim.logistics.config = state.config.duplicate(true)
+	var previous: int = 0
+	for s: Variant in state.shipments:
+		if not shape(s, {"id": 0, "company": "", "source": "", "destination": "", "product": "", "quantity": 0, "value": 0, "departure": 0, "arrival": 0, "transport_cost": 0, "distance": 0, "status": ""}): return false
+		if not sim.companies.has(s.company) or not sim.catalog.products.has(s.product) or s.status not in ["in_transit", "delivered"] or s.id <= previous or s.id >= state.next_id: return false
+		for field: String in ["quantity", "value", "departure", "arrival", "transport_cost", "distance"]:
+			if not nonnegative(s[field]): return false
+		if s.quantity < 1 or s.arrival <= s.departure or s.departure > sim.clock.tick: return false
+		if s.status == "in_transit":
+			var source: SimFacility = sim.facility(s.source)
+			var destination: SimFacility = sim.facility(s.destination)
+			if source == null or destination == null or source == destination or destination.company_id != s.company or s.arrival < sim.clock.tick: return false
+			var quote: Dictionary = sim.logistics.quote(sim, s.source, s.destination, s.quantity)
+			if s.distance != quote.distance or s.transport_cost != quote.freight or s.arrival != s.departure + quote.lead_days: return false
+		elif s.arrival > sim.clock.tick: return false
+		previous = s.id
+		sim.logistics.shipments.append(s.duplicate(true))
+	sim.logistics.next_id = state.next_id
+	return true

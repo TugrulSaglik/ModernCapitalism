@@ -35,7 +35,9 @@ price-adjusting AI and two starting eras. Milestone 2 adds continuous time,
 player management commands, ranked/manual sourcing, deterministic save/load,
 an orthographic city host and facility/company panels. Milestone 3 adds city
 occupancy, roads, construction, demolition and category-specific procedural
-buildings. Logistics, active research, stock exchange and credit remain deferred.
+buildings. Milestone 4 adds explicit shipments, operational warehouses, freight,
+delivery lead times, fixed assets and a persistent financial HUD. Active research,
+stock exchange and credit remain deferred.
 
 ## Construction loop and starter archetypes
 Open Build, choose a facility/product, inspect its cost and size, and click a valid
@@ -51,12 +53,13 @@ to role. Owned demolition asks for confirmation and discards inventory, with no 
 | Department store | 4 × 3 | $32,000 | Larger retail, 35 units/day |
 | Component plant | 4 × 3 | $35,000 | Component production, 40 units/day |
 | Assembly factory | 4 × 3 | $45,000 | Device production, 18 units/day |
-| Warehouse | 5 × 3 | $25,000 | Passive storage foundation |
+| Warehouse | 5 × 3 | $25,000 | 100-unit storage, transfers and replenishment |
 
 Definitions specify construction cost, footprint, category, visual style, behavior,
 capacity, overhead and supported products. All retail currently sells one selected
 phone product; the small catalog has not been expanded into groceries or general
-merchandise. Warehouse transfer controls/capacity enforcement await logistics;
-building one is currently an infrastructure expense, not an income opportunity.
+merchandise. Warehouse transfers reserve inbound capacity; a per-product target
+can request automatic replenishment. Construction capitalizes its cost and daily
+depreciation expenses it over 3,650 days. Demolition writes off remaining book value.
 Debug cash controls remain sandbox-only and session-unlocked. No new cheat or
 free-building mode was added.

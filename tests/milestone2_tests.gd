@@ -111,7 +111,7 @@ func _sourcing() -> void:
 	check(same(before, sim.supplier_offers("20_player", "smartphone")), "Source container order does not determine ranking")
 	var manual: GameSession = fresh()
 	check(manual.submit({"type": "set_supplier", "facility": "20_player", "product": "smartphone", "supplier": "11_nova"}), "Manual supplier accepted")
-	manual.sim.step()
+	for day: int in range(8): manual.sim.step()
 	check(manual.sim.facility("20_player").last_sources.smartphone[0].supplier == "11_nova", "Manual override purchases selected supplier")
 	check(not manual.submit({"type": "set_supplier", "facility": "20_player", "product": "smartphone", "supplier": "01_processors"}), "Wrong-product supplier rejected")
 	manual.sim.facility("11_nova").operating = false

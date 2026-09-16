@@ -9,6 +9,8 @@ var depth: int = 24
 var roads: Array[String] = []
 var plots: Dictionary = {}
 var next_facility: int = 1
+var _route_cache: Dictionary = {}
+var _cached_roads: Array[String] = []
 
 func initialize(facilities: Array[SimFacility], catalog: SimCatalog) -> bool:
 	for y: int in range(depth):
@@ -26,6 +28,43 @@ func initialize(facilities: Array[SimFacility], catalog: SimCatalog) -> bool:
 
 static func key(x: int, y: int) -> String:
 	return "%d,%d" % [x, y]
+
+func road_access(id_value: String) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if not plots.has(id_value): return result
+	var p: Dictionary = plots[id_value]
+	for y: int in range(p.y - 1, p.y + p.depth + 1):
+		for x: int in range(p.x - 1, p.x + p.width + 1):
+			if (x >= p.x and x < p.x + p.width) or (y >= p.y and y < p.y + p.depth):
+				if key(x, y) in roads: result.append(Vector2i(x, y))
+	return result
+
+func road_distance(source: String, destination: String) -> int:
+	if _cached_roads != roads:
+		_route_cache.clear()
+		_cached_roads = roads.duplicate()
+	var cache_key: String = str([source, destination, plots.get(source), plots.get(destination)])
+	if _route_cache.has(cache_key): return int(_route_cache[cache_key])
+	var queue: Array[Vector2i] = road_access(source)
+	var targets: Array[Vector2i] = road_access(destination)
+	var distances: Dictionary = {}
+	var road_set: Dictionary = {}
+	for road: String in roads: road_set[road] = true
+	for point: Vector2i in queue: distances[point] = 0
+	var index: int = 0
+	while index < queue.size():
+		var point: Vector2i = queue[index]
+		index += 1
+		if point in targets:
+			_route_cache[cache_key] = int(distances[point]) + 2
+			return int(_route_cache[cache_key])
+		for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			var next: Vector2i = point + offset
+			if not distances.has(next) and road_set.has(key(next.x, next.y)):
+				distances[next] = int(distances[point]) + 1
+				queue.append(next)
+	_route_cache[cache_key] = -1
+	return -1
 
 func placement_error(x: int, y: int, w: int, d: int) -> String:
 	if x < 0 or y < 0 or x + w > width or y + d > depth:

@@ -18,6 +18,8 @@ var build_type: String = ""
 var build_product: String = ""
 var preview_cell: Vector2i = Vector2i(-1, -1)
 var preview_error: String = ""
+var input_blocked: Callable
+var dragging: bool = false
 
 func build(state: Dictionary) -> void:
 	var palette: Array[Color] = [Color("699eaf"), Color("c99563"), Color("927cbb"), Color("51bda0"), Color("dc7b80")]
@@ -54,7 +56,7 @@ func build(state: Dictionary) -> void:
 	preview.hide()
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 51.0
+	camera.size = 45.0
 	add_child(camera)
 	_update_camera()
 	camera.make_current()
@@ -168,15 +170,6 @@ func _update_camera() -> void:
 	camera.position = focus + Vector3(35, 35, 35)
 	camera.look_at(focus)
 
-func _process(delta: float) -> void:
-	if camera == null or not get_viewport().get_visible_rect().has_point(get_viewport().get_mouse_position()): return
-	var move: Vector3 = Vector3.ZERO
-	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP): move += Vector3(-1, 0, -1)
-	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN): move += Vector3(1, 0, 1)
-	if Input.is_physical_key_pressed(KEY_A) or Input.is_physical_key_pressed(KEY_LEFT): move += Vector3(-1, 0, 1)
-	if Input.is_physical_key_pressed(KEY_D) or Input.is_physical_key_pressed(KEY_RIGHT): move += Vector3(1, 0, -1)
-	pan(move, delta)
-
 func pan(move: Vector3, delta: float) -> void:
 	focus += move.normalized() * delta * 12.0
 	focus.x = clampf(focus.x, -22, 22)
@@ -191,6 +184,27 @@ func _pointer_preview(point: Vector2) -> void:
 		update_preview(int(floor(ground.x / CELL + 16)), int(floor(ground.z / CELL + 12)))
 
 func _unhandled_input(event: InputEvent) -> void:
+	if input_blocked.is_valid() and input_blocked.call():
+		dragging = false
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_MIDDLE:
+		dragging = event.pressed
+		get_viewport().set_input_as_handled()
+		return
+	if event is InputEventMouseMotion and dragging:
+		if not (event.button_mask & MOUSE_BUTTON_MASK_MIDDLE):
+			dragging = false
+			return
+		var plane: Plane = Plane(Vector3.UP, 0)
+		var before: Variant = plane.intersects_ray(camera.project_ray_origin(event.position - event.relative), camera.project_ray_normal(event.position - event.relative))
+		var after: Variant = plane.intersects_ray(camera.project_ray_origin(event.position), camera.project_ray_normal(event.position))
+		if before != null and after != null:
+			focus += before - after
+			focus.x = clampf(focus.x, -22, 22)
+			focus.z = clampf(focus.z, -17, 17)
+			_update_camera()
+		get_viewport().set_input_as_handled()
+		return
 	if event is InputEventMouseMotion and not build_type.is_empty():
 		_pointer_preview(event.position)
 	if event is InputEventMouseButton and event.pressed:

@@ -18,6 +18,10 @@ var stock_days: int = 2
 var suppliers: Dictionary = {}
 var last_sources: Dictionary = {}
 var recent_sales: Array[Dictionary] = []
+var asset_cost: int = 0
+var accumulated_depreciation: int = 0
+var asset_days: int = 0
+var replenishment_targets: Dictionary = {}
 var inventory: SimInventory = Inventory.new()
 
 func _init(definition: Dictionary) -> void:
@@ -32,6 +36,8 @@ func _init(definition: Dictionary) -> void:
 
 func snapshot() -> Dictionary:
 	return {"id": id, "company": company_id, "city": city_id, "type": type_id,
+		"asset_cost": asset_cost, "accumulated_depreciation": accumulated_depreciation, "asset_days": asset_days,
+		"replenishment_targets": replenishment_targets.duplicate(true),
 		"product": product_id, "capacity": capacity, "price": price, "quality": quality,
 		"active": active, "sold_today": sold_today, "produced_today": produced_today,
 		"operating": operating, "stock_days": stock_days,

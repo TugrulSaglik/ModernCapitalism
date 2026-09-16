@@ -16,6 +16,12 @@ var apply_supplier: Button
 var apply_stock: Button
 var sourcing_info: RichTextLabel
 var demolish: Button
+var transfer_product: OptionButton
+var transfer_destination: OptionButton
+var transfer_quantity: SpinBox
+var transfer_button: Button
+var logistics_info: RichTextLabel
+var warehouse_target: Button
 
 func _ready() -> void:
 	custom_minimum_size.x = 410
@@ -27,6 +33,26 @@ func _ready() -> void:
 	info = RichTextLabel.new()
 	info.custom_minimum_size = Vector2(390, 255)
 	column.add_child(info)
+	logistics_info = RichTextLabel.new()
+	logistics_info.custom_minimum_size = Vector2(390, 170)
+	logistics_info.add_theme_font_size_override("normal_font_size", 14)
+	column.add_child(logistics_info)
+	transfer_product = OptionButton.new()
+	column.add_child(transfer_product)
+	transfer_destination = OptionButton.new()
+	column.add_child(transfer_destination)
+	var transfer_row: HBoxContainer = HBoxContainer.new()
+	column.add_child(transfer_row)
+	transfer_quantity = SpinBox.new()
+	transfer_quantity.min_value = 0
+	transfer_quantity.max_value = 100000
+	transfer_quantity.value = 10
+	transfer_row.add_child(transfer_quantity)
+	transfer_button = _button(transfer_row, "Send transfer", func() -> void:
+		if transfer_destination.selected >= 0 and transfer_product.selected >= 0:
+			command_requested.emit({"type": "transfer", "facility": selected_id, "product": transfer_product.get_item_text(transfer_product.selected), "destination": str(transfer_destination.get_item_metadata(transfer_destination.selected)), "quantity": int(transfer_quantity.value)}))
+	warehouse_target = _button(column, "Set warehouse replenishment target (0 = off)", func() -> void:
+		if transfer_product.selected >= 0: command_requested.emit({"type": "set_warehouse_target", "facility": selected_id, "product": transfer_product.get_item_text(transfer_product.selected), "quantity": int(transfer_quantity.value)}))
 	var price_row: HBoxContainer = HBoxContainer.new()
 	column.add_child(price_row)
 	price = SpinBox.new()
@@ -77,21 +103,33 @@ func bind(game_session: GameSession, id: String) -> void:
 	var f: SimFacility = session.sim.facility(id)
 	price.value = f.price / 100.0
 	stock.value = f.stock_days
+	transfer_product.clear()
+	var ids: Array = session.sim.catalog.products.keys()
+	ids.sort()
+	for id_value: String in ids:
+		if session.sim.available(id_value): transfer_product.add_item(id_value)
+	transfer_destination.clear()
+	for other: SimFacility in session.sim.facilities:
+		if other.company_id == f.company_id and other != f:
+			transfer_destination.add_item("To: " + other.id + " / " + other.type_id)
+			transfer_destination.set_item_metadata(transfer_destination.item_count - 1, other.id)
 	product.clear()
 	var inputs: Dictionary = session.sim.catalog.products[f.product_id].inputs
 	if str(session.sim.catalog.facility_types[f.type_id].behavior) == "retail":
 		product.add_item(f.product_id)
 	elif str(session.sim.catalog.facility_types[f.type_id].behavior) == "production":
-		var ids: Array = inputs.keys()
-		ids.sort()
-		for input: String in ids:
+		var input_ids: Array = inputs.keys()
+		input_ids.sort()
+		for input: String in input_ids:
 			product.add_item(input)
+	else:
+		for id_value: String in ids: product.add_item(id_value)
 	_populate_suppliers()
 	refresh()
 
 func _populate_suppliers() -> void:
 	suppliers.clear()
-	suppliers.add_item("Automatic: lowest price / quality")
+	suppliers.add_item("Automatic: landed cost / quality + lead time")
 	suppliers.set_item_metadata(0, "")
 	if product.selected < 0:
 		return
@@ -121,15 +159,32 @@ func refresh() -> void:
 	if session.sim.catalog.facility_types[f.type_id].behavior == "production":
 		lines.append("Recipe inputs: " + str(definition.inputs))
 	elif session.sim.catalog.facility_types[f.type_id].behavior == "storage":
-		lines[3] = "Passive storage • automated logistics deferred"
+		lines[3] = "Storage: %d / %d units | free %d (after reservations)" % [session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f)]
+		lines.append("Replenishment targets: " + str(f.replenishment_targets))
 	var weekly: int = 0
 	for sale: Dictionary in f.recent_sales: weekly += int(sale.units)
 	lines.append("Recent 7 days: %d consumer units" % weekly)
 	lines.append("Owner daily revenue $%.2f / costs $%.2f / profit $%.2f" % [owner.daily_revenue / 100.0, (owner.daily_cogs + owner.daily_expenses) / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0])
 	info.text = "\n".join(lines)
 	var own: bool = f.company_id == session.player_company
+	transfer_button.disabled = not own or transfer_destination.item_count == 0
+	warehouse_target.visible = session.sim._behavior(f) == "storage"
+	warehouse_target.disabled = not own
+	var shipment_lines: PackedStringArray = ["LOGISTICS • incoming %d units" % session.sim.logistics.incoming(f.id)]
+	var records: Array[Dictionary] = session.sim.logistics.shipments.duplicate()
+	records.reverse()
+	records.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.status == "in_transit" and b.status != "in_transit")
+	for shipment: Dictionary in records:
+		if shipment.source == f.id or shipment.destination == f.id:
+			shipment_lines.append("#%d %s %d %s • %s\n%s | ETA %dd | freight $%.2f" % [shipment.id, "IN" if shipment.destination == f.id else "OUT", shipment.quantity, shipment.product, shipment.status, shipment.source if shipment.destination == f.id else shipment.destination, maxi(0, int(shipment.arrival) - session.sim.clock.tick), shipment.transport_cost / 100.0])
+	if transfer_destination.selected >= 0:
+		var quote: Dictionary = session.sim.logistics.quote(session.sim, f.id, str(transfer_destination.get_item_metadata(transfer_destination.selected)), int(transfer_quantity.value))
+		shipment_lines.insert(1, "Transfer quote: %d cells / %dd / $%.2f" % [quote.distance, quote.lead_days, quote.freight / 100.0])
+	logistics_info.text = "\n".join(shipment_lines)
 	demolish.disabled = not own
 	var storage: bool = session.sim.catalog.facility_types[f.type_id].behavior == "storage"
+	price.get_parent().visible = not storage
+	stock.get_parent().visible = not storage
 	apply_price.disabled = not own or storage
 	apply_supplier.disabled = not own or product.item_count == 0
 	apply_stock.disabled = not own or storage
@@ -141,7 +196,7 @@ func refresh() -> void:
 		var policy: String = str(f.suppliers.get(id, ""))
 		details.append("Policy: " + ("Automatic" if policy.is_empty() else policy))
 		for offer: Dictionary in session.sim.supplier_offers(selected_id, id):
-			details.append("%s: $%.2f | Q%d | stock %d\n  score %.2f%s" % [offer.id, offer.price / 100.0, offer.quality, offer.stock, offer.score, "" if offer.eligible else " (unavailable)"])
+			details.append("%s: $%.2f | Q%d | stock %d\n%d cells / %dd | freight $%.2f for %d\nLanded $%.2f/unit | score %.2f%s" % [offer.id, offer.price / 100.0, offer.quality, offer.stock, offer.distance, offer.lead_days, offer.freight / 100.0, offer.quote_quantity, offer.landed / 100.0, offer.score, "" if offer.eligible else " (unavailable)"])
 		for source: Dictionary in f.last_sources.get(id, []):
 			details.append("Bought %d from %s today" % [source.units, source.supplier])
 	var market: Dictionary = session.sim.market.get(f.product_id, {})

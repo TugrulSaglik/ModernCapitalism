@@ -218,3 +218,48 @@ Modified: `src/sim/catalog.gd`, `src/sim/economy.gd`,
 
 Removed: `data/city_layout.json`; starting positions now belong to scenario data.
 Main scene wiring remains unchanged and the existing tests were preserved.
+
+## Milestone 4 final validation
+
+Validated on Windows with Godot 4.7.2, September 16, 2026. The interrupted
+worktree was preserved and inspected before fixes. No branch, commit, Computer
+Use, external dependency or Milestone 5 work was added.
+
+The complete `tests/run_tests.ps1` finished with zero failures: foundation
+1,524 checks; Milestone 2 809; game smoke 15; legacy debug smoke passed;
+Milestone 3 7,410; construction smoke headless 18; Milestone 4 7,394;
+logistics smoke headless 38. The Milestone 3 construction/market fixture was
+made independent of scarce upstream stock, which changed its expected timing
+under explicit shipments.
+
+Milestone 4 tests verify road-distance/freight quotes, nonzero delivery lead,
+departure ownership and payment, in-transit assets, idempotent arrival,
+unreachable-route rejection, warehouse capacity including inbound reservations,
+owned transfers, factory input wait, replenishment accounting for incoming
+goods, landed-cost/quality ranking and pinned suppliers. They also check
+construction capitalization, daily depreciation, demolition book-value loss,
+the fixed-asset balance invariant, current-month bars, TTM/calendar boundaries,
+and corrupt-shipment rejection. Save/load with active shipments is exact; both
+2012 and 2022 replay pairs then ran 3,650 days with daily invariant checks,
+yearly state comparisons and identical final snapshots.
+
+| Era | Days per replay copy | Final consumer units | Player freight, cents |
+| --- | ---: | ---: | ---: |
+| 2012 | 3,650 | 97,567 | 12,203,912 |
+| 2022 | 3,650 | 116,619 | 12,279,002 |
+
+The rendered `tests/logistics_smoke.gd` passed 44 checks and wrote six PNGs to
+`.godot/m4-screenshots/`. It exercised factory → warehouse → retail transfers,
+in-transit UI save/load, warehouse arrival, sales, monthly profit history,
+middle-button drag, disabled WASD pan and dialog/text-focus input blocking.
+The financial HUD, warehouse inspector and settings screenshots were inspected:
+cash, TTM profit, monthly bars, shipment status, free capacity and controls fit
+at 1280×800. Procedural city art remains a placeholder.
+
+Current limits: route times are deterministic fixed quotes with no observed
+supplier-reliability score, vehicles or traffic. One warehouse holds 100 total
+units; its product targets share that capacity. Opening scenario buildings have
+zero fixed-asset book value, while new construction depreciates over 3,650 days.
+The aggregate ledger does not yet provide full statements, debt or taxes. The
+host emitted its existing certificate-store warning and a rendered shader-cache
+write warning; neither produced a script failure or failed assertion.

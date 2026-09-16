@@ -43,7 +43,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-3 economy snapshots contain city state plus catalog/scenario/era identity, clock, initial
+Schema-4 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -55,15 +55,15 @@ Money is integer cents and goods integer units. Preserve stable definition IDs a
 add migration aliases rather than renaming persisted IDs.
 
 ## Extension seams (planned, not implemented)
-- Logistics: replace instantaneous trade delivery with shipments between facility
-  inventories; add warehouse capacity and route lead times. Keep ownership and
-  payment timing explicit. Cities already have IDs on facilities.
+- Logistics: extend current road-routed shipments with traffic, vehicle fleets,
+  route capacity and multiple cities when needed.
 - R&D: company technology records and projects consume funds/personnel, check the
   catalog prerequisite graph, unlock recipes and improve quality/efficiency.
 - Headquarters: facilities enabling management services, budgets and overhead;
   do not turn the headquarters Node into the company model.
 - Finance: replace aggregate accounts with journal entries and balance-sheet
-  accounts; add debt, fixed assets, depreciation and taxes. A share registry and
+  accounts; add debt and taxes. Aggregate fixed assets and depreciation now exist.
+  A share registry and
   exchange operate on company IDs and settle through the same cash ledger.
   Ownership/control is separate from operational decision policy.
 - AI: policy modules consume the same read models and produce the same commands
@@ -89,15 +89,17 @@ wrong owners, invalid footprints and reused construction IDs.
 `build_facility` specifies archetype, product, integer x/y and optional city ID.
 The session injects the player owner. Economy validates type/product availability,
 cash, bounds, non-overlap, road exclusion and at least one orthogonally adjacent
-road cell. Successful construction expenses the catalog cost, assigns a monotonic
+road cell. Successful construction capitalizes the catalog cost, assigns a monotonic
 `built_000001`-style ID, creates an ordinary SimFacility and occupies the plot.
 Manufacturing and retail use the existing daily phases, sourcing and accounts.
-Storage has no production or retail phase; warehouse logistics is deferred.
+Storage has no production or retail phase; warehouses source toward per-product
+targets and accept manual transfers, with incoming stock reserving capacity.
 
 `demolish_facility` requires ownership. It writes off inventory, removes the plot
 and facility, clears supplier policies pointing to it (returning them to automatic),
 and removes live last-source references. Historical company/market totals remain.
-There is no refund, land purchase, construction delay, depreciation or rotation.
+There is no refund, land purchase, construction delay or rotation. Demolition
+also writes off remaining fixed-asset book value.
 
 GameSession submits build/demolish to the existing FIFO and immediately flushes
 all pending commands at the current between-day boundary. Earlier management
@@ -123,7 +125,25 @@ moving simulation into scenes. Corporate archetypes can extend the same catalog
 and command path when their behavior exists; no empty HQ/R&D systems were added.
 
 Save format 2 preserves floating-point report values through binary tags because
-Godot JSON parsing can otherwise change the final bits of ratios. Schema 3 restores
+Godot JSON parsing can otherwise change the final bits of ratios. Schema 4 restores
 both scenario and constructed facilities, including deletions. Old schema/format
 saves are deliberately rejected, not migrated. Engine/catalog matching and
 transactional candidate validation still apply.
+
+## Logistics and finance (Milestone 4)
+
+`CityMap.road_distance` breadth-first searches road cells between orthogonal
+facility access points and adds two access legs. `Logistics.quote` turns distance
+into freight and a minimum one-day lead. `dispatch` removes source inventory,
+settles purchase and freight at departure, then records the buyer-owned goods in
+transit. `deliver` adds them to the destination at the promised tick. Same-owner
+transfers preserve book cost and create no sale. Warehouse capacity counts local
+and inbound units; replenishment subtracts incoming goods from the target.
+
+The aggregate balance invariant is cash + local and in-transit inventory + net
+fixed assets = contributed capital + cumulative profit. New buildings depreciate
+straight line over 3,650 daily ticks. Company history records daily profit deltas
+and monthly totals, including a zero current-month entry after a month rollover.
+The HUD reads these records and does not own any economic state. Save restoration
+validates shipment endpoints, timing, route quotes, assets and histories before
+replacing the live economy.

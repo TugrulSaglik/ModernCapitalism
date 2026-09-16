@@ -52,7 +52,7 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 3
+## Milestone 4
 
 Implemented: the deterministic daily economy from Milestone 1 plus a continuous
 game session with pause, 1x, 2x, 4x and Max speeds; player price, operation, stock
@@ -67,13 +67,20 @@ Milestone 3 adds a deterministic city grid, roads and occupied footprints; six
 data-defined construction choices; placement previews; immediate paused
 construction; and owned-facility demolition. Shops, factories and warehouses
 have distinct procedural silhouettes and ownership colors. City and economy
-restore together using schema 3 / save format 2 (older saves are rejected).
+restore together using schema 4 / save format 2 (older schemas are rejected).
+
+Milestone 4 adds road-routed shipments with delivery dates, freight, in-transit
+inventory, warehouse capacity and replenishment targets. Supplier rankings include
+landed cost and lead time. Construction creates a fixed asset depreciated over
+3,650 days. Cash, trailing-12-month profit and monthly history stay in the bottom HUD.
 
 Use **Build**, choose a facility and product, then click a green site touching a
 road. Red previews explain invalid sites. Right-click or Escape cancels. Select
 an owned facility to manage or demolish it. Demolition requires confirmation,
-writes off its inventory and pays no refund. Construction is expensed immediately.
-Warehouses currently provide passive storage infrastructure; logistics is deferred.
+writes off inventory and remaining fixed-asset book value, and pays no refund.
+Select an owned facility to transfer stock to another owned site. Warehouse targets
+order goods automatically. The inspector shows shipment status, routes, freight,
+ETAs and free capacity. Middle-mouse drag pans the city.
 
 Open `project.godot` in Godot 4 (tested with **4.7.2**) and press **F5**. Game time
 runs continuously at one simulated day per real second at 1x. The legacy economic
@@ -102,6 +109,8 @@ $godot = 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe'
 & $godot --path . --script res://tests/game_smoke.gd
 # Repeatable construction workflow and eight rendered screenshots.
 & $godot --path . --log-file .godot/m3-visual.log --script res://tests/construction_smoke.gd
+# End-to-end logistics, finance and input workflow with six rendered screenshots.
+& $godot --path . --log-file .godot/m4-visual.log --script res://tests/logistics_smoke.gd
 ```
 
 The PowerShell wrapper fails on nonzero exit codes, failed assertions and Godot
@@ -119,6 +128,6 @@ to avoid attempts to write the default user log directory.
 - [Full-project roadmap](docs/ROADMAP.md)
 - [Validation results and limitations](docs/VALIDATION.md)
 
-Screenshots are written to `.godot/m3-screenshots/`. Milestone 3 deliberately
-defers shipments and transport costs, active company research, full financial
-statements, multi-product stores and broader catalog content. See the roadmap.
+Screenshots are written to `.godot/m3-screenshots/` and
+`.godot/m4-screenshots/`. Full financial statements, active company research,
+multi-product stores and broader catalog content remain future work.

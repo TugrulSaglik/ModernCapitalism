@@ -74,14 +74,16 @@ func _test_trade_and_sales() -> void:
 	source_owner.spend(150000)
 	var total_cash: int = source_owner.cash + retail_owner.cash
 	check(sim.trade(seller, buyer, "smartphone", 4) == 4, "Wholesale quantity")
-	check(seller.inventory.quantity("smartphone") == 6 and buyer.inventory.quantity("smartphone") == 4, "Wholesale inventory transfer")
-	check(source_owner.cash + retail_owner.cash == total_cash, "Wholesale cash conservation")
+	check(seller.inventory.quantity("smartphone") == 6 and buyer.inventory.quantity("smartphone") == 0 and sim.logistics.incoming(buyer.id, "smartphone") == 4, "Wholesale inventory transfer")
+	check(source_owner.cash + retail_owner.cash == total_cash - retail_owner.freight, "Wholesale cash conservation")
 	check(source_owner.revenue == 96000 and source_owner.cogs == 60000 and source_owner.profit() == 36000, "Wholesale revenue and COGS")
+	for day: int in range(sim.logistics.shipments[0].arrival): sim.clock.advance()
+	sim.logistics.deliver(sim)
 	var cash_before: int = retail_owner.cash
 	check(sim.consumer_sale(buyer, 2) == 2, "Consumer sale quantity")
 	check(buyer.inventory.quantity("smartphone") == 2 and retail_owner.cash == cash_before + 62000, "Retail transfers goods and consumer money")
-	check(retail_owner.revenue == 62000 and retail_owner.cogs == 48000 and retail_owner.profit() == 14000, "Retail accounting")
-	check(retail_owner.pay_expense(1000) and retail_owner.profit() == 13000, "Overhead reduces profit and cash")
+	check(retail_owner.revenue == 62000 and retail_owner.cogs == 48000 and retail_owner.profit() == 14000 - retail_owner.freight, "Retail accounting")
+	check(retail_owner.pay_expense(1000) and retail_owner.profit() == 13000 - retail_owner.freight, "Overhead reduces profit and cash")
 	check(sim.invariant_errors().is_empty(), "Trade and retail balance sheets")
 	check(sim.consumer_sale(buyer, 100) == 2 and sim.consumer_sale(buyer, 1) == 0, "Sales cannot exceed stock")
 	check(not retail_owner.pay_expense(retail_owner.cash + 1), "No cash overdraft")
@@ -97,7 +99,7 @@ func _test_trade_and_sales() -> void:
 	internal_seller.inventory.add("smartphone", 2, 100)
 	var internal_owner: SimCompany = internal.companies[internal_seller.company_id]
 	internal_owner.spend(100)
-	check(internal.trade(internal_seller, internal_buyer, "smartphone", 2) == 2 and internal_owner.revenue == 0 and internal_buyer.inventory.value("smartphone") == 100, "Internal transfer preserves book cost without revenue")
+	check(internal.trade(internal_seller, internal_buyer, "smartphone", 2) == 2 and internal_owner.revenue == 0 and internal.logistics.assets(internal_owner.id) == 100 and internal_buyer.inventory.value("smartphone") == 0, "Internal transfer preserves book cost without revenue")
 	check(internal.invariant_errors().is_empty(), "Internal transfer balance")
 
 func _units(price: int, quality: int) -> int:

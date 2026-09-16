@@ -29,6 +29,7 @@ var build_products: OptionButton
 var build_details: Label
 var build_reason: Label
 var demolition: ConfirmationDialog
+var profit_chart: ProfitChart
 
 func _ready() -> void:
 	var backdrop: ColorRect = ColorRect.new()
@@ -69,7 +70,7 @@ func _ready() -> void:
 	_button(toolbar, "Load", _load)
 	_button(toolbar, "Settings", _show_settings)
 	finance_label = Label.new()
-	column.add_child(finance_label)
+	finance_label.tooltip_text = "Trailing 12 calendar months, updated daily. Uses available history before 12 months."
 	var body: HBoxContainer = HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(body)
@@ -93,7 +94,7 @@ func _ready() -> void:
 	container.add_child(city_viewport)
 	_build_city()
 	var legend: Label = Label.new()
-	legend.text = "WASD/arrows: pan | Wheel: zoom | Click: inspect\nTeal: player • Blue: components • Tan: Orion • Purple: Nova • Coral: rival"
+	legend.text = "Middle drag: pan | Wheel: zoom | Click: inspect | Esc: cancel / close\nTeal: player • Blue: components • Tan: Orion • Purple: Nova • Coral: rival"
 	legend.add_theme_font_size_override("font_size", 13)
 	left.add_child(legend)
 	inspector = Inspector.new()
@@ -102,12 +103,25 @@ func _ready() -> void:
 		session.submit(command)
 		refresh())
 	_build_construction(body)
+	var financial_bar: HBoxContainer = HBoxContainer.new()
+	column.add_child(financial_bar)
+	financial_bar.add_child(finance_label)
+	finance_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	profit_chart = ProfitChart.new()
+	financial_bar.add_child(profit_chart)
+	toolbar.remove_child(date_label)
+	financial_bar.add_child(date_label)
+	for speed: int in speed_buttons:
+		var button: Button = speed_buttons[speed]
+		toolbar.remove_child(button)
+		financial_bar.add_child(button)
 	status = Label.new()
 	status.add_theme_font_size_override("font_size", 13)
 	status.clip_text = true
 	column.add_child(status)
 	_build_dialogs()
 	select_facility(selected_id)
+	inspector.hide()
 	refresh()
 
 func _button(parent: Node, text_value: String, action: Callable) -> Button:
@@ -125,6 +139,7 @@ func _build_city() -> void:
 	city = City.new()
 	city_viewport.add_child(city)
 	city.session = session
+	city.input_blocked = world_input_blocked
 	city.build(session.sim.snapshot())
 	city.facility_selected.connect(select_facility)
 	city.placement_requested.connect(_place)
@@ -164,10 +179,12 @@ func _process(delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not event is InputEventKey or not event.pressed or event.echo:
 		return
-	if settings.visible or overview.visible or get_viewport().gui_get_focus_owner() is LineEdit:
+	if world_input_blocked():
 		return
 	match event.keycode:
-		KEY_ESCAPE: city.cancel_placement()
+		KEY_ESCAPE:
+			if not city.build_type.is_empty(): city.cancel_placement()
+			else: inspector.hide()
 		KEY_SPACE: session.time.toggle_pause()
 		KEY_1: session.time.set_speed(1)
 		KEY_2: session.time.set_speed(2)
@@ -184,7 +201,8 @@ func refresh() -> void:
 		select_facility(selected_id)
 	var owner: SimCompany = session.sim.companies[session.player_company]
 	date_label.text = "%s | %s" % [session.sim.clock.date_string(), "PAUSED" if session.time.speed == 0 else "%dx" % session.time.speed]
-	finance_label.text = "%s | Cash $%.2f | Today's profit $%.2f | Total profit $%.2f" % [owner.display_name, owner.cash / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0, owner.profit() / 100.0]
+	finance_label.text = "Cash  $%.2f\nTTM Profit  $%.2f" % [owner.cash / 100.0, owner.ttm_profit(session.sim.clock) / 100.0]
+	profit_chart.update_history(owner.monthly_history)
 	for speed: int in speed_buttons:
 		speed_buttons[speed].modulate = Color("ffe190") if session.time.speed == speed else Color.WHITE
 	inspector.refresh()
@@ -300,6 +318,11 @@ func _update_company() -> void:
 	for owner: SimCompany in session.sim.companies.values():
 		lines.append("%s\nCash $%.2f | Inventory assets $%.2f\nRevenue $%.2f | COGS $%.2f | Overhead $%.2f | Profit $%.2f\n" % [owner.display_name, owner.cash / 100.0, session.sim.inventory_assets(owner.id) / 100.0, owner.revenue / 100.0, owner.cogs / 100.0, owner.expenses / 100.0, owner.profit() / 100.0])
 	overview_text.text = "\n".join(lines)
+	var owner: SimCompany = session.sim.companies[session.player_company]
+	overview_text.text += "\nPlayer freight $%.2f | In transit $%.2f | Fixed assets $%.2f | Depreciation $%.2f\nTTM profit $%.2f\nMonthly history: %s" % [owner.freight / 100.0, session.sim.logistics.assets(owner.id) / 100.0, session.sim.fixed_assets(owner.id) / 100.0, owner.depreciation / 100.0, owner.ttm_profit(session.sim.clock) / 100.0, str(owner.monthly_history)]
+
+func world_input_blocked() -> bool:
+	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition])
 
 func _refresh_facility_list() -> void:
 	facility_list.clear()

@@ -18,7 +18,7 @@
     {"width":3,"id":"electronics_store","cost":2000000,"capacity":24,"behavior":"retail","style":"shop","category":"Retail","depth":2,"overhead":10000,"name":"Electronics store","description":"Sources devices and sells to local consumers.","products":["smartphone","advanced_phone"]},
     {"width":2,"id":"convenience_store","cost":1000000,"capacity":10,"behavior":"retail","style":"shop","category":"Retail","depth":2,"overhead":5000,"name":"Small general store","description":"Small retail outlet; starter catalog currently offers phones.","products":["smartphone"]},
     {"width":4,"id":"department_store","cost":3200000,"capacity":35,"behavior":"retail","style":"department","category":"Retail","depth":3,"overhead":16000,"name":"Department store","description":"Higher throughput retail; one selected product for now.","products":["smartphone","advanced_phone"]},
-    {"width":5,"id":"warehouse","cost":2500000,"capacity":100,"behavior":"storage","style":"warehouse","category":"Industrial","depth":3,"overhead":3000,"name":"Warehouse","description":"Passive inventory storage. Automated logistics is deferred.","products":["processor","display","battery","smartphone","advanced_phone"]}
+    {"width":5,"id":"warehouse","cost":2500000,"capacity":100,"behavior":"storage","style":"warehouse","category":"Industrial","depth":3,"overhead":3000,"name":"Warehouse","description":"Store up to 100 units; receive transfers or set automatic replenishment targets.","products":["processor","display","battery","smartphone","advanced_phone"]}
   ],
   "scenario": {
     "id": "device_competition", "starting_years": [2012, 2022],

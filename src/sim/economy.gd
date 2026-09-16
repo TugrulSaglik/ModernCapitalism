@@ -23,6 +23,7 @@ var cumulative_consumer_revenue: int = 0
 var unlocked_technologies: Array[String] = []
 var debug_actions: Array[Dictionary] = []
 var city: CityMap = CityMap.new()
+var logistics: Logistics = Logistics.new()
 
 func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json") -> bool:
 	catalog = Catalog.new()
@@ -40,6 +41,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	rng.seed = seed_value
 	clock = Clock.new(era)
 	companies.clear()
+	logistics = Logistics.new()
 	facilities.clear()
 	pending_commands.clear()
 	command_results.clear()
@@ -80,20 +82,33 @@ func command_error(command: Dictionary) -> String:
 	if target == null or target.company_id != str(command.get("company", "")):
 		return "Unknown facility or company does not own it."
 	match str(command.get("type", "")):
+		"set_warehouse_target":
+			if _behavior(target) != "storage" or not catalog.products.has(str(command.get("product", ""))) or not command.get("quantity") is int or command.quantity < 0 or command.quantity > target.capacity: return "Choose a warehouse product target within capacity."
 		"demolish_facility":
-			pass
+			for shipment: Dictionary in logistics.shipments:
+				if shipment.status == "in_transit" and (shipment.source == target.id or shipment.destination == target.id): return "Wait for active shipments before demolition."
+		"transfer":
+			var destination: SimFacility = facility(str(command.get("destination", "")))
+			var product: String = str(command.get("product", ""))
+			if destination == null or destination == target or destination.company_id != target.company_id: return "Choose another owned destination."
+			if not command.get("quantity") is int or command.quantity <= 0 or command.quantity > target.inventory.quantity(product): return "Quantity exceeds available stock."
+			if logistics.free_capacity(self, destination) < command.quantity: return "Destination capacity is reserved or full."
+			var quote: Dictionary = logistics.quote(self, target.id, destination.id, command.quantity)
+			if quote.distance < 0 or target.city_id != destination.city_id: return "No road route."
+			if companies[target.company_id].cash < quote.freight: return "Insufficient freight funds."
+			if not available(product): return "Product unavailable."
 		"set_price":
 			if not command.get("price") is int or int(command.price) <= 0 or int(command.price) > 100000000:
 				return "Price must be integer cents between 1 and 100000000."
 		"set_supplier":
 			var product: String = str(command.get("product", ""))
 			var inputs: Dictionary = catalog.products[target.product_id].inputs
-			if not (product == target.product_id and _behavior(target) == "retail") and not (_behavior(target) == "production" and inputs.has(product)):
+			if not (product == target.product_id and _behavior(target) == "retail") and not (_behavior(target) == "production" and inputs.has(product)) and not (_behavior(target) == "storage" and catalog.products.has(product)):
 				return "Facility does not source that product."
 			var supplier_id: String = str(command.get("supplier", ""))
 			if supplier_id != "":
 				var seller: SimFacility = facility(supplier_id)
-				if seller == null or seller == target or seller.product_id != product or seller.city_id != target.city_id or _behavior(seller) != "production":
+				if seller == null or seller == target or seller.city_id != target.city_id or not ((seller.product_id == product and _behavior(seller) == "production") or (_behavior(seller) == "storage" and seller.company_id == target.company_id and _behavior(target) != "storage")):
 					return "Supplier cannot supply this product in this city."
 		"set_operating":
 			if not command.get("operating") is bool:
@@ -112,8 +127,10 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"set_warehouse_target": target.replenishment_targets[command.product] = command.quantity
 				"build_facility": _construct(command)
 				"demolish_facility": _demolish(target)
+				"transfer": logistics.dispatch(self, target, facility(command.destination), command.product, command.quantity)
 				"set_price": target.price = int(command.price)
 				"set_supplier": target.suppliers[str(command.product)] = str(command.get("supplier", ""))
 				"set_operating": target.operating = bool(command.operating)
@@ -124,6 +141,7 @@ func _apply_commands() -> void:
 # Hosts may explicitly flush the FIFO at a between-day boundary, without a tick.
 func process_commands() -> void:
 	_apply_commands()
+	record_history()
 
 func construction_error(command: Dictionary) -> String:
 	if not companies.has(str(command.get("company", ""))):
@@ -149,7 +167,7 @@ func construction_error(command: Dictionary) -> String:
 func _construct(command: Dictionary) -> void:
 	var definition: Dictionary = catalog.facility_types[str(command.archetype)]
 	var owner: SimCompany = companies[str(command.company)]
-	owner.pay_expense(int(definition.cost))
+	owner.spend(int(definition.cost))
 	var product: String = str(command.product)
 	var price: int = int(catalog.products[product].reference_price)
 	if definition.behavior == "retail":
@@ -158,13 +176,14 @@ func _construct(command: Dictionary) -> void:
 		"company": owner.id, "city": city.id, "type": str(command.archetype),
 		"product": product, "capacity": int(definition.capacity), "price": price, "quality": 50})
 	city.next_facility += 1
+	f.asset_cost = int(definition.cost)
 	facilities.append(f)
 	facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
 	city.occupy(f, command.x, command.y, definition)
 
 func _demolish(f: SimFacility) -> void:
 	var owner: SimCompany = companies[f.company_id]
-	var loss: int = f.inventory.total_value()
+	var loss: int = f.inventory.total_value() + f.asset_cost - f.accumulated_depreciation
 	owner.expenses += loss
 	owner.daily_expenses += loss
 	facilities.erase(f)
@@ -191,33 +210,15 @@ func _ai_decisions() -> void:
 func _behavior(f: SimFacility) -> String:
 	return str(catalog.facility_types[f.type_id].behavior)
 
-# Cash and inventory change together; same-company transfers use carrying value.
 func trade(seller: SimFacility, buyer: SimFacility, product: String, requested: int) -> int:
-	if requested <= 0 or seller == buyer or seller.city_id != buyer.city_id or seller.product_id != product or seller.price <= 0 or not available(product):
-		return 0
-	var selling_company: SimCompany = companies[seller.company_id]
-	var buying_company: SimCompany = companies[buyer.company_id]
-	var units: int = mini(requested, seller.inventory.quantity(product))
-	if selling_company != buying_company:
-		units = mini(units, int(buying_company.cash / seller.price))
-	if units <= 0:
-		return 0
-	var cost: int = seller.inventory.remove(product, units)
-	if selling_company == buying_company:
-		buyer.inventory.add(product, units, cost)
-	else:
-		var payment: int = units * seller.price
-		buying_company.spend(payment)
-		selling_company.record_sale(payment, cost)
-		buyer.inventory.add(product, units, payment)
-	return units
+	return logistics.dispatch(self, seller, buyer, product, requested)
 
 func _source(buyer: SimFacility, product: String, target: int) -> void:
 	var manual: String = str(buyer.suppliers.get(product, ""))
 	for offer: Dictionary in supplier_offers(buyer.id, product):
 		if not offer.eligible or (manual != "" and str(offer.id) != manual):
 			continue
-		var missing: int = target - buyer.inventory.quantity(product)
+		var missing: int = target - buyer.inventory.quantity(product) - logistics.incoming(buyer.id, product)
 		if missing <= 0:
 			break
 		var bought: int = trade(facility(str(offer.id)), buyer, product, missing)
@@ -268,11 +269,23 @@ func consumer_sale(f: SimFacility, requested: int) -> int:
 	return units
 
 func step() -> void:
+	record_history()
 	for owner: SimCompany in companies.values():
 		owner.begin_day()
 	market.clear()
 	_ai_decisions()
 	_apply_commands()
+	logistics.deliver(self)
+	for f: SimFacility in facilities:
+		if f.asset_cost > 0 and f.asset_days < 3650:
+			f.asset_days += 1
+			var accumulated: int = f.asset_cost * f.asset_days / 3650
+			var expense: int = accumulated - f.accumulated_depreciation
+			f.accumulated_depreciation = accumulated
+			var company: SimCompany = companies[f.company_id]
+			company.expenses += expense
+			company.daily_expenses += expense
+			company.depreciation += expense
 	for f: SimFacility in facilities:
 		f.sold_today = 0
 		f.produced_today = 0
@@ -288,17 +301,23 @@ func step() -> void:
 		var input_ids: Array = inputs.keys()
 		input_ids.sort()
 		for input: String in input_ids:
-			_source(f, input, f.capacity * int(inputs[input]))
+			_source(f, input, f.capacity * f.stock_days * int(inputs[input]))
 		produce(f)
 	for f: SimFacility in facilities:
 		if f.active and _behavior(f) == "retail":
 			_source(f, f.product_id, f.capacity * f.stock_days)
+		elif f.active and _behavior(f) == "storage":
+			var products: Array = f.replenishment_targets.keys()
+			products.sort()
+			for product: String in products: _source(f, product, int(f.replenishment_targets[product]))
 	_clear_consumer_markets()
 	for f: SimFacility in facilities:
 		f.recent_sales.append({"tick": clock.tick, "units": f.sold_today, "revenue": f.sold_today * f.price, "produced": f.produced_today})
 		if f.recent_sales.size() > 7:
 			f.recent_sales.pop_front()
+	record_history()
 	clock.advance()
+	record_history()
 
 func _clear_consumer_markets() -> void:
 	var product_ids: Array = catalog.products.keys()
@@ -335,7 +354,7 @@ func _clear_consumer_markets() -> void:
 		cumulative_consumer_revenue += revenue
 
 func inventory_assets(company_id: String) -> int:
-	var assets: int = 0
+	var assets: int = logistics.assets(company_id)
 	for f: SimFacility in facilities:
 		if f.company_id == company_id:
 			assets += f.inventory.total_value()
@@ -343,10 +362,21 @@ func inventory_assets(company_id: String) -> int:
 
 func invariant_errors() -> Array[String]:
 	var errors: Array[String] = []
+	var previous_id: int = 0
+	for shipment: Dictionary in logistics.shipments:
+		if int(shipment.id) <= previous_id or int(shipment.id) >= logistics.next_id or int(shipment.quantity) <= 0 or int(shipment.value) < 0 or int(shipment.transport_cost) < 0:
+			errors.append("Shipment quantities or ID")
+		previous_id = int(shipment.id)
+		if shipment.status == "in_transit":
+			var destination: SimFacility = facility(shipment.destination)
+			if destination == null or facility(shipment.source) == null or destination.company_id != shipment.company or int(shipment.arrival) < clock.tick:
+				errors.append("Shipment endpoint or arrival")
 	for owner: SimCompany in companies.values():
-		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) != owner.capital + owner.profit():
+		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) != owner.capital + owner.profit():
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
+		if _behavior(f) == "storage" and logistics.used(f) + logistics.incoming(f.id) > f.capacity:
+			errors.append("Warehouse capacity: " + f.id)
 		for product: String in f.inventory.quantities:
 			if f.inventory.quantity(product) < 0 or f.inventory.value(product) < 0 or (f.inventory.quantity(product) == 0 and f.inventory.value(product) != 0):
 				errors.append("Inventory balance: " + f.id + "/" + product)
@@ -361,7 +391,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 3, "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 4, "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,
@@ -369,3 +399,12 @@ func snapshot() -> Dictionary:
 		"command_results": command_results.duplicate(true), "market": market.duplicate(true),
 		"unlocked_technologies": unlocked_technologies.duplicate(), "debug_actions": debug_actions.duplicate(true),
 		"consumer_units": cumulative_consumer_units, "consumer_revenue": cumulative_consumer_revenue}
+
+func fixed_assets(company: String) -> int:
+	var value: int = 0
+	for f: SimFacility in facilities:
+		if f.company_id == company: value += f.asset_cost - f.accumulated_depreciation
+	return value
+
+func record_history() -> void:
+	for owner: SimCompany in companies.values(): owner.record_history(clock)

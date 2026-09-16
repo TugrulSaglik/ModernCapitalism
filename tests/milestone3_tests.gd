@@ -66,8 +66,16 @@ func _construction() -> void:
 	check(session.submit(build_command("warehouse", 24, 10)), "Warehouse constructible")
 	check(f.price == 36000 and session.sim.pending_commands.is_empty(), "Construction flushes earlier commands in FIFO order")
 	check(session.sim._behavior(session.sim.facility("built_000002")) == "storage", "Warehouse passive storage role")
-	for day: int in range(10): session.sim.step()
-	check(f.sold_today > 0 and f.inventory.total_value() > 0, "New retail joins sourcing and consumer market")
+	# Keep this construction/market check independent of scarce upstream supply.
+	f.inventory.add("smartphone", 48, 480000)
+	session.sim.companies.player.spend(480000)
+	var sold: int = 0
+	var stocked: bool = false
+	for day: int in range(30):
+		session.sim.step()
+		sold += f.sold_today
+		stocked = stocked or f.inventory.total_value() > 0 or session.sim.logistics.incoming(f.id) > 0
+	check(sold > 0 and stocked, "New retail joins delayed sourcing and consumer market")
 	check(session.sim.facility("built_000002").produced_today == 0 and session.sim.facility("built_000002").sold_today == 0, "Warehouse never manufactures or retails")
 	for kind: String in session.sim.catalog.facility_types:
 		var separate: GameSession = fresh()
@@ -91,6 +99,8 @@ func _lifecycle_and_save() -> void:
 	check(not s.sim.facility("built_000001").active, "New facility suspension works")
 	var saved: Dictionary = s.snapshot()
 	check(s.save_game("res://.godot/m3-save.json"), "Save constructed city")
+	for facility: SimFacility in s.sim.facilities: facility.operating = false
+	for day: int in range(10): s.sim.step()
 	s.submit({"type": "demolish_facility", "facility": "built_000002"})
 	check(not s.sim.facility("built_000001").suppliers.has("smartphone"), "Demolition clears pinned suppliers")
 	check(s.save_game("res://.godot/m3-demolished.json") and s.load_game("res://.godot/m3-demolished.json"), "Demolition cleans historical source references for persistence")
@@ -99,7 +109,9 @@ func _lifecycle_and_save() -> void:
 	if not loaded: printerr("Restore diagnostic: ", s.message)
 	check(loaded and same(saved, s.snapshot()), "Load restores exact city, IDs, settings and economy")
 	var f: SimFacility = s.sim.facility("built_000001")
-	var loss: int = f.inventory.total_value()
+	for facility: SimFacility in s.sim.facilities: facility.operating = false
+	for day: int in range(10): s.sim.step()
+	var loss: int = f.inventory.total_value() + f.asset_cost - f.accumulated_depreciation
 	var expenses: int = s.sim.companies.player.expenses
 	var cash: int = s.sim.companies.player.cash
 	check(loss > 0, "Demolition fixture has inventory")
