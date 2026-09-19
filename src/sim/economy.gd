@@ -18,6 +18,8 @@ var facilities: Array[SimFacility] = []
 var pending_commands: Array[Dictionary] = []
 var command_results: Array[Dictionary] = []
 var market: Dictionary = {}
+var category_market: Dictionary = {}
+var market_history: Array[Dictionary] = []
 var cumulative_consumer_units: int = 0
 var cumulative_consumer_revenue: int = 0
 var unlocked_technologies: Array[String] = []
@@ -55,13 +57,20 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	for definition: Dictionary in definitions:
 		companies[str(definition.id)] = Company.new(definition)
 	definitions = catalog.scenario.facilities.duplicate(true)
+	if city_settings.get("preset", "procedural") != "legacy": definitions.append_array(catalog.scenario.get("expanded_facilities", []))
 	definitions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	for definition: Dictionary in definitions:
 		var new_facility: SimFacility = Facility.new(definition)
 		new_facility.active = catalog.available(new_facility.product_id, era)
 		facilities.append(new_facility)
+		if city_settings.get("preset", "procedural") != "legacy":
+			for product: String in catalog.scenario.get("assortments", {}).get(new_facility.id, []):
+				if available(product) and product != new_facility.product_id: new_facility.assortment[product] = int(int(catalog.products[product].reference_price) * 1.3)
 	city = CityMap.new()
-	return city.initialize(facilities, catalog, seed_value, city_settings)
+	var success: bool = city.initialize(facilities, catalog, seed_value, city_settings)
+	category_market.clear()
+	market_history.clear()
+	return success
 
 func facility(id: String) -> SimFacility:
 	for candidate: SimFacility in facilities:
@@ -82,6 +91,18 @@ func command_error(command: Dictionary) -> String:
 	if target == null or target.company_id != str(command.get("company", "")):
 		return "Unknown facility or company does not own it."
 	match str(command.get("type", "")):
+		"add_line", "remove_line", "set_production":
+			var product: String = str(command.get("product", ""))
+			var definition: Dictionary = catalog.facility_types[target.type_id]
+			if product not in definition.products or not available(product): return "Unsupported or era-locked product."
+			if command.type == "set_production":
+				if _behavior(target) != "production": return "Select a factory."
+			else:
+				if _behavior(target) != "retail": return "Select a retailer."
+				if command.type == "add_line":
+					if target.assortment.has(product) or target.assortment.size() >= int(definition.slots): return "Product already listed or assortment full."
+					if catalog.products[product].category not in definition.categories: return "Category not permitted."
+				elif not target.assortment.has(product) or target.assortment.size() <= 1: return "Keep at least one product line."
 		"set_warehouse_target":
 			if _behavior(target) != "storage" or not catalog.products.has(str(command.get("product", ""))) or not command.get("quantity") is int or command.quantity < 0 or command.quantity > target.capacity: return "Choose a warehouse product target within capacity."
 		"demolish_facility":
@@ -98,12 +119,14 @@ func command_error(command: Dictionary) -> String:
 			if companies[target.company_id].cash < quote.freight: return "Insufficient freight funds."
 			if not available(product): return "Product unavailable."
 		"set_price":
+			if _behavior(target) == "retail" and not target.assortment.has(str(command.get("product", target.product_id))): return "Product is not in assortment."
+			if _behavior(target) != "retail" and str(command.get("product", target.product_id)) != target.product_id: return "Price applies to the configured product."
 			if not command.get("price") is int or int(command.price) <= 0 or int(command.price) > 100000000:
 				return "Price must be integer cents between 1 and 100000000."
 		"set_supplier":
 			var product: String = str(command.get("product", ""))
 			var inputs: Dictionary = catalog.products[target.product_id].inputs
-			if not (product == target.product_id and _behavior(target) == "retail") and not (_behavior(target) == "production" and inputs.has(product)) and not (_behavior(target) == "storage" and catalog.products.has(product)):
+			if not (target.assortment.has(product) and _behavior(target) == "retail") and not (_behavior(target) == "production" and inputs.has(product)) and not (_behavior(target) == "storage" and catalog.products.has(product)):
 				return "Facility does not source that product."
 			var supplier_id: String = str(command.get("supplier", ""))
 			if supplier_id != "":
@@ -131,7 +154,25 @@ func _apply_commands() -> void:
 				"build_facility": _construct(command)
 				"demolish_facility": _demolish(target)
 				"transfer": logistics.dispatch(self, target, facility(command.destination), command.product, command.quantity)
-				"set_price": target.price = int(command.price)
+				"add_line": target.assortment[command.product] = int(int(catalog.products[command.product].reference_price) * 1.3)
+				"remove_line":
+					target.assortment.erase(command.product)
+					target.suppliers.erase(command.product)
+					if target.product_id == command.product:
+						target.product_id = target.line_ids()[0]
+						target.price = int(target.assortment[target.product_id])
+				"set_production":
+					for buyer: SimFacility in facilities:
+						for product: String in buyer.suppliers.keys():
+							if buyer.suppliers[product] == target.id and product != command.product: buyer.suppliers.erase(product)
+					target.product_id = command.product
+					target.price = int(catalog.products[command.product].reference_price)
+					target.suppliers.clear()
+					target.assortment = {target.product_id: target.price}
+				"set_price":
+					var product: String = str(command.get("product", target.product_id))
+					target.assortment[product] = int(command.price)
+					if product == target.product_id: target.price = int(command.price)
 				"set_supplier": target.suppliers[str(command.product)] = str(command.get("supplier", ""))
 				"set_operating": target.operating = bool(command.operating)
 				"set_stock_days": target.stock_days = int(command.days)
@@ -168,6 +209,7 @@ func _construct(command: Dictionary) -> void:
 	var definition: Dictionary = catalog.facility_types[str(command.archetype)]
 	var owner: SimCompany = companies[str(command.company)]
 	owner.spend(int(definition.cost))
+	owner.capex += int(definition.cost)
 	var product: String = str(command.product)
 	var price: int = int(catalog.products[product].reference_price)
 	if definition.behavior == "retail":
@@ -202,10 +244,13 @@ func _ai_decisions() -> void:
 		var owner: SimCompany = companies[f.company_id]
 		if not owner.ai or _behavior(f) != "retail" or not available(f.product_id):
 			continue
-		var reference: int = int(catalog.products[f.product_id].reference_price)
-		var change: int = -maxi(1, int(f.price * 0.02)) if f.inventory.quantity(f.product_id) > f.capacity else maxi(1, int(f.price * 0.01))
-		queue_command({"type": "set_price", "company": owner.id, "facility": f.id,
-			"price": clampi(f.price + change, int(reference * 1.10), int(reference * 1.60))})
+		for product: String in f.line_ids():
+			if not available(product): continue
+			var reference: int = int(catalog.products[product].reference_price)
+			var price: int = f.line_price(product)
+			var change: int = -maxi(1, int(price * 0.02)) if f.inventory.quantity(product) > f.capacity else maxi(1, int(price * 0.01))
+			queue_command({"type": "set_price", "company": owner.id, "facility": f.id, "product": product,
+				"price": clampi(price + change, int(reference * 1.10), int(reference * 1.60))})
 
 func _behavior(f: SimFacility) -> String:
 	return str(catalog.facility_types[f.type_id].behavior)
@@ -250,22 +295,34 @@ func produce(f: SimFacility) -> int:
 		return 0
 	var output_cost: int = units * conversion
 	owner.spend(output_cost)
+	owner.production_cash += output_cost
 	for input: String in input_ids:
 		output_cost += f.inventory.remove(input, units * int(inputs[input]))
 	f.inventory.add(f.product_id, units, output_cost)
 	f.produced_today += units
 	return units
 
-func consumer_sale(f: SimFacility, requested: int) -> int:
-	if requested <= 0 or not f.active or _behavior(f) != "retail" or not available(f.product_id):
-		return 0
-	var units: int = mini(requested, mini(f.inventory.quantity(f.product_id), f.capacity - f.sold_today))
-	if units <= 0:
-		return 0
-	var cost: int = f.inventory.remove(f.product_id, units)
+func consumer_sale(f: SimFacility, requested: int, product: String = "") -> int:
+	if product.is_empty(): product = f.product_id
+	if requested <= 0 or not f.active or _behavior(f) != "retail" or not available(product) or not f.assortment.has(product): return 0
+	var units: int = mini(requested, mini(f.inventory.quantity(product), f.capacity - f.sold_today))
+	if units <= 0: return 0
+	var cost: int = f.inventory.remove(product, units)
+	var amount: int = units * f.line_price(product)
 	var owner: SimCompany = companies[f.company_id]
-	owner.record_sale(units * f.price, cost)
+	owner.record_sale(amount, cost)
+	owner.retail_revenue += amount
 	f.sold_today += units
+	var line: Dictionary = f.line_sales.get(product, {"units": 0, "revenue": 0, "cogs": 0})
+	line.units += units
+	line.revenue += amount
+	line.cogs += cost
+	f.line_sales[product] = line
+	var today: Dictionary = f.line_today.get(product, {"units": 0, "revenue": 0, "cogs": 0})
+	today.units += units
+	today.revenue += amount
+	today.cogs += cost
+	f.line_today[product] = today
 	return units
 
 func step() -> void:
@@ -288,9 +345,12 @@ func step() -> void:
 			company.depreciation += expense
 	for f: SimFacility in facilities:
 		f.sold_today = 0
+		f.line_today.clear()
 		f.produced_today = 0
 		f.last_sources.clear()
-		f.active = f.operating and available(f.product_id)
+		var has_available_line: bool = false
+		for product: String in f.line_ids(): has_available_line = has_available_line or available(product)
+		f.active = f.operating and (available(f.product_id) if _behavior(f) == "production" else (has_available_line or _behavior(f) == "storage"))
 		if f.active:
 			var owner: SimCompany = companies[f.company_id]
 			f.active = owner.pay_expense(int(catalog.facility_types[f.type_id].overhead))
@@ -305,7 +365,8 @@ func step() -> void:
 		produce(f)
 	for f: SimFacility in facilities:
 		if f.active and _behavior(f) == "retail":
-			_source(f, f.product_id, f.capacity * f.stock_days)
+			for product: String in f.line_ids():
+				if available(product): _source(f, product, maxi(1, f.capacity * f.stock_days / f.assortment.size()))
 		elif f.active and _behavior(f) == "storage":
 			var products: Array = f.replenishment_targets.keys()
 			products.sort()
@@ -313,6 +374,11 @@ func step() -> void:
 	_clear_consumer_markets()
 	for f: SimFacility in facilities:
 		f.recent_sales.append({"tick": clock.tick, "units": f.sold_today, "revenue": f.sold_today * f.price, "produced": f.produced_today})
+		var retail_revenue: int = 0
+		for record: Dictionary in f.line_today.values(): retail_revenue += int(record.revenue)
+		f.recent_sales.back().revenue = retail_revenue
+		f.product_history.append({"tick": clock.tick, "products": f.line_today.duplicate(true)})
+		if f.product_history.size() > 7: f.product_history.pop_front()
 		if f.recent_sales.size() > 7:
 			f.recent_sales.pop_front()
 	record_history()
@@ -320,38 +386,7 @@ func step() -> void:
 	record_history()
 
 func _clear_consumer_markets() -> void:
-	var product_ids: Array = catalog.products.keys()
-	product_ids.sort()
-	for product: String in product_ids:
-		var definition: Dictionary = catalog.products[product]
-		var potential: int = Demand.market_size(int(definition.daily_demand), int(city.population.total), int(city.population.purchasing_power), rng.randi_range(90, 110))
-		if not available(product):
-			continue
-		var offers: Array[Dictionary] = []
-		var stores: Array[SimFacility] = []
-		for f: SimFacility in facilities:
-			if f.active and _behavior(f) == "retail" and f.product_id == product:
-				stores.append(f)
-				offers.append({"price": f.price, "reference_price": int(definition.reference_price),
-					"quality": f.quality, "stock": mini(f.capacity, f.inventory.quantity(product))})
-		var allocation: Array[int] = Demand.allocate(potential, offers)
-		var units: int = 0
-		var revenue: int = 0
-		var by_company: Dictionary = {}
-		for index: int in range(stores.size()):
-			var f: SimFacility = stores[index]
-			var sold: int = consumer_sale(f, allocation[index])
-			units += sold
-			revenue += sold * f.price
-			by_company[f.company_id] = int(by_company.get(f.company_id, 0)) + sold
-		var shares: Dictionary = {}
-		for id: String in by_company:
-			shares[id] = float(by_company[id]) / units if units > 0 else 0.0
-		market[product] = {"potential": potential, "units": units, "revenue": revenue,
-			"average_price": float(revenue) / units if units > 0 else 0.0,
-			"company_units": by_company, "market_share": shares}
-		cumulative_consumer_units += units
-		cumulative_consumer_revenue += revenue
+	ConsumerMarket.clear(self)
 
 func inventory_assets(company_id: String) -> int:
 	var assets: int = logistics.assets(company_id)
@@ -391,7 +426,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 5, "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 6, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,
@@ -407,4 +442,6 @@ func fixed_assets(company: String) -> int:
 	return value
 
 func record_history() -> void:
-	for owner: SimCompany in companies.values(): owner.record_history(clock)
+	for owner: SimCompany in companies.values():
+		owner.record_history(clock)
+		if not owner.monthly_history.is_empty(): owner.monthly_history.back()["balance"] = FinancialReports.balance(self, owner.id)

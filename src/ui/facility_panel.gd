@@ -3,6 +3,12 @@ extends PanelContainer
 
 signal command_requested(command: Dictionary)
 signal demolition_requested
+var choices: OptionButton
+var line: OptionButton
+var configure: Button
+var remove_line: Button
+var line_info: Label
+var layout_key: String = ""
 var selected_id: String = ""
 var session: GameSession
 var info: RichTextLabel
@@ -30,19 +36,48 @@ func _ready() -> void:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(column)
+	var tabs: TabContainer = TabContainer.new()
+	tabs.custom_minimum_size = Vector2(400, 620)
+	column.add_child(tabs)
+	var operations: VBoxContainer = VBoxContainer.new()
+	operations.name = "Products"
+	tabs.add_child(operations)
+	var sourcing: VBoxContainer = VBoxContainer.new()
+	sourcing.name = "Sourcing"
+	tabs.add_child(sourcing)
+	var transport: VBoxContainer = VBoxContainer.new()
+	transport.name = "Logistics"
+	tabs.add_child(transport)
 	info = RichTextLabel.new()
 	info.custom_minimum_size = Vector2(390, 255)
-	column.add_child(info)
+	operations.add_child(info)
+	info.custom_minimum_size.y = 190
+	choices = OptionButton.new()
+	operations.add_child(choices)
+	configure = _button(operations, "Add product line / set production", func() -> void:
+		if choices.selected >= 0:
+			var f: SimFacility = session.sim.facility(selected_id)
+			command_requested.emit({"type": "add_line" if session.sim._behavior(f) == "retail" else "set_production", "facility": selected_id, "product": choices.get_item_text(choices.selected)}))
+	line = OptionButton.new()
+	operations.add_child(line)
+	line.item_selected.connect(func(_index: int) -> void:
+		price.value = session.sim.facility(selected_id).line_price(line.get_item_text(line.selected)) / 100.0
+		refresh())
+	line_info = Label.new()
+	line_info.add_theme_font_size_override("font_size", 14)
+	operations.add_child(line_info)
+	remove_line = _button(operations, "Remove selected line (stock retained)", func() -> void:
+		if line.selected >= 0: command_requested.emit({"type": "remove_line", "facility": selected_id, "product": line.get_item_text(line.selected)}))
 	logistics_info = RichTextLabel.new()
 	logistics_info.custom_minimum_size = Vector2(390, 170)
 	logistics_info.add_theme_font_size_override("normal_font_size", 14)
-	column.add_child(logistics_info)
+	transport.add_child(logistics_info)
 	transfer_product = OptionButton.new()
-	column.add_child(transfer_product)
+	transport.add_child(transfer_product)
 	transfer_destination = OptionButton.new()
-	column.add_child(transfer_destination)
+	transport.add_child(transfer_destination)
 	var transfer_row: HBoxContainer = HBoxContainer.new()
-	column.add_child(transfer_row)
+	transport.add_child(transfer_row)
 	transfer_quantity = SpinBox.new()
 	transfer_quantity.min_value = 0
 	transfer_quantity.max_value = 100000
@@ -51,10 +86,10 @@ func _ready() -> void:
 	transfer_button = _button(transfer_row, "Send transfer", func() -> void:
 		if transfer_destination.selected >= 0 and transfer_product.selected >= 0:
 			command_requested.emit({"type": "transfer", "facility": selected_id, "product": transfer_product.get_item_text(transfer_product.selected), "destination": str(transfer_destination.get_item_metadata(transfer_destination.selected)), "quantity": int(transfer_quantity.value)}))
-	warehouse_target = _button(column, "Set warehouse replenishment target (0 = off)", func() -> void:
+	warehouse_target = _button(transport, "Set warehouse replenishment target (0 = off)", func() -> void:
 		if transfer_product.selected >= 0: command_requested.emit({"type": "set_warehouse_target", "facility": selected_id, "product": transfer_product.get_item_text(transfer_product.selected), "quantity": int(transfer_quantity.value)}))
 	var price_row: HBoxContainer = HBoxContainer.new()
-	column.add_child(price_row)
+	operations.add_child(price_row)
 	price = SpinBox.new()
 	price.min_value = 0.01
 	price.max_value = 1000000
@@ -62,13 +97,13 @@ func _ready() -> void:
 	price.prefix = "$"
 	price.custom_minimum_size.x = 170
 	price_row.add_child(price)
-	apply_price = _button(price_row, "Queue price", func() -> void: command_requested.emit({"type": "set_price", "facility": selected_id, "price": int(round(price.value * 100.0))}))
-	operating = _button(column, "Suspend operation", func() -> void:
+	apply_price = _button(price_row, "Queue price", func() -> void: command_requested.emit({"type": "set_price", "facility": selected_id, "product": line.get_item_text(line.selected) if line.selected >= 0 else session.sim.facility(selected_id).product_id, "price": int(round(price.value * 100.0))}))
+	operating = _button(operations, "Suspend operation", func() -> void:
 		var f: SimFacility = session.sim.facility(selected_id)
 		command_requested.emit({"type": "set_operating", "facility": selected_id, "operating": not f.operating}))
-	demolish = _button(column, "Demolish facility…", func() -> void: demolition_requested.emit())
+	demolish = _button(operations, "Demolish facility…", func() -> void: demolition_requested.emit())
 	var stock_row: HBoxContainer = HBoxContainer.new()
-	column.add_child(stock_row)
+	operations.add_child(stock_row)
 	stock = SpinBox.new()
 	stock.min_value = 1
 	stock.max_value = 7
@@ -77,18 +112,18 @@ func _ready() -> void:
 	apply_stock = _button(stock_row, "Queue stock target", func() -> void: command_requested.emit({"type": "set_stock_days", "facility": selected_id, "days": int(stock.value)}))
 	var label: Label = Label.new()
 	label.text = "SOURCING / WHOLESALE OFFERS"
-	column.add_child(label)
+	sourcing.add_child(label)
 	product = OptionButton.new()
-	column.add_child(product)
+	sourcing.add_child(product)
 	product.item_selected.connect(func(_index: int) -> void: _populate_suppliers())
 	suppliers = OptionButton.new()
-	column.add_child(suppliers)
-	apply_supplier = _button(column, "Queue supplier selection", func() -> void:
+	sourcing.add_child(suppliers)
+	apply_supplier = _button(sourcing, "Queue supplier selection", func() -> void:
 		if product.selected >= 0 and suppliers.selected >= 0:
 			command_requested.emit({"type": "set_supplier", "facility": selected_id, "product": product.get_item_text(product.selected), "supplier": str(suppliers.get_item_metadata(suppliers.selected))}))
 	sourcing_info = RichTextLabel.new()
 	sourcing_info.custom_minimum_size = Vector2(390, 220)
-	column.add_child(sourcing_info)
+	sourcing.add_child(sourcing_info)
 
 func _button(parent: Node, text_value: String, action: Callable) -> Button:
 	var button: Button = Button.new()
@@ -101,6 +136,16 @@ func bind(game_session: GameSession, id: String) -> void:
 	session = game_session
 	selected_id = id
 	var f: SimFacility = session.sim.facility(id)
+	layout_key = str(f.line_ids()) + f.product_id
+	choices.clear()
+	line.clear()
+	for id_value: String in session.sim.catalog.facility_types[f.type_id].products:
+		if session.sim.available(id_value):
+			choices.add_item(id_value)
+			if id_value == f.product_id: choices.select(choices.item_count - 1)
+	for id_value: String in f.line_ids():
+		line.add_item(id_value)
+		if id_value == f.product_id: line.select(line.item_count - 1)
 	price.value = f.price / 100.0
 	stock.value = f.stock_days
 	transfer_product.clear()
@@ -116,7 +161,7 @@ func bind(game_session: GameSession, id: String) -> void:
 	product.clear()
 	var inputs: Dictionary = session.sim.catalog.products[f.product_id].inputs
 	if str(session.sim.catalog.facility_types[f.type_id].behavior) == "retail":
-		product.add_item(f.product_id)
+		for id_value: String in f.line_ids(): product.add_item(id_value)
 	elif str(session.sim.catalog.facility_types[f.type_id].behavior) == "production":
 		var input_ids: Array = inputs.keys()
 		input_ids.sort()
@@ -147,6 +192,9 @@ func refresh() -> void:
 	var f: SimFacility = session.sim.facility(selected_id)
 	if f == null:
 		return
+	if layout_key != str(f.line_ids()) + f.product_id:
+		bind(session, selected_id)
+		return
 	var owner: SimCompany = session.sim.companies[f.company_id]
 	var definition: Dictionary = session.sim.catalog.products[f.product_id]
 	var lines: PackedStringArray = [f.id + " / " + owner.display_name,
@@ -162,11 +210,34 @@ func refresh() -> void:
 		lines[3] = "Storage: %d / %d units | free %d (after reservations)" % [session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f)]
 		lines.append("Replenishment targets: " + str(f.replenishment_targets))
 	var weekly: int = 0
+	if session.sim._behavior(f) == "retail":
+		lines[1] = str(session.sim.catalog.facility_types[f.type_id].name) + " • %d product lines" % f.assortment.size()
+		lines[3] = "Quality %d • Shared checkout capacity %d/day" % [f.quality, f.capacity]
 	for sale: Dictionary in f.recent_sales: weekly += int(sale.units)
 	lines.append("Recent 7 days: %d consumer units" % weekly)
 	lines.append("Owner daily revenue $%.2f / costs $%.2f / profit $%.2f" % [owner.daily_revenue / 100.0, (owner.daily_cogs + owner.daily_expenses) / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0])
 	info.text = "\n".join(lines)
 	var own: bool = f.company_id == session.player_company
+	configure.disabled = not own
+	configure.text = "Add product line" if session.sim._behavior(f) == "retail" else "Change production (keep stock)"
+	info.custom_minimum_size.y = 310 if session.sim._behavior(f) == "production" else 190
+	remove_line.disabled = not own or f.assortment.size() <= 1
+	configure.visible = session.sim._behavior(f) != "storage"
+	choices.visible = configure.visible
+	remove_line.visible = session.sim._behavior(f) == "retail"
+	line.visible = remove_line.visible
+	line_info.visible = remove_line.visible
+	if line.selected >= 0:
+		var selected: String = line.get_item_text(line.selected)
+		var sales: Dictionary = f.line_sales.get(selected, {})
+		var recent: int = 0
+		for record: Dictionary in f.product_history: recent += int(record.products.get(selected, {}).get("units", 0))
+		var unit_cost: int = f.inventory.value(selected) / maxi(1, f.inventory.quantity(selected))
+		var cost_label: String = "Unit book cost"
+		if f.inventory.quantity(selected) == 0:
+			unit_cost = int(sales.get("cogs", 0)) / maxi(1, int(sales.get("units", 0)))
+			cost_label = "Avg. sold cost"
+		line_info.text = "Lines %d / %d • %s\nStock %d • Incoming %d • Supplier %s\n7 days: %d sold • %s %s\nLifetime gross margin %s" % [f.assortment.size(), session.sim.catalog.facility_types[f.type_id].get("slots", 1), selected, f.inventory.quantity(selected), session.sim.logistics.incoming(f.id, selected), str(f.suppliers.get(selected, "Automatic")), recent, cost_label, CompanyReports.money(unit_cost), CompanyReports.money(int(sales.get("revenue", 0)) - int(sales.get("cogs", 0)))]
 	transfer_button.disabled = not own or transfer_destination.item_count == 0
 	warehouse_target.visible = session.sim._behavior(f) == "storage"
 	warehouse_target.disabled = not own

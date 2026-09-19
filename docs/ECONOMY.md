@@ -30,16 +30,25 @@ expensed by the buyer at departure. Inventory uses pooled carrying cost with pro
 integer removal; the last unit removes the exact remaining cents.
 
 ## Consumers and competition
-Households are an external sector with finite daily potential units per product.
-A seeded daily shock varies potential demand by ±10%. Each offer's appeal is
-`(reference_price / price)^1.4 * quality / 50`, bounded to avoid singularities.
-Potential buyers choose against an outside option of weight 1: at each sale the
-available offers receive proportional shares of deterministic cumulative targets.
-Total desired purchases are `floor(potential * total_appeal / (1 + total_appeal))`.
-Allocate units by greatest unmet proportional target, stable ID ties, subject to
-inventory and retail throughput. Thus higher price lowers an isolated offer's
-demand; higher quality increases it. Stockouts can leave demand unserved.
-There is no household income ledger or cross-product substitution yet.
+
+The current segment/category demand and transparent choice formula are specified
+in [Milestone 6](MILESTONE6.md#consumer-segments-and-category-demand). District income
+changes segment weights. Category pools are shared by all product variants, with
+segment-specific price/quality exponents, a no-purchase outside option, inventory
+limits and shared checkout capacity. Per-product `daily_demand` remains legacy
+catalog metadata; categories now determine demand. Household cash/employment and
+cross-category budget substitution remain deferred.
+
+## Financial statements (Milestone 6)
+
+[The accounting specification](MILESTONE6.md#financial-accounts-and-statements)
+defines retail/wholesale revenue, COGS, freight, depreciation, other expenses,
+operating/investing/financing cash and retained earnings. Monthly records retain
+opening/closing cash and balance snapshots, with older months archived. Current
+month, previous month, TTM and current-year reports use the same history as the HUD.
+Production conversion is capitalized inventory and an operating cash outflow;
+construction is capitalized fixed assets and investing cash. Debug capital is
+financing. There is no interest, debt, tax or dividend system.
 
 ## Accounting and statistics
 Revenue includes wholesale and retail sales. COGS is the carrying value sold;
@@ -96,7 +105,10 @@ included even before its first profit change. TTM sums the available days in the
 rolling calendar-year interval ending on the displayed date. Freight and
 depreciation are operating expenses; purchases remain inventory assets until sale.
 
-## Population and land foundation (Milestone 5)
+## Historical population demand and current land foundation (Milestone 5)
+
+The per-product demand formula below is superseded by Milestone 6 category pools.
+Population, land, construction and external-sector conventions remain applicable.
 
 Catalog daily_demand is the potential market for 5,000 residents at purchasing power
 100. Each day and product uses:

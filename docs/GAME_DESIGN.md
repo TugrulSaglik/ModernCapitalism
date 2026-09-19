@@ -56,9 +56,8 @@ to role. Owned demolition asks for confirmation and discards inventory, with no 
 | Warehouse | 5 × 3 | $25,000 | 100-unit storage, transfers and replenishment |
 
 Definitions specify construction cost, footprint, category, visual style, behavior,
-capacity, overhead and supported products. All retail currently sells one selected
-phone product; the small catalog has not been expanded into groceries or general
-merchandise. Warehouse transfers reserve inbound capacity; a per-product target
+capacity, overhead and supported products. Milestone 6 retail uses 3/6/10 product slots for small/electronics/department
+stores, with electronics category restrictions and broader general-store support. Warehouse transfers reserve inbound capacity; a per-product target
 can request automatic replenishment. Construction capitalizes its cost and daily
 depreciation expenses it over 3,650 days. Demolition writes off remaining book value.
 Debug cash controls remain sandbox-only and session-unlocked. No new cheat or
@@ -78,3 +77,18 @@ supports navigation; middle drag and zoom remain. Parcel land values, waterfront
 port candidates are inspectable foundations, with no land purchase, rent or operational
 port gameplay. Dynamic growth, migration, real-estate development, multiple cities and
 international trade remain later milestones.
+
+## Milestone 6: consumer markets and company reporting
+
+Generated cities have Value, Mainstream and Affluent consumers derived from their
+population and district income. The expanded catalog provides several electronics,
+appliance and household categories. Products compete within finite category demand.
+Players configure assortments, per-product prices/suppliers and compatible factory
+recipes through ordinary management controls. Existing shipments and inventory
+accounting remain authoritative.
+
+The city-first UI keeps company statements and market reports in a dismissible
+Company dialog. Facility tabs separate product management, sourcing and logistics.
+The ledger supports Income Statement, Balance Sheet and Cash Flow with current,
+previous-month, annual and TTM periods, monthly history and persistent HUD bars.
+See [Milestone 6](MILESTONE6.md) for exact controls, formulas and deliberate limits.

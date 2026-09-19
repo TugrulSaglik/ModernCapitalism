@@ -1,5 +1,15 @@
 # Technical architecture
 
+## Current milestone
+
+[Milestone 6](MILESTONE6.md) extends these boundaries with ConsumerMarket (pure
+segment/category market clearing), FinancialReports (derived statements), and
+CompanyReports (dismissible tabbed UI). SimFacility has product-keyed assortments,
+prices and sales records; manufacturing still has one selected recipe at a time.
+SimCompany records categorized account deltas and archives monthly closes. Save
+schema 6 hydrates these states transactionally; format 2 is unchanged. The older
+milestone sections below remain architectural history.
+
 ## Boundaries and current modules
 All `src/sim` scripts extend RefCounted, use typed GDScript, and have no scene,
 rendering or input dependencies. The SceneTree test runner is only a host.
@@ -45,7 +55,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-5 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-6 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -150,7 +160,7 @@ The HUD reads these records and does not own any economic state. Save restoratio
 validates shipment endpoints, timing, route quotes, assets and histories before
 replacing the live economy.
 
-## Procedural city and land (Milestone 5, current)
+## Procedural city and land (Milestone 5 foundation)
 
 Economy owns CityMap; CityGenerator fills it before any rendering. GameSession.start
 accepts optional city settings after mode, and Economy.initialize accepts them after

@@ -115,7 +115,9 @@ func _run() -> void:
 	screen._new_session(2012)
 	session.time.set_speed(0)
 	choose("electronics_store")
-	check(screen.build_products.item_count == 1, "2012 construction excludes advanced product")
+	var early_products: Array[String] = []
+	for index: int in range(screen.build_products.item_count): early_products.append(str(screen.build_products.get_item_metadata(index)))
+	check(screen.build_products.item_count > 0 and "advanced_phone" not in early_products, "2012 construction excludes advanced product")
 	move_to(24, 18)
 	click()
 	check(session.sim.facility("built_000001") != null, "2012 graphical construction works")

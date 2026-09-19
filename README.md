@@ -52,7 +52,24 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 5
+## Milestone 6
+
+Consumer markets now use three income-sensitive segments and category competition.
+The catalog has 26 products/components. Stores manage several product lines with
+independent prices and suppliers; factories can switch compatible recipes without
+converting existing inventory. **Company** opens Income Statement, Balance Sheet,
+Cash Flow, Markets, History and Companies tabs. The persistent TTM/monthly HUD
+reads the same financial history. Saves use economy schema 6 / format 2; old saves
+are intentionally incompatible.
+
+See [Milestone 6 rules and controls](docs/MILESTONE6.md) and
+[validation](docs/VALIDATION.md). Programmatic rendered validation:
+
+```powershell
+& $godot --path . --log-file .godot/m6-visual.log --script res://tests/market_smoke.gd
+```
+
+## Milestone 5 foundation
 
 Sandbox now starts a deterministic **48 × 36 procedural coastal city**. Settings
 lets you enter a numeric city/game seed or choose a random seed before starting
@@ -145,5 +162,5 @@ to avoid attempts to write the default user log directory.
 Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
-Full financial statements, active company research,
-multi-product stores and broader catalog content remain future work.
+Milestone 6 screenshots are in `.godot/m6-screenshots/`. Active company research,
+quality provenance, strategic AI, advertising and corporate finance remain future work.

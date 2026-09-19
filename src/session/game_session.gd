@@ -69,6 +69,7 @@ func debug_action(action: String, amount: int = 0) -> bool:
 				sim.step()
 		_:
 			return false
+	sim.record_history()
 	sim.debug_actions.append({"tick": sim.clock.tick, "action": action, "amount": amount})
 	message = "Debug action applied: " + action
 	return true

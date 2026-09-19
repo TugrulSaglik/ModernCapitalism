@@ -23,6 +23,18 @@ var accumulated_depreciation: int = 0
 var asset_days: int = 0
 var replenishment_targets: Dictionary = {}
 var inventory: SimInventory = Inventory.new()
+var assortment: Dictionary = {}
+var line_sales: Dictionary = {}
+var line_today: Dictionary = {}
+var product_history: Array[Dictionary] = []
+
+func line_ids() -> Array:
+	var ids: Array = assortment.keys()
+	ids.sort()
+	return ids
+
+func line_price(product: String) -> int:
+	return price if product == product_id else int(assortment.get(product, price))
 
 func _init(definition: Dictionary) -> void:
 	id = str(definition.id)
@@ -33,9 +45,12 @@ func _init(definition: Dictionary) -> void:
 	capacity = int(definition.capacity)
 	price = int(definition.price)
 	quality = int(definition.quality)
+	assortment[product_id] = price
 
 func snapshot() -> Dictionary:
 	return {"id": id, "company": company_id, "city": city_id, "type": type_id,
+		"assortment": assortment.duplicate(true), "line_sales": line_sales.duplicate(true),
+		"line_today": line_today.duplicate(true), "product_history": product_history.duplicate(true),
 		"asset_cost": asset_cost, "accumulated_depreciation": accumulated_depreciation, "asset_days": asset_days,
 		"replenishment_targets": replenishment_targets.duplicate(true),
 		"product": product_id, "capacity": capacity, "price": price, "quality": quality,

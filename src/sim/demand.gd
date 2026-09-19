@@ -18,6 +18,8 @@ static func allocate(potential: int, offers: Array[Dictionary]) -> Array[int]:
 	for offer: Dictionary in offers:
 		allocations.append(0)
 		var weight: float = appeal(int(offer.price), int(offer.reference_price), int(offer.quality)) if int(offer.stock) > 0 else 0.0
+		if offer.has("price_sensitivity") and int(offer.stock) > 0 and int(offer.price) > 0:
+			weight = clampf(pow(float(offer.reference_price) / int(offer.price), float(offer.price_sensitivity)) * pow(clampi(offer.quality, 1, 100) / 50.0, float(offer.quality_sensitivity)), 0.001, 100.0)
 		weights.append(weight)
 		total += weight
 	var desired: int = int(maxi(0, potential) * total / (1.0 + total))

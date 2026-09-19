@@ -13,6 +13,7 @@ var status: Label
 var facility_list: OptionButton
 var settings: AcceptDialog
 var overview: AcceptDialog
+var reports: CompanyReports
 var overview_text: RichTextLabel
 var debug_entry: LineEdit
 var debug_panel: VBoxContainer
@@ -215,7 +216,7 @@ func refresh() -> void:
 		select_facility(selected_id)
 	var owner: SimCompany = session.sim.companies[session.player_company]
 	date_label.text = "%s | %s" % [session.sim.clock.date_string(), "PAUSED" if session.time.speed == 0 else "%dx" % session.time.speed]
-	finance_label.text = "Cash  $%.2f\nTTM Profit  $%.2f" % [owner.cash / 100.0, owner.ttm_profit(session.sim.clock) / 100.0]
+	finance_label.text = "Cash  %s\nTTM Profit  %s" % [CompanyReports.money(owner.cash), CompanyReports.money(owner.ttm_profit(session.sim.clock))]
 	profit_chart.update_history(owner.monthly_history)
 	for speed: int in speed_buttons:
 		speed_buttons[speed].modulate = Color("ffe190") if session.time.speed == speed else Color.WHITE
@@ -235,6 +236,7 @@ func refresh() -> void:
 		var point: Vector2i = city.preview_cell if not city.build_type.is_empty() else Vector2i(int(plot.get("x", 0)), int(plot.get("y", 0)))
 		var p: Dictionary = session.sim.city.parcel_info(point.x, point.y)
 		city_diagnostics.text = "Cell %s • %s\nLand $%.0f/cell • Waterfront %s • Port eligible %s\nAmbient properties %d • Roads %d" % [point, p.get("district", "fixture"), p.get("land_value", 0) / 100.0, p.get("waterfront", false), p.get("port_eligible", false), session.sim.city.ambient.size(), session.sim.city.roads.size()]
+		city_diagnostics.text += "\nSegments: " + str(ConsumerMarket.populations(session.sim)) + "\nAccounting difference: " + str(int(FinancialReports.balance(session.sim, session.player_company).assets) - int(FinancialReports.balance(session.sim, session.player_company).equity))
 
 func slot_path() -> String:
 	return save_directory.path_join("slot_%d.json" % int(slot.value))
@@ -256,9 +258,9 @@ func _build_dialogs() -> void:
 	overview = AcceptDialog.new()
 	overview.title = "Company overview"
 	add_child(overview)
-	overview_text = RichTextLabel.new()
-	overview_text.custom_minimum_size = Vector2(680, 330)
-	overview.add_child(overview_text)
+	reports = CompanyReports.new()
+	overview.add_child(reports)
+	reports.session = session
 	settings = AcceptDialog.new()
 	settings.title = "Session settings"
 	add_child(settings)
@@ -354,15 +356,10 @@ func _debug(action: String, amount: int = 0) -> void:
 
 func _show_company() -> void:
 	_update_company()
-	overview.popup_centered()
+	overview.popup_centered(Vector2i(800, 650))
 
 func _update_company() -> void:
-	var lines: PackedStringArray = []
-	for owner: SimCompany in session.sim.companies.values():
-		lines.append("%s\nCash $%.2f | Inventory assets $%.2f\nRevenue $%.2f | COGS $%.2f | Overhead $%.2f | Profit $%.2f\n" % [owner.display_name, owner.cash / 100.0, session.sim.inventory_assets(owner.id) / 100.0, owner.revenue / 100.0, owner.cogs / 100.0, owner.expenses / 100.0, owner.profit() / 100.0])
-	overview_text.text = "\n".join(lines)
-	var owner: SimCompany = session.sim.companies[session.player_company]
-	overview_text.text += "\nPlayer freight $%.2f | In transit $%.2f | Fixed assets $%.2f | Depreciation $%.2f\nTTM profit $%.2f\nMonthly history: %s" % [owner.freight / 100.0, session.sim.logistics.assets(owner.id) / 100.0, session.sim.fixed_assets(owner.id) / 100.0, owner.depreciation / 100.0, owner.ttm_profit(session.sim.clock) / 100.0, str(owner.monthly_history)]
+	reports.refresh()
 
 func world_input_blocked() -> bool:
 	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition])

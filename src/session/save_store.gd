@@ -116,19 +116,23 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 5 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 6 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
 	var facility_template: Dictionary = sim.facilities[0].snapshot()
+	facility_template.assortment = {}
 	var restored: Array[SimFacility] = []
 	var restored_ids: Dictionary = {}
 	for item: Variant in state.facilities:
 		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.products.has(item.product) or item.city != sim.city.id:
 			return null
 		var original: SimFacility = sim.facility(item.id)
+		if original == null:
+			for definition: Dictionary in sim.catalog.scenario.get("expanded_facilities", []):
+				if definition.id == item.id: original = SimFacility.new(definition)
 		if original != null:
-			if item.company != original.company_id or item.type != original.type_id or item.product != original.product_id or item.capacity != original.capacity or item.quality != original.quality:
+			if item.company != original.company_id or item.type != original.type_id or item.product not in sim.catalog.facility_types[item.type].products or item.capacity != original.capacity or item.quality != original.quality:
 				return null
 		else:
 			var definition: Dictionary = sim.catalog.facility_types[item.type]
@@ -161,13 +165,20 @@ func restore(state: Dictionary) -> Economy:
 		template["inventory_assets"] = 0
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
 		if absi(item.capital) > 100000000000000:
 			return null
 		owner.capital = item.capital
+		if item.opening_cash != owner.opening_cash or item.retail_revenue > item.revenue: return null
+		for field: String in item.recorded_accounts:
+			if not owner.accounts().has(field) or not item.recorded_accounts[field] is int: return null
+		owner.recorded_accounts = item.recorded_accounts.duplicate(true)
+		for entry: Variant in item.archived_months:
+			if not shape(entry, {"month": "", "profit": 0}): return null
+			owner.archived_months.append(entry.duplicate(true))
 		if item.freight + item.depreciation > item.expenses or absi(item.recorded_profit) > 100000000000000 or item.daily_history.size() > 367 or item.monthly_history.size() > 13: return null
 		owner.recorded_profit = item.recorded_profit
 		var previous: String = ""
@@ -180,6 +191,7 @@ func restore(state: Dictionary) -> Economy:
 			if not shape(entry, {"month": "", "profit": 0}) or entry.month <= previous or entry.month > sim.clock.date_string().substr(0, 7) or absi(entry.profit) > 100000000000000: return null
 			previous = entry.month
 			owner.monthly_history.append(entry.duplicate(true))
+		if not _valid_financial_history(owner): return null
 	seen.clear()
 	for item: Variant in state.facilities:
 		if not item is Dictionary:
@@ -195,6 +207,23 @@ func restore(state: Dictionary) -> Economy:
 				return null
 			f.set(field, item[field])
 		f.price = item.price
+		f.assortment.clear()
+		if item.assortment.is_empty(): return null
+		if sim._behavior(f) == "retail" and item.assortment.size() > int(sim.catalog.facility_types[f.type_id].slots): return null
+		for product: String in item.assortment:
+			if product not in sim.catalog.facility_types[f.type_id].products or not item.assortment[product] is int or item.assortment[product] <= 0 or item.assortment[product] > 100000000: return null
+			f.assortment[product] = item.assortment[product]
+		if not f.assortment.has(f.product_id): return null
+		for product: String in item.line_sales:
+			if not sim.catalog.products.has(product) or not shape(item.line_sales[product], {"units": 0, "revenue": 0, "cogs": 0}): return null
+			for value: Variant in item.line_sales[product].values():
+				if not nonnegative(value): return null
+		f.line_sales = item.line_sales.duplicate(true)
+		if not _valid_product_sales(sim, item.line_today) or item.product_history.size() > 7: return null
+		f.line_today = item.line_today.duplicate(true)
+		for record: Variant in item.product_history:
+			if not shape(record, {"tick": 0, "products": {}}) or not nonnegative(record.tick) or not _valid_product_sales(sim, record.products): return null
+			f.product_history.append(record.duplicate(true))
 		f.operating = item.operating
 		f.active = item.active
 		f.stock_days = item.stock_days
@@ -268,6 +297,23 @@ func restore(state: Dictionary) -> Economy:
 	if not nonnegative(state.consumer_units) or not nonnegative(state.consumer_revenue):
 		return null
 	sim.market = state.market.duplicate(true)
+	for category: String in state.category_market:
+		if not sim.catalog.categories.has(category) or not _valid_category(sim, state.category_market[category]): return null
+		var units: int = 0
+		var revenue: int = 0
+		for product: String in sim.market:
+			if sim.catalog.products[product].category == category:
+				units += int(sim.market[product].units)
+				revenue += int(sim.market[product].revenue)
+		if units != int(state.category_market[category].units) or revenue != int(state.category_market[category].revenue): return null
+	sim.category_market = state.category_market.duplicate(true)
+	if state.market_history.size() > 90: return null
+	for entry: Variant in state.market_history:
+		if not shape(entry, {"date": "", "categories": {}}): return null
+		if entry.date > sim.clock.date_string() or (not sim.market_history.is_empty() and entry.date <= sim.market_history.back().date): return null
+		for category: String in entry.categories:
+			if not sim.catalog.categories.has(category) or not _valid_category(sim, entry.categories[category]): return null
+		sim.market_history.append(entry.duplicate(true))
 	sim.cumulative_consumer_units = state.consumer_units
 	sim.cumulative_consumer_revenue = state.consumer_revenue
 	sim.rng.state = int(state.rng_state)
@@ -280,6 +326,51 @@ func restore(state: Dictionary) -> Economy:
 			return null
 	error = ""
 	return sim
+
+func _valid_category(sim: Economy, row: Variant) -> bool:
+	if not shape(row, {"potential": 0, "units": 0, "revenue": 0, "segments": {}}): return false
+	for field: String in ["potential", "units", "revenue"]:
+		if not nonnegative(row[field]): return false
+	if row.units > row.potential: return false
+	var total: int = 0
+	for segment: String in row.segments:
+		if not sim.catalog.segments.has(segment) or not nonnegative(row.segments[segment]): return false
+		total += int(row.segments[segment])
+	return total == row.potential
+
+func _valid_product_sales(sim: Economy, sales: Dictionary) -> bool:
+	for product: String in sales:
+		if not sim.catalog.products.has(product) or not shape(sales[product], {"units": 0, "revenue": 0, "cogs": 0}): return false
+		for value: Variant in sales[product].values():
+			if not nonnegative(value): return false
+	return true
+
+func _valid_financial_history(owner: SimCompany) -> bool:
+	if owner.recorded_accounts.is_empty(): return owner.monthly_history.is_empty() and owner.daily_history.is_empty() and owner.archived_months.is_empty()
+	if not shape(owner.recorded_accounts, owner.accounts()): return false
+	var all_months: Array[Dictionary] = owner.archived_months.duplicate()
+	all_months.append_array(owner.monthly_history)
+	var totals: Dictionary = {}
+	for field: String in owner.accounts(): totals[field] = 0
+	var previous_cash: int = owner.opening_cash
+	var previous_month: String = ""
+	for row: Dictionary in all_months:
+		if not shape(row, owner.accounts()) or not shape(row, {"opening_cash": 0, "closing_cash": 0}) or str(row.month) <= previous_month: return false
+		if int(row.opening_cash) != previous_cash or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
+		if int(row.revenue) - int(row.cogs) - int(row.expenses) != int(row.profit): return false
+		if int(row.retail_revenue) + int(row.wholesale_revenue) != int(row.revenue): return false
+		if int(row.revenue) - int(row.purchases) - int(row.production_cash) - int(row.cash_expenses) - int(row.capex) + int(row.capital) != int(row.cash): return false
+		for field: String in totals: totals[field] += int(row[field])
+		previous_cash = int(row.closing_cash)
+		previous_month = row.month
+	for field: String in totals:
+		var opening: int = owner.opening_cash if field in ["cash", "capital"] else 0
+		if int(totals[field]) + opening != int(owner.recorded_accounts[field]): return false
+	if owner.recorded_profit != int(owner.recorded_accounts.profit): return false
+	for row: Dictionary in owner.daily_history:
+		if not shape(row, owner.accounts()) or not shape(row, {"opening_cash": 0, "closing_cash": 0}): return false
+		if int(row.revenue) - int(row.cogs) - int(row.expenses) != int(row.profit) or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
+	return true
 
 func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
 	for field: String in sim.logistics.config:

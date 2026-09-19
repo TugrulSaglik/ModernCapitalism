@@ -7,8 +7,8 @@
 | 3 — Construction (implemented) | City occupancy, construction/demolition, archetypes and screenshot regression workflow | 2 |
 | 4 — Warehouses and logistics (implemented) | Road shipments, freight, lead times, landed-cost sourcing, depreciation and TTM/monthly HUD | 3 |
 | 5 — Procedural city, population and land (implemented) | Seeded coast/roads/parcels, ambient development, districts/population, demand scaling, land values, waterfront candidates and minimap | 1–4 |
-| 6 — Rich markets and financial statements (recommended next) | Household segments/budgets, category demand/substitution, quality provenance, journals, balance sheet/cash flow and borrowing | 2–5 |
-| 7 — Research and catalog expansion | Active company R&D, efficiency, resources, agriculture and broader modern product chains | 3–6 |
+| 6 — Consumer/product economy and financial statements (implemented) | Aggregate segments, category competition, 26 products, multi-product retail, recipe selection, financial statements and monthly history | 2–5 |
+| 7 — Research and product quality (recommended next) | Active company R&D, product quality/provenance, technology and production-efficiency improvements | 3–6 |
 | 8 — Competitive management | AI investment/sourcing/research, corporate headquarters, hiring, difficulty, advertising/branding and balancing | 2–7 |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
@@ -20,7 +20,7 @@ daily economic scheduler or logistics contracts. Save schema 5 stores generated
 state, protecting ongoing games from later algorithm changes. The old board is an
 explicit regression fixture; its existing checks remain alongside generated-city tests.
 
-Milestone 6 should make market size and financial outcomes explainable before
+Milestone 6 makes market size and financial outcomes inspectable before
 introducing property ownership or international trade. Keep the current population
 model as its aggregate input and preserve existing price/quality responses. Land
 values are currently estimates only; a future ownership milestone must define
@@ -31,3 +31,10 @@ Supplier reliability scoring, fleet/route capacity and traffic remain possible
 extensions. Every milestone preserves deterministic headless execution, exact save
 continuation, shared tutorial/sandbox systems and programmatic rendered validation.
 No branch or commit is created automatically.
+
+
+Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.
+Its categorized accounts and exact cash/equity reconciliations provide the foundation
+for later debt, dividends and ownership. Headquarters, advertising/branding, mergers,
+real estate, active ports/import/export and multi-city play remain future systems.
+Quality provenance is a Milestone 7 decision, not a hidden Milestone 6 mechanic.

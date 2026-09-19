@@ -390,3 +390,87 @@ trade, multiple cities, traffic, individual citizens, stock market, HQ, active R
 advertising, strategic AI expansion or full sandbox setup is implemented. These
 remain explicit roadmap items. Recommended Milestone 6 is richer consumer segments
 and trustworthy financial statements, using the new population input.
+
+## Milestone 6 final validation
+
+Finalized September 19, 2026 on Windows / Godot 4.7.2. The interrupted worktree,
+recent `.godot` logs and all uncommitted changes were inspected before any test was
+repeated. No branch, commit, Computer Use or external dependency was added.
+
+### Complete regression
+
+The final `tests/run_tests.ps1` run imports the project and exercises every headless
+entry point against the same final working tree.
+
+| Suite | Checks | Failures |
+| --- | ---: | ---: |
+| Foundation | 1,524 | 0 |
+| Milestone 2 | 809 | 0 |
+| Game smoke | 15 | 0 |
+| Legacy debug smoke | 30-day flow | 0 |
+| Milestone 3 | 7,410 | 0 |
+| Construction smoke, headless | 18 | 0 |
+| Milestone 4 | 7,394 | 0 |
+| Logistics smoke, headless | 38 | 0 |
+| Milestone 5 | 28,397 | 0 |
+| City smoke, headless | 17 | 0 |
+| Milestone 6 | 2,547 | 0 |
+| Market smoke, headless | 20 | 0 |
+
+The numeric suites and headless smoke workflows total **48,189 checks with zero
+failures**, plus the successful legacy 30-day debug flow. The Milestone 5 check
+count is 304 higher than its historical checkpoint because its data-driven loops
+now inspect the expanded catalog and starting economy.
+
+Milestone 6 coverage verifies all 26 catalog products, catalog/category/recipe
+validation, three population-reconciling consumer segments, income composition,
+category demand scaling, price and quality response, category-level competition,
+stockouts, retail slot/category rules, independent prices and suppliers, factory
+recipe switching without inventory conversion, downstream pin cleanup, shipments,
+replenishment, consumer sales, AI operation of several lines, and 2012/2022 public
+technology gates. It also verifies statement subtotals, the balance-sheet equation,
+retained earnings, direct-method cash reconciliation, capitalization/depreciation,
+monthly/year/TTM boundaries, archived months, schema-6 exact restore, corrupt-save
+rejection and deterministic continuation.
+
+### Long-run and deterministic validation
+
+The generated-city Milestone 5 suite still completes paired 3,650-day runs in both
+eras with daily invariants and exact replay checks:
+
+| Era | Days per replay copy | Residents | Consumer units | Player freight, cents |
+| --- | ---: | ---: | ---: | ---: |
+| 2012 | 3,650 | 2,269 | 158,979 | 12,229,710 |
+| 2022 | 3,650 | 2,269 | 186,214 | 12,225,164 |
+
+Milestone 6 additionally warms each era for 90 days, restores an exact schema-6
+snapshot, and advances both copies for another 1,100 days. Full snapshots match
+every 100 days and at completion; accounting and rolling-cash invariants are checked
+daily. The 2012 run sustains sales in computers, household goods, smartphones and
+televisions before the wearable gate. The 2022 run also sustains wearables, for five
+active consumer categories. All five AI/player companies finish each run with
+nonnegative cash, reconciled equity and retained earnings. AI retailers continue
+selling several lines and adjusting their per-product prices; AI does not yet build
+missing supply chains or make strategic assortment/production investments.
+
+### Programmatic rendered workflow
+
+The final non-headless `tests/market_smoke.gd` workflow passed **29 checks with zero
+failures** and wrote nine 1280 x 800 PNGs to `.godot/m6-screenshots/`: city/HUD,
+multi-product electronics and department stores, factory recipe switching, market
+report, Income Statement, Balance Sheet, Cash Flow and unobstructed financial HUD.
+It exercises add-line, per-product price and supplier controls, manufacturing and
+delivery, company tabs, monthly rollover, exact UI save/load continuation and the
+2012 gates. The final frames confirm the report dialog fits the viewport and the
+consumer-segment market layout remains readable after the clipping fixes.
+
+### Remaining limits
+
+Consumers remain aggregate external demand with no household cash, employment or
+individual agents. Quality is a facility/offer scalar; input-lot provenance, active
+R&D, branding and product design are deferred. The initial scenario demonstrates a
+subset of catalog supply chains, and AI operates existing businesses but does not
+expand strategically. Liabilities, debt, tax, dividends and ownership markets are
+not implemented. Older save schemas intentionally have no migration path. Recommended
+Milestone 7 is active R&D plus explicit product-quality and production-efficiency
+progression, introducing quality provenance before inputs can affect output quality.

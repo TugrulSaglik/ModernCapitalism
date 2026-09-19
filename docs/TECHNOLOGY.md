@@ -7,7 +7,7 @@ starting years are scenario data `[2012, 2022]`; no product-specific era branche
 exist in code. Advancing the calendar can make later public technology available.
 Catalog validation rejects missing IDs and cyclic prerequisite graphs.
 
-The small example has electronics (available 2000), mobile computing (2007), and
+The original example has electronics (available 2000), mobile computing (2007), and
 advanced mobile computing (2020, dependent on mobile computing). Conventional
 smartphones can be produced in both eras; advanced smartphones only in 2022 or
 after the date gate opens in a 2012 game. Dates are illustrative balancing data,
@@ -45,3 +45,13 @@ construction gates and saved Debug overrides still use the existing catalog rule
 Generation neither grants research completion nor bypasses unavailable products.
 The example's advanced-product facilities retain their legal sites in 2012 while
 their economic activity remains gated until the existing availability date.
+
+## Milestone 6 additions
+
+The expanded catalog adds illustrative public gates for modern wearables (2015)
+and smart-home robotics (2018), alongside advanced phones (2020). Ordinary computers,
+TVs, household goods and conventional appliances are available in both eras.
+2012 optional retail assortments omit locked products. Factory sites can remain
+reserved until their public gate opens. Build, add-line and set-production commands
+recheck availability. No active R&D or early company unlock is implied.
+See [catalog and era details](MILESTONE6.md#catalog-and-eras).
