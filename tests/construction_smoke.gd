@@ -46,6 +46,7 @@ func choose(kind: String) -> void:
 
 func _run() -> void:
 	screen = load("res://scenes/game.tscn").instantiate()
+	screen.city_settings = {"preset": "legacy"}
 	root.add_child(screen)
 	await process_frame
 	screen.set_process(false)

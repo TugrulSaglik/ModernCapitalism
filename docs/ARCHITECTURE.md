@@ -18,6 +18,8 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | GameTime | Convert frame deltas and selected speed into bounded calls to `Economy.step` |
 | SaveStore | Validate, encode, atomically write and transactionally restore session state |
 | CityMap | Serializable cells, road mask, ownership/footprints and monotonic facility IDs |
+| CityGenerator | Seeded terrain, streets, parcels, initial site allocation and ambient development |
+| CityMinimap | Compact derived map and camera navigation; no simulation ownership |
 | City / management UI | Render snapshots, select facilities and submit plain-data commands |
 | Debug screen / CLI | Construct Economy, submit commands, advance ticks, read snapshots |
 
@@ -43,7 +45,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-4 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-5 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -77,7 +79,7 @@ add migration aliases rather than renaming persisted IDs.
 Do not create empty framework classes for every future system now. Extract phase
 services when complexity requires them, preserving the phase order and test seams.
 
-## City, construction and rendering (Milestone 3)
+## Historical city, construction and rendering (Milestone 3)
 Economy owns one CityMap for `metro`: a 32 × 24 grass grid with roads on rows
 6/13/20 and columns 1/30. All other in-bounds, unoccupied cells are buildable.
 Plots map facility IDs to integer origin, width, depth and owner. The facility
@@ -147,3 +149,77 @@ and monthly totals, including a zero current-month entry after a month rollover.
 The HUD reads these records and does not own any economic state. Save restoration
 validates shipment endpoints, timing, route quotes, assets and histories before
 replacing the live economy.
+
+## Procedural city and land (Milestone 5, current)
+
+Economy owns CityMap; CityGenerator fills it before any rendering. GameSession.start
+accepts optional city settings after mode, and Economy.initialize accepts them after
+catalog path. Default settings are width 48, depth 36; supported integer ranges are
+40–96 and 30–72 respectively. The bounds are performance/scenario limits, not fixed
+coordinates in routing or construction. The existing nine scenario facilities retain
+their company, role, product, quality and capacity. An optional city_layout is used
+only by the explicit {"preset": "legacy"} regression fixture. Normal sandbox,
+tutorial and headless sessions use the generator and the same economic systems.
+
+The generator owns a separate RNG seeded from the game's numeric seed. City creation
+does not consume economic demand draws. Metadata stores generator version 1, seed as
+a decimal string, resolved settings and preset. The same engine, definitions, seed
+and settings produce equal authoritative records, independent of rendered nodes.
+The UI offers seeds 0–2,147,483,647 and entropy only in the Random seed button.
+Starting either era with the same seed/settings creates the same city.
+
+Generation proceeds in a fixed order:
+1. A bounded coastline random walk changes by up to two cells every three rows.
+   The mainland occupies roughly 68–88% of each row; the remainder is one continuous
+   eastern sea. There are no islands, bridges, ships or navigable water routes.
+2. Seeded streets are spaced seven to nine cells apart. Horizontal streets extend
+   toward the coast and intersect an inland spine. Vertical roads lie inside the
+   minimum coastline extent. Consequently every road belongs to one component.
+   Major/local metadata affects presentation; logistics still uses shortest cell
+   distance plus two access legs, preserving freight and lead-time formulas.
+3. Every cell has a stable parcel ID, terrain, district, road access, land value,
+   waterfront and potential-port flags, plus a zoning placeholder. Occupancy is
+   derived from authoritative economic plots and ambient footprints rather than
+   duplicated in each parcel. placement_error enforces bounds, water, roads,
+   frontage and both kinds of occupancy for the whole requested footprint.
+4. Economic facilities are placed first in stable ID order. Each chooses among
+   valid candidates using seeded samples and maximum minimum separation from
+   already placed businesses. No old scenario coordinates enter this selection.
+5. Ambient development fills road frontage, with occasional vacant blocks retained
+   for construction. Housing type/density favors the center. Five data records in
+   CityGenerator.KINDS define houses, apartments, larger blocks, offices and generic
+   commercial buildings. Properties have stable coordinate IDs, footprints, district,
+   capacity, occupied residents, empty owner ID and saved appearance fields.
+   They have no SimFacility, company, inventory, ledger or daily economic tick.
+
+Districts are West Gardens, Central Quarter and Harbor District. Each stores a
+development character, purchasing power, population, capacity and average land value.
+Population and averages aggregate property/cell data. See ECONOMY.md for formulas.
+
+Waterfront means land with orthogonally adjacent water. Port eligibility additionally
+requires road frontage, a non-road cell and a non-edge row. This is an interface
+candidate, not permission for an operational port or a guarantee that a future port's
+larger footprint fits. parcel_info also exposes occupancy. A future port can reference
+a coastal site, existing road access and a separate water-network endpoint without
+putting transport state into scene nodes.
+
+CityView reads saved terrain and property appearance, drawing simple procedural
+geometry. Houses, apartments, offices and economic facilities have distinct details;
+economic ownership remains roof/band color and selection remains a gold outline.
+Coordinates, initial framing, maximum zoom and pan bounds derive from dimensions.
+Middle drag, wheel zoom and contextual selection/cancellation remain; WASD is disabled.
+CityMinimap draws land/water, roads, ambient footprints, economic ownership, selection
+and camera focus; clicking changes camera focus only. Existing text/modal input
+protections also guard minimap navigation. Debug adds statistics, site information
+and an occupancy-aware vacant-frontage overlay.
+
+Persistence remains format 2 with exact integer/float tags, catalog hash and engine
+pinning. Economy schema is now 5; schemas 1–4 are rejected, without migration.
+Saves contain the actual water mask, roads/classes, parcels, districts, ambient
+properties/appearance, population, economic positions and metadata. Restore initializes
+economic definitions using the small fixture, then hydrates and validates the saved
+city; it never calls procedural generation. It checks coordinates, duplicates,
+land/road conflicts, connectivity, footprints, ownership, waterfront flags, values,
+appearance ranges and recomputed demographic/district totals. Generator algorithm
+changes cannot silently change an existing save. Changes to the property record
+contract or kind definitions require explicit schema/version review.

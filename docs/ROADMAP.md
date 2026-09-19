@@ -2,27 +2,32 @@
 
 | Milestone | Deliverable | Dependencies |
 | --- | --- | --- |
-| 1 — Foundation (implemented) | Deterministic daily economy, catalog, production, trade, retail, accounting, AI pricing and era gates | Empty Godot project |
-| 2 — Player operations and persistence (implemented) | Management/sourcing commands, continuous time, versioned saves, session Debug and isometric host | 1 |
-| 3 — City, construction and visual foundation (implemented) | Serializable city/roads/footprints, paused construction, archetypes, owned demolition, procedural buildings and screenshot regression workflow | 2 |
-| 4 — Warehouses and explicit logistics (implemented) | Storage transfers/capacity, shipments, road distance, freight, lead time, landed-cost sourcing and logistics UI; fixed assets, depreciation and profit HUD | 3 |
-| 5 — Rich markets and financial statements | Household budgets/segments, substitution, broader retail, brand/advertising, quality lots, journals, full balance sheet/cash flow and borrowing | 2–4 |
-| 6 — Research and catalog expansion | Active company R&D, technology progression, efficiency, resources, agriculture and broader modern product chains | 3–5; era gates from 1 |
-| 7 — Competitive management | AI investment/sourcing/research, headquarters, hiring, difficulty and long-run balancing | 2–6 |
-| 8 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 5 and 7 |
-| 9 — Modes and scale | Tutorial campaign, configurable sandbox, multiple cities, regional demand/markets and performance budgets | 3–8 |
-| 10 — Complete-game production | Catalog breadth, polished dense UI/city art, accessibility, audio, scenarios, balancing and regression suites | 1–9 |
+| 1 — Foundation (implemented) | Deterministic daily economy, production, trade, retail, accounting, AI pricing and era gates | Empty Godot project |
+| 2 — Player operations (implemented) | Management/sourcing commands, time, versioned saves, Debug and isometric host | 1 |
+| 3 — Construction (implemented) | City occupancy, construction/demolition, archetypes and screenshot regression workflow | 2 |
+| 4 — Warehouses and logistics (implemented) | Road shipments, freight, lead times, landed-cost sourcing, depreciation and TTM/monthly HUD | 3 |
+| 5 — Procedural city, population and land (implemented) | Seeded coast/roads/parcels, ambient development, districts/population, demand scaling, land values, waterfront candidates and minimap | 1–4 |
+| 6 — Rich markets and financial statements (recommended next) | Household segments/budgets, category demand/substitution, quality provenance, journals, balance sheet/cash flow and borrowing | 2–5 |
+| 7 — Research and catalog expansion | Active company R&D, efficiency, resources, agriculture and broader modern product chains | 3–6 |
+| 8 — Competitive management | AI investment/sourcing/research, corporate headquarters, hiring, difficulty, advertising/branding and balancing | 2–7 |
+| 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
+| 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
+| 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
+| 12 — Modes and complete-game production | Tutorial campaign, full sandbox setup, catalog breadth, polished UI/art, accessibility, audio and balancing | 1–11 |
 
-Milestone 4 makes warehouse buildings operational with capacity reservations,
-manual and automatic transfers, buyer-owned in-transit inventory, road routing,
-freight and deterministic delivery. It capitalizes new construction, depreciates
-it daily and adds TTM/monthly profit history. Supplier reliability based on
-observed delivery performance remains future work; current quotes use a fixed
-deterministic lead time. Vehicles and traffic are not simulated.
+Milestone 5 replaces the fixed starting board in normal games without changing the
+daily economic scheduler or logistics contracts. Save schema 5 stores generated
+state, protecting ongoing games from later algorithm changes. The old board is an
+explicit regression fixture; its existing checks remain alongside generated-city tests.
 
-Later milestones retain the broad Capitalism-style scope: HQ, R&D, advertising,
-stock market/control, advanced AI, broad retail/product catalogs and multiple cities.
-Every milestone preserves headless execution and expands invariants and save tests.
-Tutorials use the same commands and simulation as sandbox. Stock trading waits for
-trustworthy statements and ownership semantics; multiple cities wait for explicit
-locality and delivery. No branch or commit is created automatically.
+Milestone 6 should make market size and financial outcomes explainable before
+introducing property ownership or international trade. Keep the current population
+model as its aggregate input and preserve existing price/quality responses. Land
+values are currently estimates only; a future ownership milestone must define
+non-depreciating land assets and demolition/redevelopment treatment before charging
+for acquisition.
+
+Supplier reliability scoring, fleet/route capacity and traffic remain possible
+extensions. Every milestone preserves deterministic headless execution, exact save
+continuation, shared tutorial/sandbox systems and programmatic rendered validation.
+No branch or commit is created automatically.

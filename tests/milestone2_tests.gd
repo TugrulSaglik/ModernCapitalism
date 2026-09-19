@@ -13,7 +13,7 @@ func check(value: bool, label: String) -> void:
 
 func fresh(era: int = 2022) -> GameSession:
 	var session: GameSession = Session.new()
-	check(session.start(era, 42), "Start session")
+	check(session.start(era, 42, "sandbox", {"preset": "legacy"}), "Start session")
 	return session
 
 func same(a: Variant, b: Variant) -> bool:
@@ -130,7 +130,7 @@ func _sourcing() -> void:
 	file.close()
 	var original: GameSession = fresh()
 	var reordered: Economy = Economy.new()
-	check(reordered.initialize(42, 2022, "res://.godot/reordered.json"), "Load reordered definitions")
+	check(reordered.initialize(42, 2022, "res://.godot/reordered.json", {"preset": "legacy"}), "Load reordered definitions")
 	for day: int in range(30):
 		original.sim.step()
 		reordered.step()
@@ -188,7 +188,7 @@ func _debug() -> void:
 	check(session.debug_action("unlock") and session.sim.available("advanced_phone"), "Debug unlocks unavailable technology")
 	check(session.save_game("res://.godot/debug-slot.json") and session.load_game("res://.godot/debug-slot.json"), "Save/load technology override")
 	check(session.sim.available("advanced_phone") and not session.debug_unlocked, "Unlock effects persist; debug access does not")
-	session.start(2012, 42, "tutorial")
+	session.start(2012, 42, "tutorial", {"preset": "legacy"})
 	check(not session.unlock_debug(DebugConfig.PASSWORD) and not session.debug_action("unlock"), "Tutorial has no normal cheats")
-	session.start()
+	session.start(2022, 42, "sandbox", {"preset": "legacy"})
 	check(not session.debug_unlocked, "New session locks debug")

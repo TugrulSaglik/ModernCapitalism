@@ -112,9 +112,11 @@ func restore(state: Dictionary) -> Economy:
 	var sim: Economy = Simulation.new()
 	if not state.get("seed") is String or not str(state.seed).is_valid_int() or not state.get("starting_year") is int:
 		return null
-	if not sim.initialize(int(state.seed), int(state.starting_year)):
+	# Initialize catalog and economic definitions with the small fixture; saved city
+	# hydration below never depends on the current procedural generator.
+	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 4 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 5 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -140,6 +142,7 @@ func restore(state: Dictionary) -> Economy:
 	sim.facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
 	if not sim.city.restore(state.city, sim.facilities, sim.catalog):
 		return null
+	if sim.city.generation.seed != state.seed: return null
 	var saved_clock: Dictionary = state.clock
 	if not nonnegative(saved_clock.tick) or saved_clock.tick > 365000:
 		return null

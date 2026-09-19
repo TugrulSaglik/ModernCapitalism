@@ -63,3 +63,18 @@ can request automatic replenishment. Construction capitalizes its cost and daily
 depreciation expenses it over 3,650 days. Demolition writes off remaining book value.
 Debug cash controls remain sandbox-only and session-unlocked. No new cheat or
 free-building mode was added.
+
+## Milestone 5: generated inhabited city (implemented)
+
+New games use a modest seeded coastal city with connected roads, three districts,
+ordinary homes/apartments/offices and distributed economic facilities. Ambient
+properties supply aggregated residents and visual context without full company
+simulation. Denser central housing and lower outskirts provide a readable small-city
+skyline. Water and existing properties constrain construction; vacant frontage remains
+available. Population and purchasing power contextualize the existing consumer market.
+
+Settings exposes a numeric seed and random-seed button. The compact clickable minimap
+supports navigation; middle drag and zoom remain. Parcel land values, waterfront and
+port candidates are inspectable foundations, with no land purchase, rent or operational
+port gameplay. Dynamic growth, migration, real-estate development, multiple cities and
+international trade remain later milestones.

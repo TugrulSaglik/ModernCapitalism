@@ -25,7 +25,7 @@ var debug_actions: Array[Dictionary] = []
 var city: CityMap = CityMap.new()
 var logistics: Logistics = Logistics.new()
 
-func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json") -> bool:
+func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json", city_settings: Dictionary = {}) -> bool:
 	catalog = Catalog.new()
 	if not catalog.load_data(data_path):
 		push_error(str(catalog.errors))
@@ -61,7 +61,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 		new_facility.active = catalog.available(new_facility.product_id, era)
 		facilities.append(new_facility)
 	city = CityMap.new()
-	return city.initialize(facilities, catalog)
+	return city.initialize(facilities, catalog, seed_value, city_settings)
 
 func facility(id: String) -> SimFacility:
 	for candidate: SimFacility in facilities:
@@ -324,7 +324,7 @@ func _clear_consumer_markets() -> void:
 	product_ids.sort()
 	for product: String in product_ids:
 		var definition: Dictionary = catalog.products[product]
-		var potential: int = int(int(definition.daily_demand) * rng.randi_range(90, 110) / 100.0)
+		var potential: int = Demand.market_size(int(definition.daily_demand), int(city.population.total), int(city.population.purchasing_power), rng.randi_range(90, 110))
 		if not available(product):
 			continue
 		var offers: Array[Dictionary] = []
@@ -391,7 +391,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 4, "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 5, "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

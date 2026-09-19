@@ -95,3 +95,35 @@ Daily profit deltas feed dated history and monthly totals. The current month is
 included even before its first profit change. TTM sums the available days in the
 rolling calendar-year interval ending on the displayed date. Freight and
 depreciation are operating expenses; purchases remain inventory assets until sale.
+
+## Population and land foundation (Milestone 5)
+
+Catalog daily_demand is the potential market for 5,000 residents at purchasing power
+100. Each day and product uses:
+`floor(base_demand * occupied_population * purchasing_power * shock / 50,000,000)`,
+where shock is the existing seeded integer 90–110. All factors are multiplied
+before integer division. Purchasing power is the occupied-population-weighted district
+index (90, 110 or 100), rounded down. Zero population creates zero potential demand;
+a near-zero population cannot inherit the previous full-sized external market.
+The unchanged price/quality appeal, outside option, offer allocation, inventory
+limits and stable ties then decide purchases. There is still no household cash
+ledger, employment or cross-product substitution.
+
+Houses have capacity 12, apartments 70 and larger blocks 150. Offices and generic
+commercial properties have zero residential capacity. Generation assigns integer
+occupied population at 80–95% of each residential capacity, rounded down.
+City/district totals are sums; no citizens or daily migration are simulated.
+Default seed 42 contains 2,573 residents in capacity 2,978 with purchasing power 103.
+
+Non-road land value in cents per cell is:
+`5000 + 900 * centrality + (6000 if road-adjacent) + (8000 if waterfront)`.
+Centrality is `max(0, 16 - abs(x - floor(width*0.42)) - abs(y - floor(depth/2)))`.
+Water and road cells have zero value. Values are deterministic, bounded below
+50,000 cents and displayed through placement/Debug inspection. District averages
+exclude zero-valued road/water cells. Values are foundation estimates, not a market.
+
+Construction continues to charge only the catalog building cost, capitalized and
+depreciated over 3,650 days. Land valuation does not debit cash or create an owned
+land asset. This deliberately defers acquisition, retained land after demolition,
+resale and rent accounting until property ownership is implemented. Demolition and
+the existing accounting invariant are unchanged.

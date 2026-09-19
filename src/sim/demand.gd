@@ -1,6 +1,10 @@
 class_name ConsumerDemand
 extends RefCounted
 
+# Catalog daily demand is calibrated to 5,000 residents at purchasing power 100.
+static func market_size(base: int, population: int, purchasing_power: int = 100, shock: int = 100) -> int:
+	return maxi(0, base) * maxi(0, population) * clampi(purchasing_power, 0, 200) * clampi(shock, 0, 200) / 50000000
+
 static func appeal(price: int, reference_price: int, quality: int) -> float:
 	if price <= 0 or reference_price <= 0:
 		return 0.0

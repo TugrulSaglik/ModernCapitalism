@@ -36,3 +36,12 @@ supported products; the Build menu filters those by the current year and Debug
 technology overrides. The simulation rechecks availability when the command runs.
 Ordinary facilities can be built in 2012 and 2022; advanced-phone production/retail
 construction is blocked in 2012 until public availability or an explicit Debug unlock.
+
+## Procedural-city era behavior
+
+Milestone 5 generates the same city for the same seed/settings in 2012 and 2022.
+Ambient housing and land are not technology facilities. Public product gates,
+construction gates and saved Debug overrides still use the existing catalog rules.
+Generation neither grants research completion nor bypasses unavailable products.
+The example's advanced-product facilities retain their legal sites in 2012 while
+their economic activity remains gated until the existing availability date.

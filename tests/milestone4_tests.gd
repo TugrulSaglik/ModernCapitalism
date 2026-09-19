@@ -14,7 +14,7 @@ func same(a: Variant, b: Variant) -> bool:
 
 func fresh(era: int = 2022) -> GameSession:
 	var session: GameSession = GameSession.new()
-	check(session.start(era), "Start logistics session")
+	check(session.start(era, 42, "sandbox", {"preset": "legacy"}), "Start logistics session")
 	session.time.set_speed(0)
 	return session
 

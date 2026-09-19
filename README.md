@@ -52,7 +52,19 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 4
+## Milestone 5
+
+Sandbox now starts a deterministic **48 × 36 procedural coastal city**. Settings
+lets you enter a numeric city/game seed or choose a random seed before starting
+2012 or 2022. Streets, business sites, residential density and ambient buildings
+come from that seed. Residents and district purchasing power scale consumer
+markets. Land values and waterfront/port candidates are stored for future use;
+land purchases, rent and operating ports are not implemented.
+
+The compact minimap shows water, roads, development and business ownership;
+click it to navigate. Middle-drag, wheel zoom and selection remain available.
+Construction excludes water and ambient properties. Sandbox Debug adds city
+statistics, selected-site metadata and a vacant-frontage overlay.
 
 Implemented: the deterministic daily economy from Milestone 1 plus a continuous
 game session with pause, 1x, 2x, 4x and Max speeds; player price, operation, stock
@@ -67,7 +79,7 @@ Milestone 3 adds a deterministic city grid, roads and occupied footprints; six
 data-defined construction choices; placement previews; immediate paused
 construction; and owned-facility demolition. Shops, factories and warehouses
 have distinct procedural silhouettes and ownership colors. City and economy
-restore together using schema 4 / save format 2 (older schemas are rejected).
+restore together using schema 5 / save format 2 (older schemas are rejected).
 
 Milestone 4 adds road-routed shipments with delivery dates, freight, in-transit
 inventory, warehouse capacity and replenishment targets. Supplier rankings include
@@ -111,6 +123,8 @@ $godot = 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe'
 & $godot --path . --log-file .godot/m3-visual.log --script res://tests/construction_smoke.gd
 # End-to-end logistics, finance and input workflow with six rendered screenshots.
 & $godot --path . --log-file .godot/m4-visual.log --script res://tests/logistics_smoke.gd
+# Generated-city end-to-end flow and nine rendered screenshots, including two seeds.
+& $godot --path . --log-file .godot/m5-visual.log --script res://tests/city_smoke.gd
 ```
 
 The PowerShell wrapper fails on nonzero exit codes, failed assertions and Godot
@@ -128,6 +142,8 @@ to avoid attempts to write the default user log directory.
 - [Full-project roadmap](docs/ROADMAP.md)
 - [Validation results and limitations](docs/VALIDATION.md)
 
-Screenshots are written to `.godot/m3-screenshots/` and
-`.godot/m4-screenshots/`. Full financial statements, active company research,
+Screenshots are written to `.godot/m3-screenshots/`,
+`.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
+The old fixed board is retained only as an explicit regression fixture.
+Full financial statements, active company research,
 multi-product stores and broader catalog content remain future work.

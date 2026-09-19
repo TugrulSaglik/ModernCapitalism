@@ -17,7 +17,7 @@ func build_command(kind: String = "electronics_store", x: int = 24, y: int = 18,
 
 func fresh(era: int = 2022) -> GameSession:
 	var session: GameSession = GameSession.new()
-	check(session.start(era), "Session starts")
+	check(session.start(era, 42, "sandbox", {"preset": "legacy"}), "Session starts")
 	session.time.set_speed(0)
 	return session
 

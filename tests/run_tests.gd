@@ -15,12 +15,12 @@ func check(condition: bool, description: String) -> void:
 
 func fresh(era: int = 2022, seed_value: int = 42) -> Economy:
 	var sim: Economy = Simulation.new()
-	check(sim.initialize(seed_value, era), "Initialize economy")
+	check(sim.initialize(seed_value, era, SaveStore.DATA_PATH, {"preset": "legacy"}), "Initialize economy")
 	return sim
 
 func _initialize() -> void:
 	var startup: Economy = Simulation.new()
-	if not startup.initialize():
+	if not startup.initialize(42, 2022, SaveStore.DATA_PATH, {"preset": "legacy"}):
 		printerr("FAIL: Economy startup; aborting dependent tests")
 		quit(1)
 		return

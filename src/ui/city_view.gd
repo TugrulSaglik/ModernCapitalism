@@ -20,6 +20,10 @@ var preview_cell: Vector2i = Vector2i(-1, -1)
 var preview_error: String = ""
 var input_blocked: Callable
 var dragging: bool = false
+var map_width: int = 32
+var map_depth: int = 24
+var max_zoom: float = 65.0
+var parcel_overlay: Node3D
 
 func build(state: Dictionary) -> void:
 	var palette: Array[Color] = [Color("699eaf"), Color("c99563"), Color("927cbb"), Color("51bda0"), Color("dc7b80")]
@@ -40,15 +44,28 @@ func build(state: Dictionary) -> void:
 	sun.light_energy = 1.2
 	add_child(sun)
 	var map: Dictionary = state.city
+	map_width = int(map.width)
+	map_depth = int(map.depth)
+	max_zoom = maxf(65.0, maxf(map_width, map_depth) * CELL * 1.5)
 	_box(self, Vector3(0, -0.25, 0), Vector3(map.width * CELL, 0.5, map.depth * CELL), Color("738672"))
 	for y: int in range(map.depth):
 		for x: int in range(map.width):
 			var road: bool = CityMap.key(x, y) in map.roads
 			var pos: Vector3 = cell_position(x, y)
+			if CityMap.key(x, y) in map.water:
+				var shore: bool = x > 0 and CityMap.key(x - 1, y) not in map.water
+				_box(self, pos + Vector3(0, 0.02, 0), Vector3(CELL, 0.04, CELL), Color("549caf") if shore else Color("3c819c"))
+			elif session.sim.city.touches_water(x, y):
+				_box(self, pos + Vector3(0, 0.01, 0), Vector3(CELL, 0.02, CELL), Color("b0ac82"))
 			if road:
 				_box(self, pos + Vector3(0, 0.015, 0), Vector3(CELL, 0.03, CELL), Color("394953"))
-			if road and y in [6, 13, 20] and x % 2 == 0:
+			if road and map.road_classes.get(CityMap.key(x, y), "") == "major" and x % 2 == 0:
 				_box(self, pos + Vector3(0, 0.045, 0), Vector3(0.5, 0.025, 0.045), Color("c9c7a7"))
+	_build_ambient(map)
+	parcel_overlay = Node3D.new()
+	add_child(parcel_overlay)
+	_refresh_parcel_overlay()
+	parcel_overlay.hide()
 	structures = Node3D.new()
 	add_child(structures)
 	sync(state)
@@ -56,13 +73,13 @@ func build(state: Dictionary) -> void:
 	preview.hide()
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 45.0
+	camera.size = 45.0 if map.generation.preset == "legacy" else maxf(map_width, map_depth) * CELL * 0.94
 	add_child(camera)
 	_update_camera()
 	camera.make_current()
 
 func cell_position(x: float, y: float) -> Vector3:
-	return Vector3((x - 15.5) * CELL, 0, (y - 11.5) * CELL)
+	return Vector3((x - (map_width - 1) / 2.0) * CELL, 0, (y - (map_depth - 1) / 2.0) * CELL)
 
 func sync(state: Dictionary) -> void:
 	for child: Node in structures.get_children():
@@ -120,6 +137,61 @@ func sync(state: Dictionary) -> void:
 		body.add_child(label)
 		buildings[f.id] = {"body": body, "mesh": band, "color": colors[f.company], "label": label, "outline": outline}
 	select(selected)
+	_refresh_parcel_overlay()
+
+func _refresh_parcel_overlay() -> void:
+	if parcel_overlay == null: return
+	for child: Node in parcel_overlay.get_children():
+		parcel_overlay.remove_child(child)
+		child.queue_free()
+	for k: String in session.sim.city.parcels:
+		var p: Dictionary = session.sim.city.parcels[k]
+		if p.terrain == "land" and p.road_access:
+			var coordinates: PackedStringArray = k.split(",")
+			var x: int = int(coordinates[0])
+			var y: int = int(coordinates[1])
+			if session.sim.city.placement_error(x, y, 1, 1).is_empty():
+				_box(parcel_overlay, cell_position(x, y) + Vector3(0, 0.07, 0), Vector3(CELL * 0.88, 0.04, CELL * 0.88), Color("82bca0"))
+
+func _build_ambient(map: Dictionary) -> void:
+	var tones: Array[Color] = [Color("c4b49b"), Color("bec0b4"), Color("b2b7bc"), Color("d2c5af"), Color("a8b6ac")]
+	for b: Dictionary in map.ambient.values():
+		var center: Vector3 = cell_position(b.x + (b.width - 1) / 2.0, b.y + (b.depth - 1) / 2.0)
+		var h: float = 0.65 + int(b.height) * 0.65
+		var sx: float = b.width * CELL - 0.65
+		var sz: float = b.depth * CELL - 0.65
+		var color: Color = tones[b.tone]
+		if b.kind == "office": color = Color("839ba5")
+		_box(self, center + Vector3(0, h / 2, 0), Vector3(sx, h, sz), color)
+		_box(self, center + Vector3(0, h, 0), Vector3(sx + 0.1, 0.15, sz + 0.1), Color("707a7b") if b.kind != "house" else Color("946d59"))
+		if b.roof == 1 and b.kind == "house":
+			var roof: MeshInstance3D = MeshInstance3D.new()
+			var prism: PrismMesh = PrismMesh.new()
+			prism.size = Vector3(sx + 0.12, 0.65, sz + 0.12)
+			roof.mesh = prism
+			roof.material_override = _material(Color("946d59").darkened(b.tone * 0.035))
+			roof.position = center + Vector3(0, h + 0.32, 0)
+			add_child(roof)
+		if b.kind == "house":
+			_box(self, center + Vector3(sx * 0.28, 0.35, sz / 2 + 0.04), Vector3(0.32, 0.7, 0.06), Color("756653"))
+			# Saved tone/orientation choose deterministic garden details.
+			if b.tone % 2 == 0:
+				var tree: Vector3 = center + Vector3(-sx / 2 - 0.13, 0, sz / 2 + 0.08)
+				_box(self, tree + Vector3(0, 0.3, 0), Vector3(0.12, 0.6, 0.12), Color("756653"))
+				_box(self, tree + Vector3(0, 0.85, 0), Vector3(0.58, 0.8, 0.58), Color("5c8468"))
+		for floor_index: int in range(int(b.height)):
+			var window_y: float = 0.55 + floor_index * 0.65
+			if b.kind in ["apartments", "block"]:
+				for window: int in range(3):
+					_box(self, center + Vector3((window - 1) * sx * 0.27, window_y, sz / 2 + 0.025), Vector3(sx * 0.16, 0.27, 0.04), Color("526975"))
+			else:
+				_box(self, center + Vector3(0, window_y, sz / 2 + 0.025), Vector3(sx * 0.65, 0.22, 0.04), Color("526975"))
+			if b.orientation == 1:
+				_box(self, center + Vector3(sx / 2 + 0.025, window_y, 0), Vector3(0.04, 0.22, sz * 0.65), Color("526975"))
+
+func focus_cell(x: float, y: float) -> void:
+	focus = cell_position(clampf(x, 0, map_width - 1), clampf(y, 0, map_depth - 1))
+	_update_camera()
 
 func _material(color: Color) -> StandardMaterial3D:
 	var material: StandardMaterial3D = StandardMaterial3D.new()
@@ -164,7 +236,11 @@ func update_preview(x: int, y: int) -> void:
 	preview.material_override.albedo_color = Color("67ffb8") if preview_error.is_empty() else Color("ff6170")
 	preview.material_override.no_depth_test = true
 	preview.show()
-	placement_changed.emit("Valid site — click to build" if preview_error.is_empty() else preview_error)
+	var info: Dictionary = session.sim.city.parcel_info(x, y)
+	var detail: String = ""
+	if info.has("land_value"):
+		detail = "\n%s • Land $%.0f/cell%s" % [info.district, info.land_value / 100.0, " • Waterfront" if info.waterfront else ""]
+	placement_changed.emit(("Valid site — click to build" if preview_error.is_empty() else preview_error) + detail)
 
 func _update_camera() -> void:
 	camera.position = focus + Vector3(35, 35, 35)
@@ -172,8 +248,8 @@ func _update_camera() -> void:
 
 func pan(move: Vector3, delta: float) -> void:
 	focus += move.normalized() * delta * 12.0
-	focus.x = clampf(focus.x, -22, 22)
-	focus.z = clampf(focus.z, -17, 17)
+	focus.x = clampf(focus.x, -map_width * CELL / 2, map_width * CELL / 2)
+	focus.z = clampf(focus.z, -map_depth * CELL / 2, map_depth * CELL / 2)
 	_update_camera()
 	if not move.is_zero_approx() and not build_type.is_empty():
 		_pointer_preview(get_viewport().get_mouse_position())
@@ -181,7 +257,7 @@ func pan(move: Vector3, delta: float) -> void:
 func _pointer_preview(point: Vector2) -> void:
 	var ground: Variant = Plane(Vector3.UP, 0).intersects_ray(camera.project_ray_origin(point), camera.project_ray_normal(point))
 	if ground != null:
-		update_preview(int(floor(ground.x / CELL + 16)), int(floor(ground.z / CELL + 12)))
+		update_preview(int(floor(ground.x / CELL + map_width / 2.0)), int(floor(ground.z / CELL + map_depth / 2.0)))
 
 func _unhandled_input(event: InputEvent) -> void:
 	if input_blocked.is_valid() and input_blocked.call():
@@ -200,8 +276,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var after: Variant = plane.intersects_ray(camera.project_ray_origin(event.position), camera.project_ray_normal(event.position))
 		if before != null and after != null:
 			focus += before - after
-			focus.x = clampf(focus.x, -22, 22)
-			focus.z = clampf(focus.z, -17, 17)
+			focus.x = clampf(focus.x, -map_width * CELL / 2, map_width * CELL / 2)
+			focus.z = clampf(focus.z, -map_depth * CELL / 2, map_depth * CELL / 2)
 			_update_camera()
 		get_viewport().set_input_as_handled()
 		return
@@ -212,7 +288,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			camera.size = maxf(18.0, camera.size - 2.0)
 			if not build_type.is_empty(): _pointer_preview(event.position)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera.size = minf(65.0, camera.size + 2.0)
+			camera.size = minf(max_zoom, camera.size + 2.0)
 			if not build_type.is_empty(): _pointer_preview(event.position)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			cancel_placement()

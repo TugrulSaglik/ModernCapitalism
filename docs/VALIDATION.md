@@ -263,3 +263,130 @@ zero fixed-asset book value, while new construction depreciates over 3,650 days.
 The aggregate ledger does not yet provide full statements, debt or taxes. The
 host emitted its existing certificate-store warning and a rendered shader-cache
 write warning; neither produced a script failure or failed assertion.
+
+## Milestone 5 final validation
+
+Validated September 19, 2026 on Windows / Godot 4.7.2. README, AGENTS, all design
+documentation, Git history and the implementation were inspected before edits.
+The starting working tree was clean. No Computer Use, branch, commit, external
+dependency or new product catalog was introduced.
+
+### Baseline and final regression
+
+| Suite | Baseline checks | Final checks | Failures |
+| --- | ---: | ---: | ---: |
+| Foundation | 1,524 | 1,524 | 0 |
+| Milestone 2 | 809 | 809 | 0 |
+| Game smoke | 15 | 15 | 0 |
+| Legacy debug smoke | 30-day flow | 30-day flow | 0 |
+| Milestone 3 | 7,410 | 7,410 | 0 |
+| Construction smoke, headless | 18 | 18 | 0 |
+| Milestone 4 | 7,394 | 7,394 | 0 |
+| Logistics smoke, headless | 38 | 38 | 0 |
+| Milestone 5 | — | 28,093 | 0 |
+| City smoke, headless | — | 17 | 0 |
+| City smoke, rendered | — | 26 | 0 |
+
+The complete PowerShell harness now includes the Milestone 5 and city smoke entry
+points. Existing assertions were retained. Coordinate-specific historical tests
+explicitly request the legacy board, preserving their exact route lengths, prices
+and construction fixtures. The ordinary game smoke and new city suites use generated
+cities. After the combined suite passed, two additional city checks (absence of old
+layout data and transactional water rejection) were added and the city suite rerun.
+
+Generated coverage includes seven seeds (0, 1, 2, 7, 42, 9173, 2147483647), a 60 × 42
+configuration, invalid dimensions, exact same-seed equality, different coast/roads/
+development/business positions, and a catalog without the legacy coordinate map.
+Every occupied cell is checked for bounds, land, road exclusion and overlap.
+Tests verify connected roads, valid frontage, room for every construction archetype,
+stable ambient IDs, residential totals/capacities, district aggregation, bounded
+land values and coast/road port interfaces. Corrupt terrain, road coordinates,
+population, land values, ambient footprints/appearance, districts, port flags,
+dimensions and economic plots are rejected.
+
+Population tests cover increasing market size, zero/near-zero residents, purchasing
+power, unchanged price/quality response and the actual daily economy reading city
+population. Generated construction, demolition, real factory input sourcing,
+factory → warehouse → retail shipments, freight/lead quotes, automatic targets,
+saved active shipments, exact restoration and account/history invariants are covered.
+
+### Long deterministic validation
+
+Both eras have paired generated sessions with seed 42. They build a factory,
+warehouse and retailer, run 30 days, dispatch real produced stock, save with active
+shipments, load into a different-seed session, continue the transfer chain, replenish
+the warehouse and build/demolish another store. They then advance 3,650 more days
+per copy with daily accounting/inventory checks, annual full-state comparisons and
+identical final snapshots.
+
+| Era | Long-run days per copy | Residents | Final cumulative consumer units | Player freight, cents |
+| --- | ---: | ---: | ---: | ---: |
+| 2012 | 3,650 | 2,573 | 57,176 | 1,996,140 |
+| 2022 | 3,650 | 2,573 | 69,694 | 1,996,040 |
+
+These are fixture outcomes, including setup/transfer days, not a claim of completed
+macroeconomic balancing. The 2012 run crosses the advanced-product availability date.
+Historical Milestone 3 and 4 replay pairs also continue to run 3,650 days in both eras.
+
+### Programmatic rendered workflow and inspection
+
+Run:
+```powershell
+& 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe' --path . --log-file .godot/m5-visual.log --script res://tests/city_smoke.gd
+```
+
+The real game host is driven through session controls, synthetic ground-projected
+mouse events, inspector price submission, HUD save/load, Settings/Debug and minimap
+clicks. It checks known seed, generated population/coast, 30 days of actual trade,
+legal construction and cost, management, exact save/load, monthly accounting, modal
+camera blocking, same-seed reproduction, second-seed variation and 2012 gates.
+Headless execution runs the same flow without PNG capture. Rendered capture waits
+for frame_post_draw and writes viewport images to ignored .godot/m5-screenshots:
+
+1. 01-overview.png — default inhabited coastal city, minimap and financial HUD.
+2. 02-coastline.png — water, shoreline and waterfront business context.
+3. 03-central-density.png — apartments, larger blocks, offices and businesses.
+4. 04-residential.png — lower outskirts with houses and smaller buildings.
+5. 05-player-selected.png — gold selection, ownership and logistics inspector.
+6. 06-construction-preview.png — valid generated frontage and parcel land value.
+7. 07-city-diagnostics.png — seed controls, population, Debug and site information.
+8. 08-second-seed.png — seed 9173 with a different coast, streets and development.
+9. 09-city-2012.png — same city foundation with the earlier economic era.
+
+All nine were visually inspected. First-pass inspection found repetitive housing;
+the refinement added pitched house roofs, doors, deterministic garden trees,
+individual apartment windows and a shallow-water edge. Frames were recaptured and
+inspected again. The coast remains intentionally cell-stepped. Ownership colors,
+selected outline, construction preview, minimap and HUD are readable at 1280 × 800.
+Zoomed district frames intentionally crop distant map edges; overview includes the
+whole city. Inspector content scrolls. No final-art claim is made.
+
+The first test pass also found insufficient water for one seed; the coast is now
+bounded at 88% of width. A manual-transfer fixture was corrected to pin competing
+automatic buyers, and the rendered test recalculates its click projection after the
+construction panel resizes the viewport. These did not require logistics rewrites. A final typed-seed test exposed deferred SpinBox edits; New sandbox now explicitly applies text before reading the seed, and the rendered/headless workflow verifies that path.
+
+Editor import and script checks passed; git diff --check passed. The existing host
+editor-settings/shader-cache permission warnings remain; no GDScript error or failed
+assertion remains in final test output.
+
+### Files and remaining limits
+
+New: src/sim/city_generator.gd, src/ui/city_minimap.gd,
+tests/milestone5_tests.gd, tests/city_smoke.gd, and their Godot .uid companions.
+
+Substantially extended: src/sim/city_map.gd, src/ui/city_view.gd,
+src/ui/game_screen.gd. Integration edits: src/sim/economy.gd,
+src/sim/demand.gd, src/sim/catalog.gd, src/session/game_session.gd and
+src/session/save_store.gd. Historical tests received explicit fixture selection;
+tests/run_tests.ps1 includes both new suites. README and the existing architecture,
+economy, game-design, technology, roadmap and validation documents were updated.
+
+Milestone 5 is complete as a single static-city foundation. Three simple districts,
+an eastern sea, orthogonal streets and modest procedural geometry are deliberate
+limits. No land purchase/site surcharge was added: land values do not yet create
+owned assets. No rent, redevelopment, migration, operating ports, ships, international
+trade, multiple cities, traffic, individual citizens, stock market, HQ, active R&D,
+advertising, strategic AI expansion or full sandbox setup is implemented. These
+remain explicit roadmap items. Recommended Milestone 6 is richer consumer segments
+and trustworthy financial statements, using the new population input.

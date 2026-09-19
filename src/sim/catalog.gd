@@ -53,9 +53,9 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 			for product: Variant in f.products:
 				if not product is String or not products.has(product):
 					errors.append("Unknown archetype product: " + id)
-	if not scenario.get("city_layout") is Dictionary:
-		errors.append("Scenario requires city layout")
-	else:
+	if scenario.has("city_layout") and not scenario.city_layout is Dictionary:
+		errors.append("Invalid optional fixture layout")
+	elif scenario.has("city_layout"):
 		for id: String in facilities:
 			var point: Variant = scenario.city_layout.get(id)
 			if not point is Array or point.size() != 2:

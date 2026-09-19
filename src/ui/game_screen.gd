@@ -30,6 +30,11 @@ var build_details: Label
 var build_reason: Label
 var demolition: ConfirmationDialog
 var profit_chart: ProfitChart
+var city_settings: Dictionary = {}
+var city_seed: SpinBox
+var city_summary: Label
+var city_diagnostics: Label
+var minimap: CityMinimap
 
 func _ready() -> void:
 	var backdrop: ColorRect = ColorRect.new()
@@ -40,7 +45,7 @@ func _ready() -> void:
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--save-dir="):
 			save_directory = argument.trim_prefix("--save-dir=")
-	session.start()
+	session.start(2022, 42, "sandbox", city_settings)
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
@@ -119,6 +124,11 @@ func _ready() -> void:
 	status.add_theme_font_size_override("font_size", 13)
 	status.clip_text = true
 	column.add_child(status)
+	minimap = CityMinimap.new()
+	minimap.position = Vector2(22, 96)
+	add_child(minimap)
+	minimap.city = city
+	minimap.map = session.sim.city
 	_build_dialogs()
 	select_facility(selected_id)
 	inspector.hide()
@@ -141,6 +151,10 @@ func _build_city() -> void:
 	city.session = session
 	city.input_blocked = world_input_blocked
 	city.build(session.sim.snapshot())
+	if minimap != null:
+		minimap.city = city
+		minimap.map = session.sim.city
+		minimap.queue_redraw()
 	city.facility_selected.connect(select_facility)
 	city.placement_requested.connect(_place)
 	city.placement_changed.connect(func(reason: String) -> void:
@@ -212,6 +226,15 @@ func refresh() -> void:
 		status.text = "Construction: " + build_reason.text
 	if overview.visible:
 		_update_company()
+	if minimap != null: minimap.queue_redraw()
+	if city_summary != null:
+		var p: Dictionary = session.sim.city.population
+		city_summary.text = "City seed %s • Residents %d / %d • Purchasing power %d%%" % [session.sim.city.generation.seed, p.total, p.capacity, p.purchasing_power]
+	if city_diagnostics != null and session.debug_unlocked:
+		var plot: Dictionary = session.sim.city.plots.get(selected_id, {})
+		var point: Vector2i = city.preview_cell if not city.build_type.is_empty() else Vector2i(int(plot.get("x", 0)), int(plot.get("y", 0)))
+		var p: Dictionary = session.sim.city.parcel_info(point.x, point.y)
+		city_diagnostics.text = "Cell %s • %s\nLand $%.0f/cell • Waterfront %s • Port eligible %s\nAmbient properties %d • Roads %d" % [point, p.get("district", "fixture"), p.get("land_value", 0) / 100.0, p.get("waterfront", false), p.get("port_eligible", false), session.sim.city.ambient.size(), session.sim.city.roads.size()]
 
 func slot_path() -> String:
 	return save_directory.path_join("slot_%d.json" % int(slot.value))
@@ -243,8 +266,23 @@ func _build_dialogs() -> void:
 	column.custom_minimum_size = Vector2(520, 250)
 	settings.add_child(column)
 	var help: Label = Label.new()
-	help.text = "Sandbox session • seed 42\n1 second/day at 1x; Max = 16x. Space pauses.\nNew sessions discard unsaved progress. Save using the HUD."
+	help.text = "1 second/day at 1x; Max = 16x. Space pauses.\nNew sessions discard unsaved progress. Save using the HUD."
 	column.add_child(help)
+	city_summary = Label.new()
+	column.add_child(city_summary)
+	var seed_row: HBoxContainer = HBoxContainer.new()
+	column.add_child(seed_row)
+	city_seed = SpinBox.new()
+	city_seed.min_value = 0
+	city_seed.max_value = 2147483647
+	city_seed.value = 42
+	city_seed.prefix = "City seed"
+	city_seed.custom_minimum_size.x = 260
+	seed_row.add_child(city_seed)
+	_button(seed_row, "Random seed", func() -> void:
+		var random: RandomNumberGenerator = RandomNumberGenerator.new()
+		random.randomize()
+		city_seed.value = random.randi_range(0, 2147483647))
 	var row: HBoxContainer = HBoxContainer.new()
 	column.add_child(row)
 	_button(row, "New sandbox 2012", func() -> void: _new_session(2012))
@@ -281,10 +319,14 @@ func _build_dialogs() -> void:
 	days_row.add_child(debug_days)
 	_button(days_row, "Advance days", func() -> void: _debug("advance", int(debug_days.value)))
 	_button(debug_panel, "Unlock example technologies", func() -> void: _debug("unlock"))
+	city_diagnostics = Label.new()
+	debug_panel.add_child(city_diagnostics)
+	_button(debug_panel, "Toggle vacant frontage overlay", func() -> void: city.parcel_overlay.visible = not city.parcel_overlay.visible)
 	debug_panel.hide()
 
 func _new_session(era: int) -> void:
-	session.start(era)
+	city_seed.apply()
+	if not session.start(era, int(city_seed.value), "sandbox", city_settings): return
 	_build_city()
 	city.cancel_placement()
 	select_facility("20_player")
@@ -295,6 +337,7 @@ func _new_session(era: int) -> void:
 
 func _show_settings() -> void:
 	session.time.set_speed(0)
+	city_seed.value = int(session.sim.city.generation.seed)
 	debug_entry.get_parent().visible = session.mode == "sandbox"
 	debug_panel.visible = session.mode == "sandbox" and session.debug_unlocked
 	settings.popup_centered()
