@@ -1,57 +1,117 @@
 # Technology and eras
 
-Definitions have stable IDs, introduction years and prerequisite technology IDs.
-Products reference a technology. At scenario start and during production, the
-catalog checks the simulation year and the full prerequisite chain. Supported
-starting years are scenario data `[2012, 2022]`; no product-specific era branches
-exist in code. Advancing the calendar can make later public technology available.
-Catalog validation rejects missing IDs and cyclic prerequisite graphs.
+## Milestone 7A: public availability and company knowledge
 
-The original example has electronics (available 2000), mobile computing (2007), and
-advanced mobile computing (2020, dependent on mobile computing). Conventional
-smartphones can be produced in both eras; advanced smartphones only in 2022 or
-after the date gate opens in a 2012 game. Dates are illustrative balancing data,
-not a claim to accurately date commercial inventions.
+Public technology and company knowledge are separate. Catalog `technology_public`
+checks introduction year and the complete prerequisite graph; Economy's equivalent
+also honors saved Debug public overrides. `product_public` answers only the public
+question. `SimCompany.knows` reads permanent company knowledge. `can_manufacture`
+requires public availability and the owner's knowledge; `can_configure` applies
+that rule to production facilities and public availability to retail/storage.
+The old ambiguous `available` API has been removed from code and tests.
 
-The current simulation models public availability, not completed firm research. All firms
-can use publicly available technologies. Later work separates public discovery
-from company knowledge: starting-era scenarios grant baseline knowledge, research
-projects unlock newly public technology and improve existing products in either
-era. Product introduction dates must not alone grant company research completion.
+At scenario creation, each company knows every catalog technology publicly
+available in the selected starting year, deterministically. In 2012 these are
+electronics and mobile computing; in 2022 all five current technologies are known.
+Advancing the calendar never grants knowledge. Wearables (2015), smart home (2018)
+and advanced mobile (2020) become researchable when public and their company-known
+prerequisites are satisfied. Dates and costs are illustrative, not historical claims.
+Starting locked factory sites remain reserved and idle until their owner researches
+the technology; ordinary starting factories, assortments and logistics still work.
+The existing legacy city fixture has no added R&D building.
 
-Future technology data adds research cost/work, prerequisites, unlock IDs and
-effect records (quality, technological performance, yield, efficiency). Company
-state stores progress and attained levels. Products distinguish perceived quality,
-technical quality and brand; current quality is a single bounded scalar. Keep
-improvements generic and versioned rather than creating a special script for
-each phone generation. Continuous improvement remains useful in 2022 even when
-most baseline categories are unlocked.
+## Research data and authoritative state
 
-Sandbox Debug can temporarily override public availability for the example
-technologies. The override is explicit simulation state, is included in saves and
-the Debug audit trail, and does not represent company research completion.
+Each technology defines positive integer `research_work` points and `research_cost`
+cents per funded research day, in addition to year and prerequisite IDs. Current
+baseline projects use 300 points; later technologies use 600, all at 2,500 cents/day.
+Validation rejects invalid/fractional work/cost, missing/duplicate prerequisites,
+cycles, and invalid research rates. No product or bespoke technology scripts were added.
 
-Construction uses the same availability checks as production. Each archetype lists
-supported products; the Build menu filters those by the current year and Debug
-technology overrides. The simulation rechecks availability when the command runs.
-Ordinary facilities can be built in 2012 and 2022; advanced-phone production/retail
-construction is blocked in 2012 until public availability or an explicit Debug unlock.
+`SimCompany.known_technologies` maps technology ID to acquisition tick (`-1` for
+starting knowledge). It is the permanent completion record, not a second derived
+completed list. `research_progress` holds only incomplete technology work.
+`SimFacility.research_project` is an optional assigned technology ID. Future 7B
+project kinds and attained improvement levels can extend this company/facility
+ownership model without moving state into the UI or replacing technology knowledge.
 
-## Procedural-city era behavior
+## R&D facilities and projects
 
-Milestone 5 generates the same city for the same seed/settings in 2012 and 2022.
-Ambient housing and land are not technology facilities. Public product gates,
-construction gates and saved Debug overrides still use the existing catalog rules.
-Generation neither grants research completion nor bypasses unavailable products.
-The example's advanced-product facilities retain their legal sites in 2012 while
-their economic activity remains gated until the existing availability date.
+Build → Corporate → R&D center constructs a 3 × 2 building for $15,000.
+It has $5/day operating overhead and a catalog research rate of 10 points/day.
+Research is a distinct facility behavior. It has no configured product, price,
+assortment or inventory requirements; transfers into it are rejected. The shared
+facility container's inventory stays empty. New R&D buildings use existing fixed
+asset capitalization, 3,650-day depreciation and demolition write-off rules.
+Scenario R&D, like other scenario buildings, starts with zero fixed book value.
 
-## Milestone 6 additions
+`assign_research` and `stop_research` use the authorized command FIFO. Each facility
+has at most one project; a company cannot assign the same technology to two facilities,
+including suspended facilities. Different projects can run concurrently. Assignment
+requires an unknown public technology and company-known prerequisites. Stopping,
+changing projects, suspending or demolishing a facility never erases company progress
+and never refunds money. Another eligible center can resume the retained work.
 
-The expanded catalog adds illustrative public gates for modern wearables (2015)
-and smart-home robotics (2018), alongside advanced phones (2020). Ordinary computers,
-TVs, household goods and conventional appliances are available in both eras.
-2012 optional retail assortments omit locked products. Factory sites can remain
-reserved until their public gate opens. Build, add-line and set-production commands
-recheck availability. No active R&D or early company unlock is implied.
-See [catalog and era details](MILESTONE6.md#catalog-and-eras).
+Daily research occurs after production, replenishment and consumer sales, before
+financial history closes and the date advances. Facilities run in stable ID order.
+An active center pays the full daily project cost and adds its rate, capped by
+completion. Insufficient project funds cause no charge and no progress; cash never
+goes negative. Overhead already paid earlier in the day remains an expense. Suspended
+or overhead-unfunded facilities cannot research, even if sales later increase cash.
+Idle operating centers still pay overhead; suspend them to avoid it.
+
+Completion records the executing tick, removes partial work, and clears assignment.
+New manufacturing capability operates on the following day's production phase;
+dependent projects can be assigned at the next boundary. There is no frame-time work,
+random research progress, personnel, quality effect or efficiency improvement.
+
+## Manufacturing versus buying finished goods
+
+Manufacturing construction, recipe switching, starting activation and daily production
+all check the owner's knowledge. Buying a product does not unlock its recipe. A
+company need not know how to manufacture a recipe input it purchases.
+
+Retail construction, retail-line configuration and resale deliberately require
+public product availability, not manufacturing knowledge: a retailer can sell a
+public finished good bought from a knowledgeable manufacturer. Warehouses similarly
+store and transfer public goods without acquiring expertise. Supported products,
+retail categories/slots, stock, funds and logistics restrictions still apply. This
+explicit resale exception prevents R&D from becoming a requirement for every shop.
+
+## Minimal AI and UI
+
+Nova (`maker_b`) is enabled as an AI company and receives `30_research` through
+expanded scenario data. An operating idle AI center chooses an eligible technology
+by public year, then stable ID. Prerequisites are always checked. AI neither builds
+centers nor selects investments or optimizes portfolios. Other companies need a
+center to participate. Current 2022 knowledge means centers have no remaining
+technology projects; continuous improvement is deferred to 7B.
+
+Select an R&D center to use its compact R&D inspector. The technology selector
+shows known, researchable or locked state, prerequisite knowledge, required work,
+retained points, percentage, daily cost, funded operating days remaining and assigned
+facility. Assign/resume and stop controls use normal commands; rival centers are
+read-only. Completion and public-year changes refresh capability choices.
+
+## Accounting, persistence and Debug
+
+Project payments increment `research_expense`, total operating expenses and cash
+expenses. Income Statement exposes R&D separately; monthly/archived records, TTM,
+retained earnings and operating Cash Flow use the same ledger. Center overhead stays
+in other operating expenses. Research is expensed, never capitalized as an intangible.
+
+Economy schema **7**, catalog version **3**, save format **2** preserve knowledge,
+partial work and facility assignment exactly with the existing numeric encoding.
+Restore validates catalog references, prerequisites, progress bounds, duplicate
+assignments, facility behavior and categorized accounts before replacing the session.
+Older schemas/catalog fingerprints are intentionally incompatible; no migration.
+
+Sandbox Debug unlock remains password-controlled, audited and saved, with access
+relocked on load. Its UI now says it makes technologies public **without granting
+company knowledge**. The R&D inspector identifies a Debug public override explicitly.
+No instant-completion or knowledge-grant action was added. Normal gameplay uses only
+the date gates and funded research.
+
+Milestone 7B will add continuous product/process research, product-quality levels,
+component-quality provenance and efficiency. The facility/offer quality scalar is
+unchanged in 7A; patents, licensing, staff, HQ and strategic AI remain deferred.

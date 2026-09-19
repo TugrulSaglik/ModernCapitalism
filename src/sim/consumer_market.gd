@@ -46,7 +46,7 @@ static func clear(sim: Economy) -> void:
 	var products: Array = sim.catalog.products.keys()
 	products.sort()
 	for product: String in products:
-		if sim.available(product): sim.market[product] = {"potential": 0, "units": 0, "revenue": 0, "average_price": 0.0, "company_units": {}, "market_share": {}}
+		if sim.product_public(product): sim.market[product] = {"potential": 0, "units": 0, "revenue": 0, "average_price": 0.0, "company_units": {}, "market_share": {}}
 	sim.category_market.clear()
 	for category_id: String in categories:
 		var category: Dictionary = sim.catalog.categories[category_id]
@@ -55,7 +55,7 @@ static func clear(sim: Economy) -> void:
 		for segment_id: String in segments:
 			var segment: Dictionary = sim.catalog.segments[segment_id]
 			var demand: int = potential(category, segment, counts[segment_id], sim.city.population.purchasing_power, shock)
-			if not sim.catalog.technology_available(category.technology, sim.clock.year): demand = 0
+			if not sim.technology_public(category.technology): demand = 0
 			report.potential += demand
 			report.segments[segment_id] = demand
 			var offers: Array[Dictionary] = []
@@ -63,7 +63,7 @@ static func clear(sim: Economy) -> void:
 				if not f.active or sim._behavior(f) != "retail": continue
 				for product: String in f.line_ids():
 					var p: Dictionary = sim.catalog.products[product]
-					if p.category != category_id or not sim.available(product): continue
+					if p.category != category_id or not sim.product_public(product): continue
 					offers.append({"facility": f.id, "product": product, "price": f.line_price(product), "reference_price": int(p.reference_price), "quality": f.quality, "stock": mini(f.capacity - f.sold_today, f.inventory.quantity(product)), "price_sensitivity": float(segment.price_sensitivity), "quality_sensitivity": float(segment.quality_sensitivity)})
 			var allocation: Array[int] = ConsumerDemand.allocate(demand, offers)
 			for index: int in range(offers.size()):

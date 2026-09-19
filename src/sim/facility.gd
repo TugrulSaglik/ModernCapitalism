@@ -6,6 +6,7 @@ var id: String
 var company_id: String
 var city_id: String
 var type_id: String
+var research_project: String = ""
 var product_id: String
 var capacity: int
 var price: int
@@ -41,14 +42,14 @@ func _init(definition: Dictionary) -> void:
 	company_id = str(definition.company)
 	city_id = str(definition.city)
 	type_id = str(definition.type)
-	product_id = str(definition.product)
+	product_id = str(definition.get("product", ""))
 	capacity = int(definition.capacity)
-	price = int(definition.price)
+	price = int(definition.get("price", 0))
 	quality = int(definition.quality)
-	assortment[product_id] = price
+	if not product_id.is_empty(): assortment[product_id] = price
 
 func snapshot() -> Dictionary:
-	return {"id": id, "company": company_id, "city": city_id, "type": type_id,
+	return {"research_project": research_project, "id": id, "company": company_id, "city": city_id, "type": type_id,
 		"assortment": assortment.duplicate(true), "line_sales": line_sales.duplicate(true),
 		"line_today": line_today.duplicate(true), "product_history": product_history.duplicate(true),
 		"asset_cost": asset_cost, "accumulated_depreciation": accumulated_depreciation, "asset_days": asset_days,

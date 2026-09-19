@@ -62,6 +62,6 @@ func _refresh() -> void:
 		lines.append("%s: cash $%.2f | revenue $%.2f | profit $%.2f | stock assets $%.2f" % [company.name, company.cash / 100.0, company.revenue / 100.0, company.profit / 100.0, company.inventory_assets / 100.0])
 	lines.append("\nFacilities — last completed day")
 	for f: Dictionary in state.facilities:
-		lines.append("%s / %s: price $%.2f | quality %d | inventory %d | made %d | consumer sales %d%s" % [f.id, f.product, f.price / 100.0, f.quality, int(f.inventory.quantities.get(f.product, 0)), f.produced_today, f.sold_today, "" if sim.catalog.available(f.product, sim.clock.year) else " [era locked]"])
+		lines.append("%s / %s: price $%.2f | quality %d | inventory %d | made %d | consumer sales %d%s" % [f.id, f.product, f.price / 100.0, f.quality, int(f.inventory.quantities.get(f.product, 0)), f.produced_today, f.sold_today, "" if sim.catalog.product_public(f.product, sim.clock.year) else " [era locked]"])
 	lines.append("\nBalance/inventory checks: " + ("OK" if sim.invariant_errors().is_empty() else str(sim.invariant_errors())))
 	report.text = "\n".join(lines)

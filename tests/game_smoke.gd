@@ -71,7 +71,7 @@ func _run() -> void:
 	screen.call("_new_session", 2012)
 	session.time.set_speed(0)
 	screen.call("select_facility", "12_advanced")
-	check(not session.sim.available("advanced_phone") and panel.info.text.contains("ERA LOCKED"), "2012 facility inspector shows lock")
+	check(not session.sim.product_public("advanced_phone") and panel.info.text.contains("ERA LOCKED"), "2012 facility inspector shows lock")
 	check(not session.debug_unlocked, "New graphical session locks cheats")
 	session.start(2012, 42, "tutorial")
 	screen.call("_show_settings")

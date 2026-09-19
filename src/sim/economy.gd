@@ -56,16 +56,18 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	definitions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	for definition: Dictionary in definitions:
 		companies[str(definition.id)] = Company.new(definition)
+		for technology: String in catalog.technologies:
+			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
 	definitions = catalog.scenario.facilities.duplicate(true)
 	if city_settings.get("preset", "procedural") != "legacy": definitions.append_array(catalog.scenario.get("expanded_facilities", []))
 	definitions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	for definition: Dictionary in definitions:
 		var new_facility: SimFacility = Facility.new(definition)
-		new_facility.active = catalog.available(new_facility.product_id, era)
+		new_facility.active = can_configure(new_facility.company_id, new_facility.type_id, new_facility.product_id)
 		facilities.append(new_facility)
 		if city_settings.get("preset", "procedural") != "legacy":
 			for product: String in catalog.scenario.get("assortments", {}).get(new_facility.id, []):
-				if available(product) and product != new_facility.product_id: new_facility.assortment[product] = int(int(catalog.products[product].reference_price) * 1.3)
+				if product_public(product) and product != new_facility.product_id: new_facility.assortment[product] = int(int(catalog.products[product].reference_price) * 1.3)
 	city = CityMap.new()
 	var success: bool = city.initialize(facilities, catalog, seed_value, city_settings)
 	category_market.clear()
@@ -81,8 +83,64 @@ func facility(id: String) -> SimFacility:
 func queue_command(command: Dictionary) -> void:
 	pending_commands.append(command.duplicate(true))
 
-func available(product: String) -> bool:
-	return catalog.products.has(product) and (str(catalog.products[product].technology) in unlocked_technologies or catalog.available(product, clock.year))
+func product_public(product: String) -> bool:
+	return catalog.products.has(product) and technology_public(str(catalog.products[product].technology))
+
+func technology_public(technology: String) -> bool:
+	if not catalog.technologies.has(technology): return false
+	if technology not in unlocked_technologies and clock.year < int(catalog.technologies[technology].year): return false
+	for prerequisite: String in catalog.technologies[technology].prerequisites:
+		if not technology_public(prerequisite): return false
+	return true
+
+func can_manufacture(company: String, product: String) -> bool:
+	return companies.has(company) and product_public(product) and companies[company].knows(str(catalog.products[product].technology))
+
+# Resale/storage do not require recipe knowledge. Purchases never teach technology.
+func can_configure(company: String, type_id: String, product: String) -> bool:
+	if not companies.has(company) or not catalog.supports_product(type_id, product): return false
+	var behavior: String = catalog.facility_types[type_id].behavior
+	if behavior == "research": return true
+	return can_manufacture(company, product) if behavior == "production" else product_public(product)
+
+func research_error(company: String, technology: String, except_facility: String = "") -> String:
+	if not companies.has(company) or not catalog.technologies.has(technology): return "Unknown company or technology."
+	if not technology_public(technology): return "Not publicly available."
+	var owner: SimCompany = companies[company]
+	if owner.knows(technology): return "Already known."
+	for prerequisite: String in catalog.technologies[technology].prerequisites:
+		if not owner.knows(prerequisite): return "Requires knowledge: " + prerequisite
+	for f: SimFacility in facilities:
+		if f.company_id == company and f.id != except_facility and f.research_project == technology: return "Assigned to " + f.id
+	return ""
+
+func _research() -> void:
+	# End-of-day completion: capability becomes operational on the next tick.
+	for f: SimFacility in facilities:
+		if _behavior(f) != "research" or not f.active or f.research_project.is_empty(): continue
+		var technology: String = f.research_project
+		if not research_error(f.company_id, technology, f.id).is_empty(): continue
+		var owner: SimCompany = companies[f.company_id]
+		var definition: Dictionary = catalog.technologies[technology]
+		if not owner.pay_expense(int(definition.research_cost)): continue
+		owner.research_expense += int(definition.research_cost)
+		var progress: int = int(owner.research_progress.get(technology, 0)) + int(catalog.facility_types[f.type_id].research_rate)
+		if progress >= int(definition.research_work):
+			owner.known_technologies[technology] = clock.tick
+			owner.research_progress.erase(technology)
+			f.research_project = ""
+		else: owner.research_progress[technology] = progress
+
+func _ai_research() -> void:
+	var ids: Array = catalog.technologies.keys()
+	ids.sort_custom(func(a: String, b: String) -> bool:
+		return int(catalog.technologies[a].year) < int(catalog.technologies[b].year) if catalog.technologies[a].year != catalog.technologies[b].year else a < b)
+	for f: SimFacility in facilities:
+		if _behavior(f) != "research" or not companies[f.company_id].ai or not f.operating or not f.research_project.is_empty(): continue
+		for technology: String in ids:
+			if research_error(f.company_id, technology).is_empty():
+				f.research_project = technology
+				break
 
 func command_error(command: Dictionary) -> String:
 	if str(command.get("type", "")) == "build_facility":
@@ -91,10 +149,15 @@ func command_error(command: Dictionary) -> String:
 	if target == null or target.company_id != str(command.get("company", "")):
 		return "Unknown facility or company does not own it."
 	match str(command.get("type", "")):
+		"assign_research":
+			if _behavior(target) != "research": return "Select an R&D facility."
+			return research_error(target.company_id, str(command.get("technology", "")), target.id)
+		"stop_research":
+			if _behavior(target) != "research": return "Select an R&D facility."
 		"add_line", "remove_line", "set_production":
 			var product: String = str(command.get("product", ""))
 			var definition: Dictionary = catalog.facility_types[target.type_id]
-			if product not in definition.products or not available(product): return "Unsupported or era-locked product."
+			if not can_configure(target.company_id, target.type_id, product): return "Unsupported, era-locked or unknown company technology."
 			if command.type == "set_production":
 				if _behavior(target) != "production": return "Select a factory."
 			else:
@@ -117,15 +180,16 @@ func command_error(command: Dictionary) -> String:
 			var quote: Dictionary = logistics.quote(self, target.id, destination.id, command.quantity)
 			if quote.distance < 0 or target.city_id != destination.city_id: return "No road route."
 			if companies[target.company_id].cash < quote.freight: return "Insufficient freight funds."
-			if not available(product): return "Product unavailable."
+			if not product_public(product): return "Product unavailable."
 		"set_price":
+			if _behavior(target) == "research": return "R&D has no product price."
 			if _behavior(target) == "retail" and not target.assortment.has(str(command.get("product", target.product_id))): return "Product is not in assortment."
 			if _behavior(target) != "retail" and str(command.get("product", target.product_id)) != target.product_id: return "Price applies to the configured product."
 			if not command.get("price") is int or int(command.price) <= 0 or int(command.price) > 100000000:
 				return "Price must be integer cents between 1 and 100000000."
 		"set_supplier":
 			var product: String = str(command.get("product", ""))
-			var inputs: Dictionary = catalog.products[target.product_id].inputs
+			var inputs: Dictionary = catalog.products.get(target.product_id, {}).get("inputs", {})
 			if not (target.assortment.has(product) and _behavior(target) == "retail") and not (_behavior(target) == "production" and inputs.has(product)) and not (_behavior(target) == "storage" and catalog.products.has(product)):
 				return "Facility does not source that product."
 			var supplier_id: String = str(command.get("supplier", ""))
@@ -150,6 +214,8 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"assign_research": target.research_project = command.technology
+				"stop_research": target.research_project = ""
 				"set_warehouse_target": target.replenishment_targets[command.product] = command.quantity
 				"build_facility": _construct(command)
 				"demolish_facility": _demolish(target)
@@ -194,7 +260,7 @@ func construction_error(command: Dictionary) -> String:
 		return "Unknown facility archetype."
 	var definition: Dictionary = catalog.facility_types[type_id]
 	var product: String = str(command.get("product", ""))
-	if product not in definition.products or not available(product):
+	if not can_configure(str(command.company), type_id, product):
 		return "Product is unsupported or era locked."
 	if command.get("city", "metro") != city.id or not command.get("x") is int or not command.get("y") is int:
 		return "Choose integer cells in this city."
@@ -210,8 +276,8 @@ func _construct(command: Dictionary) -> void:
 	var owner: SimCompany = companies[str(command.company)]
 	owner.spend(int(definition.cost))
 	owner.capex += int(definition.cost)
-	var product: String = str(command.product)
-	var price: int = int(catalog.products[product].reference_price)
+	var product: String = str(command.get("product", ""))
+	var price: int = int(catalog.products.get(product, {}).get("reference_price", 0))
 	if definition.behavior == "retail":
 		price = int(price * 1.3)
 	var f: SimFacility = Facility.new({"id": "built_%06d" % city.next_facility,
@@ -242,10 +308,10 @@ func _ai_decisions() -> void:
 		return
 	for f: SimFacility in facilities:
 		var owner: SimCompany = companies[f.company_id]
-		if not owner.ai or _behavior(f) != "retail" or not available(f.product_id):
+		if not owner.ai or _behavior(f) != "retail" or not product_public(f.product_id):
 			continue
 		for product: String in f.line_ids():
-			if not available(product): continue
+			if not product_public(product): continue
 			var reference: int = int(catalog.products[product].reference_price)
 			var price: int = f.line_price(product)
 			var change: int = -maxi(1, int(price * 0.02)) if f.inventory.quantity(product) > f.capacity else maxi(1, int(price * 0.01))
@@ -277,7 +343,7 @@ func supplier_offers(buyer_id: String, product: String) -> Array[Dictionary]:
 	return Sourcing.offers(self, buyer, product) if buyer != null else []
 
 func produce(f: SimFacility) -> int:
-	if not f.active or _behavior(f) != "production" or not available(f.product_id):
+	if not f.active or _behavior(f) != "production" or not can_manufacture(f.company_id, f.product_id):
 		return 0
 	var definition: Dictionary = catalog.products[f.product_id]
 	var inputs: Dictionary = definition.inputs
@@ -304,7 +370,7 @@ func produce(f: SimFacility) -> int:
 
 func consumer_sale(f: SimFacility, requested: int, product: String = "") -> int:
 	if product.is_empty(): product = f.product_id
-	if requested <= 0 or not f.active or _behavior(f) != "retail" or not available(product) or not f.assortment.has(product): return 0
+	if requested <= 0 or not f.active or _behavior(f) != "retail" or not product_public(product) or not f.assortment.has(product): return 0
 	var units: int = mini(requested, mini(f.inventory.quantity(product), f.capacity - f.sold_today))
 	if units <= 0: return 0
 	var cost: int = f.inventory.remove(product, units)
@@ -332,6 +398,7 @@ func step() -> void:
 	market.clear()
 	_ai_decisions()
 	_apply_commands()
+	_ai_research()
 	logistics.deliver(self)
 	for f: SimFacility in facilities:
 		if f.asset_cost > 0 and f.asset_days < 3650:
@@ -349,8 +416,8 @@ func step() -> void:
 		f.produced_today = 0
 		f.last_sources.clear()
 		var has_available_line: bool = false
-		for product: String in f.line_ids(): has_available_line = has_available_line or available(product)
-		f.active = f.operating and (available(f.product_id) if _behavior(f) == "production" else (has_available_line or _behavior(f) == "storage"))
+		for product: String in f.line_ids(): has_available_line = has_available_line or product_public(product)
+		f.active = f.operating and (can_manufacture(f.company_id, f.product_id) if _behavior(f) == "production" else (has_available_line or _behavior(f) in ["storage", "research"]))
 		if f.active:
 			var owner: SimCompany = companies[f.company_id]
 			f.active = owner.pay_expense(int(catalog.facility_types[f.type_id].overhead))
@@ -366,12 +433,13 @@ func step() -> void:
 	for f: SimFacility in facilities:
 		if f.active and _behavior(f) == "retail":
 			for product: String in f.line_ids():
-				if available(product): _source(f, product, maxi(1, f.capacity * f.stock_days / f.assortment.size()))
+				if product_public(product): _source(f, product, maxi(1, f.capacity * f.stock_days / f.assortment.size()))
 		elif f.active and _behavior(f) == "storage":
 			var products: Array = f.replenishment_targets.keys()
 			products.sort()
 			for product: String in products: _source(f, product, int(f.replenishment_targets[product]))
 	_clear_consumer_markets()
+	_research()
 	for f: SimFacility in facilities:
 		f.recent_sales.append({"tick": clock.tick, "units": f.sold_today, "revenue": f.sold_today * f.price, "produced": f.produced_today})
 		var retail_revenue: int = 0
@@ -426,7 +494,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 6, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 7, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

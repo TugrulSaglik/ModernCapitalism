@@ -320,7 +320,7 @@ func _build_dialogs() -> void:
 	debug_days.value = 30
 	days_row.add_child(debug_days)
 	_button(days_row, "Advance days", func() -> void: _debug("advance", int(debug_days.value)))
-	_button(debug_panel, "Unlock example technologies", func() -> void: _debug("unlock"))
+	_button(debug_panel, "Make all technologies public (no knowledge grant)", func() -> void: _debug("unlock"))
 	city_diagnostics = Label.new()
 	debug_panel.add_child(city_diagnostics)
 	_button(debug_panel, "Toggle vacant frontage overlay", func() -> void: city.parcel_overlay.visible = not city.parcel_overlay.visible)
@@ -380,7 +380,7 @@ func _build_construction(parent: Node) -> void:
 	construction.add_child(title)
 	build_choices = OptionButton.new()
 	construction.add_child(build_choices)
-	for category: String in ["Retail", "Industrial"]:
+	for category: String in ["Retail", "Industrial", "Corporate"]:
 		build_choices.add_separator(category)
 		for id: String in session.sim.catalog.facility_types:
 			var definition: Dictionary = session.sim.catalog.facility_types[id]
@@ -426,16 +426,20 @@ func _choose_build() -> void:
 	var definition: Dictionary = session.sim.catalog.facility_types[id]
 	build_products.clear()
 	for product: String in definition.products:
-		if session.sim.available(product):
+		if session.sim.can_configure(session.player_company, id, product):
 			build_products.add_item(str(session.sim.catalog.products[product].name))
 			build_products.set_item_metadata(build_products.item_count - 1, product)
+	build_products.visible = definition.behavior != "research"
 	build_details.text = "$%.2f • %d × %d cells\nCapacity: %d/day • Overhead: $%.2f/day\n\n%s" % [definition.cost / 100.0, definition.width, definition.depth, definition.capacity, definition.overhead / 100.0, definition.description]
 	if definition.behavior == "storage":
 		build_details.text = "$%.2f • %d × %d cells\nOverhead: $%.2f/day\n\n%s" % [definition.cost / 100.0, definition.width, definition.depth, definition.overhead / 100.0, definition.description]
 	_begin_preview()
 
 func _begin_preview() -> void:
-	if build_products.selected >= 0:
+	var type_id: String = str(build_choices.get_item_metadata(build_choices.selected))
+	if session.sim.catalog.facility_types[type_id].behavior == "research":
+		city.begin_placement(type_id, "")
+	elif build_products.selected >= 0:
 		city.begin_placement(str(build_choices.get_item_metadata(build_choices.selected)), str(build_products.get_item_metadata(build_products.selected)))
 
 func _place(x: int, y: int) -> void:

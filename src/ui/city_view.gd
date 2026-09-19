@@ -110,6 +110,10 @@ func sync(state: Dictionary) -> void:
 			for ix: int in range(int(p.width)):
 				_box(body, Vector3(-size_value.x / 2.0 + 0.55 + ix * 1.25, -0.12, size_value.z / 2.0 + 0.04), Vector3(0.85, height * 0.48, 0.06), Color("325c70"))
 			_box(body, Vector3(0, height / 2.0 - 0.55, size_value.z / 2.0 + 0.3), Vector3(size_value.x + 0.15, 0.12, 0.75), colors[f.company])
+		elif style == "research":
+			for ix: int in range(int(p.width)):
+				_box(body, Vector3(-size_value.x / 2.0 + 0.65 + ix * 1.2, 0, size_value.z / 2.0 + 0.04), Vector3(0.8, 0.8, 0.06), Color("4f8295"))
+			_box(body, Vector3(0, height / 2.0 + 0.25, 0), Vector3(1.4, 0.45, 0.9), Color("b6ccd5"))
 		elif style == "factory":
 			for ix: int in range(2):
 				_box(body, Vector3(-1.2 + ix * 1.6, height / 2.0 + 0.4, 0), Vector3(1.1, 0.7, 1.4), Color("93a4aa"))

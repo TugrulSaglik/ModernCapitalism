@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 6 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 7 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -125,18 +125,18 @@ func restore(state: Dictionary) -> Economy:
 	var restored: Array[SimFacility] = []
 	var restored_ids: Dictionary = {}
 	for item: Variant in state.facilities:
-		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.products.has(item.product) or item.city != sim.city.id:
+		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.supports_product(item.type, item.product) or item.city != sim.city.id:
 			return null
 		var original: SimFacility = sim.facility(item.id)
 		if original == null:
 			for definition: Dictionary in sim.catalog.scenario.get("expanded_facilities", []):
 				if definition.id == item.id: original = SimFacility.new(definition)
 		if original != null:
-			if item.company != original.company_id or item.type != original.type_id or item.product not in sim.catalog.facility_types[item.type].products or item.capacity != original.capacity or item.quality != original.quality:
+			if item.company != original.company_id or item.type != original.type_id or not sim.catalog.supports_product(item.type, item.product) or item.capacity != original.capacity or item.quality != original.quality:
 				return null
 		else:
 			var definition: Dictionary = sim.catalog.facility_types[item.type]
-			if not item.id.begins_with("built_") or not item.id.trim_prefix("built_").is_valid_int() or int(item.id.trim_prefix("built_")) < 1 or item.id != "built_%06d" % int(item.id.trim_prefix("built_")) or item.product not in definition.products or item.capacity != int(definition.capacity) or item.quality != 50:
+			if not item.id.begins_with("built_") or not item.id.trim_prefix("built_").is_valid_int() or int(item.id.trim_prefix("built_")) < 1 or item.id != "built_%06d" % int(item.id.trim_prefix("built_")) or not sim.catalog.supports_product(item.type, item.product) or item.capacity != int(definition.capacity) or item.quality != 50:
 				return null
 		var created: SimFacility = SimFacility.new(item)
 		restored.append(created)
@@ -163,12 +163,30 @@ func restore(state: Dictionary) -> Economy:
 		var owner: SimCompany = sim.companies[item.id]
 		var template: Dictionary = owner.snapshot()
 		template["inventory_assets"] = 0
+		template.known_technologies = {}
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex", "research_expense"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
+		owner.known_technologies.clear()
+		for technology: String in item.known_technologies:
+			var acquired: Variant = item.known_technologies[technology]
+			if not sim.catalog.technologies.has(technology) or not acquired is int or acquired < -1 or acquired > sim.clock.tick: return null
+			if acquired == -1 and not sim.catalog.technology_public(technology, sim.starting_year): return null
+			owner.known_technologies[technology] = acquired
+		for technology: String in sim.catalog.technologies:
+			if sim.catalog.technology_public(technology, sim.starting_year) and not owner.knows(technology): return null
+		for technology: String in owner.known_technologies:
+			for prerequisite: String in sim.catalog.technologies[technology].prerequisites:
+				if not owner.knows(prerequisite): return null
+		for technology: String in item.research_progress:
+			var progress: Variant = item.research_progress[technology]
+			if not sim.catalog.technologies.has(technology) or owner.knows(technology) or not nonnegative(progress) or progress <= 0 or progress >= int(sim.catalog.technologies[technology].research_work): return null
+			for prerequisite: String in sim.catalog.technologies[technology].prerequisites:
+				if not owner.knows(prerequisite): return null
+		owner.research_progress = item.research_progress.duplicate(true)
 		if absi(item.capital) > 100000000000000:
 			return null
 		owner.capital = item.capital
@@ -179,7 +197,7 @@ func restore(state: Dictionary) -> Economy:
 		for entry: Variant in item.archived_months:
 			if not shape(entry, {"month": "", "profit": 0}): return null
 			owner.archived_months.append(entry.duplicate(true))
-		if item.freight + item.depreciation > item.expenses or absi(item.recorded_profit) > 100000000000000 or item.daily_history.size() > 367 or item.monthly_history.size() > 13: return null
+		if item.freight + item.depreciation + item.research_expense > item.expenses or item.research_expense > item.cash_expenses or absi(item.recorded_profit) > 100000000000000 or item.daily_history.size() > 367 or item.monthly_history.size() > 13: return null
 		owner.recorded_profit = item.recorded_profit
 		var previous: String = ""
 		for entry: Variant in item.daily_history:
@@ -200,7 +218,7 @@ func restore(state: Dictionary) -> Economy:
 		if f == null or seen.has(f.id) or not shape(item, f.snapshot()):
 			return null
 		seen[f.id] = true
-		if item.company != f.company_id or item.city != f.city_id or item.type != f.type_id or item.product != f.product_id or item.capacity != f.capacity or item.quality != f.quality or item.price <= 0 or item.price > 100000000 or item.stock_days < 1 or item.stock_days > 7:
+		if item.company != f.company_id or item.city != f.city_id or item.type != f.type_id or item.product != f.product_id or item.capacity != f.capacity or item.quality != f.quality or (item.price <= 0 and sim._behavior(f) != "research") or item.price > 100000000 or item.stock_days < 1 or item.stock_days > 7:
 			return null
 		for field: String in ["sold_today", "produced_today"]:
 			if not nonnegative(item[field]) or item[field] > f.capacity:
@@ -208,12 +226,13 @@ func restore(state: Dictionary) -> Economy:
 			f.set(field, item[field])
 		f.price = item.price
 		f.assortment.clear()
-		if item.assortment.is_empty(): return null
+		if item.assortment.is_empty() and sim._behavior(f) != "research": return null
 		if sim._behavior(f) == "retail" and item.assortment.size() > int(sim.catalog.facility_types[f.type_id].slots): return null
 		for product: String in item.assortment:
 			if product not in sim.catalog.facility_types[f.type_id].products or not item.assortment[product] is int or item.assortment[product] <= 0 or item.assortment[product] > 100000000: return null
 			f.assortment[product] = item.assortment[product]
-		if not f.assortment.has(f.product_id): return null
+		if not f.assortment.has(f.product_id) and sim._behavior(f) != "research": return null
+		if sim._behavior(f) == "research" and (not item.assortment.is_empty() or item.price != 0 or not item.inventory.quantities.is_empty() or not item.suppliers.is_empty() or not item.line_sales.is_empty() or not item.line_today.is_empty() or item.sold_today != 0 or item.produced_today != 0): return null
 		for product: String in item.line_sales:
 			if not sim.catalog.products.has(product) or not shape(item.line_sales[product], {"units": 0, "revenue": 0, "cogs": 0}): return null
 			for value: Variant in item.line_sales[product].values():
@@ -269,6 +288,18 @@ func restore(state: Dictionary) -> Economy:
 		if not technology is String or not sim.catalog.technologies.has(technology) or technology in sim.unlocked_technologies:
 			return null
 		sim.unlocked_technologies.append(technology)
+	for item: Dictionary in state.facilities:
+		var f: SimFacility = sim.facility(item.id)
+		if not item.research_project.is_empty():
+			if sim._behavior(f) != "research" or not sim.research_error(f.company_id, item.research_project).is_empty(): return null
+			f.research_project = item.research_project
+	for owner: SimCompany in sim.companies.values():
+		for technology: String in owner.research_progress:
+			if not sim.technology_public(technology): return null
+		for technology: String in owner.known_technologies:
+			if not sim.technology_public(technology): return null
+			for prerequisite: String in sim.catalog.technologies[technology].prerequisites:
+				if int(owner.known_technologies[prerequisite]) > int(owner.known_technologies[technology]): return null
 	for command: Variant in state.pending_commands:
 		if not command is Dictionary or not sim.command_error(command).is_empty():
 			return null

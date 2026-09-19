@@ -1,6 +1,8 @@
 # Milestone 6: consumer markets and financial statements
 
-This is the current specification. Historical milestone sections elsewhere describe
+This is the Milestone 6 specification. Milestone 7A supersedes its global
+technology capability, inactive R&D and schema-6 descriptions; see
+[Technology](TECHNOLOGY.md). Historical milestone sections elsewhere describe
 their implementation at the time; the rules below supersede their single-product
 market and profit-only reporting descriptions.
 
@@ -79,7 +81,8 @@ facilities: memory, storage and electronic-component production; laptop, televis
 detergent and earbud manufacturing; a department store, small general store and
 warehouse. The player's and rival's electronics stores start with several lines;
 locked optional lines are omitted in 2012. Locked factory sites stay reserved and
-become usable at their public date. They do not grant mature products early.
+become researchable at their public date; Milestone 7A requires owner research
+before those factories become usable. They do not grant mature products early.
 The old nine-site coordinate scenario remains an explicit regression fixture.
 
 Not every catalog recipe has a complete initial supply chain. Appliances and other

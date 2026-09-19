@@ -52,14 +52,34 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 6
+## Milestone 7A
+
+Company knowledge is now separate from public technology. Starting knowledge is
+2012/2022 era-appropriate; later public technologies require company research for
+manufacturing. Retailers may buy/resell public finished goods without recipe knowledge.
+Build an **R&D center** under Corporate, select it, and assign or stop research in
+the R&D inspector. Stopped progress is retained. Projects cost money daily and
+completion unlocks the owner's recipes. Nova has a scenario R&D center and a simple
+deterministic research policy. Quality/process improvements remain Milestone 7B.
+
+Saves now use **economy schema 7 / catalog version 3 / format 2**; older saves are
+incompatible. See [technology and R&D rules](docs/TECHNOLOGY.md) and
+[validation](docs/VALIDATION.md). Focused checks and three rendered screenshots:
+
+```powershell
+& $godot --headless --path . --log-file .godot/m7a-tests.log --script res://tests/milestone7a_tests.gd
+& $godot --headless --path . --log-file .godot/m7a-long.log --script res://tests/milestone7a_tests.gd -- --long-only
+& $godot --path . --log-file .godot/m7a-visual.log --script res://tests/research_smoke.gd
+```
+
+## Milestone 6 foundation
 
 Consumer markets now use three income-sensitive segments and category competition.
 The catalog has 26 products/components. Stores manage several product lines with
 independent prices and suppliers; factories can switch compatible recipes without
 converting existing inventory. **Company** opens Income Statement, Balance Sheet,
 Cash Flow, Markets, History and Companies tabs. The persistent TTM/monthly HUD
-reads the same financial history. Saves use economy schema 6 / format 2; old saves
+reads the same financial history. At that milestone saves used economy schema 6 / format 2; old saves
 are intentionally incompatible.
 
 See [Milestone 6 rules and controls](docs/MILESTONE6.md) and
@@ -162,5 +182,5 @@ to avoid attempts to write the default user log directory.
 Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
-Milestone 6 screenshots are in `.godot/m6-screenshots/`. Active company research,
+Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`. Continuous research,
 quality provenance, strategic AI, advertising and corporate finance remain future work.

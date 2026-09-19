@@ -23,6 +23,7 @@ func used(f: SimFacility) -> int:
 	return units
 
 func free_capacity(sim: Economy, f: SimFacility) -> int:
+	if sim._behavior(f) == "research": return 0
 	return maxi(0, f.capacity - used(f) - incoming(f.id)) if sim._behavior(f) == "storage" else 100000000
 
 func assets(company: String) -> int:
@@ -32,7 +33,7 @@ func assets(company: String) -> int:
 	return value
 
 func dispatch(sim: Economy, seller: SimFacility, buyer: SimFacility, product: String, requested: int) -> int:
-	if seller == null or buyer == null or seller == buyer or requested <= 0 or seller.city_id != buyer.city_id or not sim.available(product): return 0
+	if seller == null or buyer == null or seller == buyer or requested <= 0 or seller.city_id != buyer.city_id or not sim.product_public(product): return 0
 	var units: int = mini(requested, mini(seller.inventory.quantity(product), free_capacity(sim, buyer)))
 	var q: Dictionary = quote(sim, seller.id, buyer.id, units)
 	if q.distance < 0: return 0

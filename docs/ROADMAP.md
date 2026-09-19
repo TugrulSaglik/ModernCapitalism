@@ -8,7 +8,8 @@
 | 4 — Warehouses and logistics (implemented) | Road shipments, freight, lead times, landed-cost sourcing, depreciation and TTM/monthly HUD | 3 |
 | 5 — Procedural city, population and land (implemented) | Seeded coast/roads/parcels, ambient development, districts/population, demand scaling, land values, waterfront candidates and minimap | 1–4 |
 | 6 — Consumer/product economy and financial statements (implemented) | Aggregate segments, category competition, 26 products, multi-product retail, recipe selection, financial statements and monthly history | 2–5 |
-| 7 — Research and product quality (recommended next) | Active company R&D, product quality/provenance, technology and production-efficiency improvements | 3–6 |
+| 7A — Company research core (implemented) | Company knowledge, active R&D projects, technology unlocks, non-product facilities, expense accounting and exact persistence | 3–6 |
+| 7B — Continuous product/process research (recommended next) | Product-quality levels, component-quality provenance and production-efficiency improvements | 7A |
 | 8 — Competitive management | AI investment/sourcing/research, corporate headquarters, hiring, difficulty, advertising/branding and balancing | 2–7 |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |

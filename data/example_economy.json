@@ -1,38 +1,48 @@
 {
-  "version": 2,
+  "version": 3,
   "technologies": [
     {
       "id": "electronics",
       "year": 2000,
-      "prerequisites": []
+      "prerequisites": [],
+      "research_work": 300,
+      "research_cost": 2500
     },
     {
       "id": "mobile_computing",
       "year": 2007,
       "prerequisites": [
         "electronics"
-      ]
+      ],
+      "research_work": 300,
+      "research_cost": 2500
     },
     {
       "id": "advanced_mobile",
       "year": 2020,
       "prerequisites": [
         "mobile_computing"
-      ]
+      ],
+      "research_work": 600,
+      "research_cost": 2500
     },
     {
       "id": "modern_wearables",
       "year": 2015,
       "prerequisites": [
         "electronics"
-      ]
+      ],
+      "research_work": 600,
+      "research_cost": 2500
     },
     {
       "id": "smart_home",
       "year": 2018,
       "prerequisites": [
         "electronics"
-      ]
+      ],
+      "research_work": 600,
+      "research_cost": 2500
     }
   ],
   "products": [
@@ -592,6 +602,21 @@
         "detergent",
         "cookware"
       ]
+    },
+    {
+      "id": "research_center",
+      "name": "R&D center",
+      "behavior": "research",
+      "category": "Corporate",
+      "style": "research",
+      "overhead": 500,
+      "width": 3,
+      "depth": 2,
+      "cost": 1500000,
+      "capacity": 10,
+      "research_rate": 10,
+      "products": [],
+      "description": "Research one public technology at a time. Progress is retained when stopped. No product or stock required."
     }
   ],
   "scenario": {
@@ -616,7 +641,7 @@
       {
         "id": "maker_b",
         "name": "Nova Devices",
-        "ai": false,
+        "ai": true,
         "cash": 30000000
       },
       {
@@ -861,6 +886,14 @@
         "product": "smartphone",
         "capacity": 100,
         "price": 24000,
+        "quality": 50
+      },
+      {
+        "id": "30_research",
+        "company": "maker_b",
+        "city": "metro",
+        "type": "research_center",
+        "capacity": 10,
         "quality": 50
       }
     ],

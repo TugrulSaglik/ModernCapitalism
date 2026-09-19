@@ -31,6 +31,19 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	scenario = root.get("scenario", {})
 	for id: String in technologies:
 		if float(technologies[id].get("year", -1)) != floor(float(technologies[id].get("year", -1))) or int(technologies[id].get("year", -1)) < 1900 or int(technologies[id].get("year", 0)) > 3000: errors.append("Invalid technology year: " + id)
+		var tech: Dictionary = technologies[id]
+		for field: String in ["research_work", "research_cost"]:
+			if not _positive_integer(tech.get(field)): errors.append("Invalid research definition: " + id + "/" + field)
+		if not tech.get("prerequisites") is Array:
+			errors.append("Technology prerequisites must be an array: " + id)
+			return false
+		var seen: Array = []
+		for prerequisite: Variant in tech.prerequisites:
+			if not prerequisite is String or prerequisite in seen:
+				errors.append("Invalid/duplicate prerequisite: " + id)
+				return false
+			seen.append(prerequisite)
+	for id: String in technologies:
 		_validate_technology(id, [])
 	for id: String in categories:
 		var c: Dictionary = categories[id]
@@ -59,18 +72,19 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	_index(scenario.get("facilities", []), facilities)
 	for id: String in facilities:
 		var f: Dictionary = facilities[id]
-		if not companies.has(str(f.get("company", ""))) or not products.has(str(f.get("product", ""))) or not facility_types.has(str(f.get("type", ""))) or int(f.get("capacity", 0)) <= 0 or int(f.get("price", 0)) <= 0 or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or str(f.get("city", "")).is_empty():
+		if not companies.has(str(f.get("company", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))) or not facility_types.has(str(f.get("type", ""))) or int(f.get("capacity", 0)) <= 0 or (facility_types.get(str(f.get("type", "")), {}).get("behavior") != "research" and int(f.get("price", 0)) <= 0) or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or str(f.get("city", "")).is_empty():
 			errors.append("Invalid facility: " + id)
 	for id: String in facility_types:
 		var f: Dictionary = facility_types[id]
+		if f.get("behavior") == "research" and (not _positive_integer(f.get("research_rate")) or not f.get("products", []).is_empty()): errors.append("Invalid research facility: " + id)
 		if f.get("behavior") == "retail":
 			if int(f.get("slots", 0)) < 1 or not f.get("categories") is Array: errors.append("Retail slots/categories required: " + id)
 			else:
 				for product: String in f.get("products", []):
 					if products.has(product) and products[product].category not in f.categories: errors.append("Disallowed retail category: " + id)
-		if str(f.get("behavior", "")) not in ["production", "retail", "storage"] or int(f.get("overhead", -1)) < 0 or int(f.get("width", 0)) < 1 or int(f.get("depth", 0)) < 1 or int(f.get("cost", 0)) <= 0 or int(f.get("capacity", 0)) <= 0:
+		if str(f.get("behavior", "")) not in ["production", "retail", "storage", "research"] or int(f.get("overhead", -1)) < 0 or int(f.get("width", 0)) < 1 or int(f.get("depth", 0)) < 1 or int(f.get("cost", 0)) <= 0 or int(f.get("capacity", 0)) <= 0:
 			errors.append("Invalid facility type: " + id)
-		if not f.get("products") is Array or f.get("products", []).is_empty():
+		if not f.get("products") is Array or (f.get("products", []).is_empty() and f.get("behavior") != "research"):
 			errors.append("Facility type requires supported products: " + id)
 		else:
 			for product: Variant in f.products:
@@ -93,9 +107,9 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	_index(scenario.get("expanded_facilities", []), expanded)
 	for id: String in expanded:
 		var f: Dictionary = expanded[id]
-		if not companies.has(str(f.get("company", ""))) or not facility_types.has(str(f.get("type", ""))) or not products.has(str(f.get("product", ""))):
+		if not companies.has(str(f.get("company", ""))) or not facility_types.has(str(f.get("type", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))):
 			errors.append("Invalid expanded facility: " + id)
-		elif f.product not in facility_types[f.type].products or int(f.get("capacity", 0)) <= 0 or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or int(f.get("price", 0)) <= 0:
+		elif not supports_product(str(f.type), str(f.get("product", ""))) or int(f.get("capacity", 0)) <= 0 or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or (facility_types.get(str(f.get("type", "")), {}).get("behavior") != "research" and int(f.get("price", 0)) <= 0):
 			errors.append("Invalid expanded facility operation: " + id)
 	return errors.is_empty()
 
@@ -130,13 +144,21 @@ func _validate_technology(id: String, visiting: Array[String]) -> void:
 	for prerequisite: String in technologies[id].get("prerequisites", []):
 		_validate_technology(prerequisite, next)
 
-func technology_available(id: String, year: int) -> bool:
+func technology_public(id: String, year: int) -> bool:
 	if not technologies.has(id) or year < int(technologies[id].year):
 		return false
 	for prerequisite: String in technologies[id].get("prerequisites", []):
-		if not technology_available(prerequisite, year):
+		if not technology_public(prerequisite, year):
 			return false
 	return true
 
-func available(product: String, year: int) -> bool:
-	return products.has(product) and technology_available(str(products[product].technology), year)
+func product_public(product: String, year: int) -> bool:
+	return products.has(product) and technology_public(str(products[product].technology), year)
+
+static func _positive_integer(value: Variant) -> bool:
+	return (value is int or value is float) and is_finite(float(value)) and float(value) == floor(float(value)) and value > 0 and value <= 100000000
+
+func supports_product(type_id: String, product: String) -> bool:
+	if not facility_types.has(type_id): return false
+	var definition: Dictionary = facility_types[type_id]
+	return product.is_empty() if definition.behavior == "research" else product in definition.get("products", []) and products.has(product)

@@ -33,8 +33,8 @@ func _initialize() -> void:
 
 func _catalog_segments(sim: Economy) -> void:
 	check(sim.catalog.products.size() == 26 and sim.catalog.errors.is_empty(), "26 validated products")
-	check(not sim.catalog.available("earbuds", 2012) and sim.catalog.available("earbuds", 2022), "Wearable era gate")
-	check(not sim.catalog.available("robot_vacuum", 2012) and sim.catalog.available("robot_vacuum", 2022), "Smart home era gate")
+	check(not sim.catalog.product_public("earbuds", 2012) and sim.catalog.product_public("earbuds", 2022), "Wearable era gate")
+	check(not sim.catalog.product_public("robot_vacuum", 2012) and sim.catalog.product_public("robot_vacuum", 2022), "Smart home era gate")
 	var counts: Dictionary = ConsumerMarket.populations(sim)
 	var total: int = 0
 	for n: int in counts.values(): total += n

@@ -104,7 +104,7 @@ func _run() -> void:
 		check(JSON.stringify(SaveStore.encode(expected.snapshot())) == JSON.stringify(SaveStore.encode(session.sim.snapshot())), "Exact UI save/load replay")
 	screen._new_session(2012)
 	session.time.set_speed(0)
-	check(not session.sim.available("earbuds") and not session.sim.available("advanced_phone"), "2012 gates")
+	check(not session.sim.product_public("earbuds") and not session.sim.product_public("advanced_phone"), "2012 gates")
 	for day: int in range(35): session.sim.step()
 	check(session.sim.facility("20_player").line_sales.size() >= 3 and session.sim.invariant_errors().is_empty(), "2012 multi-product economy")
 	print("M6 VISUAL RESULT: %d checks, %d failures" % [checks, failures])

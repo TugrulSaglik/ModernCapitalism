@@ -474,3 +474,109 @@ expand strategically. Liabilities, debt, tax, dividends and ownership markets ar
 not implemented. Older save schemas intentionally have no migration path. Recommended
 Milestone 7 is active R&D plus explicit product-quality and production-efficiency
 progression, introducing quality provenance before inputs can affect output quality.
+
+
+## Milestone 7A validation
+
+Validated September 19, 2026 on Windows / Godot 4.7.2. The initial worktree was
+clean. README, AGENTS, architecture, technology, roadmap, Milestone 6, validation
+and the implementation were inspected before edits. No Computer Use, branch,
+commit, dependency or product expansion was introduced.
+
+Baseline: existing Milestone 6 suite **2,547 checks, zero failures**. During work,
+the existing command/persistence suite passed **809 checks**, and game smoke passed
+**15 checks**. Development used targeted tests instead of repeating the historical
+3,650-day suites.
+
+The new `milestone7a_tests.gd` targeted suite passes **134 checks, zero failures**.
+It covers invalid research metadata/graphs, 2012 and 2022 knowledge, public Debug
+versus knowledge, production/construction gates, retail resale, assignment,
+duplicate exclusion, parallel different projects, suspension, insufficient funds,
+retained progress, completion/dependencies, expenses, cash flow, retained earnings,
+TTM, depreciation and balance identity. It saves after 17 funded days, reloads the
+file, compares every complete snapshot for 50 continuation days, and checks the
+same completion tick (59). Invalid knowledge/progress/prerequisites, duplicate or
+wrong-behavior assignments, product/stock contamination and expense corruption are
+rejected; failed session load leaves the prior session untouched.
+
+### One focused 2012 research scenario
+
+`--long-only` runs a generated seed-42 economy from 2012 through March 9, 2015.
+The corrected run passed **1,165 checks, zero failures**. It checks daily economic,
+accounting and logistics invariants while reaching the wearable public gate.
+At January 1, 2015 it is public/researchable but still unknown. Nova's scenario
+center selects wearables deterministically, spends 150,000 cents across 60 funded
+days and completes at tick **1,155**. Nova can then manufacture earbuds and its
+existing factory produces them; Orion remains unable to manufacture that recipe.
+Final consumer units: **48,507**. The first attempt exposed Nova's old `ai=false`
+scenario flag; enabling its minimal AI fixed participation, and the same focused
+scenario was rerun. No additional broad research stress scenarios were introduced.
+
+### Rendered R&D inspector
+
+`tests/research_smoke.gd` passed **16 checks** rendered, including building an R&D
+center without product selection, locked/researchable status, assignment, stop and
+resume, 28.3% progress, completion, rival read-only controls and accounting checks.
+Three 1280 × 800 frames were captured in `.godot/m7a-screenshots/`:
+
+1. `01-available-project.png`
+2. `02-active-progress.png`
+3. `03-known-technology.png`
+
+All three were inspected. One refinement renamed the tab to R&D and explicitly
+identified the Debug public override; the three frames were recaptured and inspected.
+Progress, prerequisites, funded-day ETA, costs and controls fit the existing inspector
+without clipping. These screenshots accelerate public availability via the audited
+Debug action; the long scenario above verifies normal calendar availability.
+
+### Scope and files
+
+New: `tests/milestone7a_tests.gd`, `tests/research_smoke.gd`, and their `.uid` files.
+Substantially extended: catalog/economy/company/facility simulation, SaveStore,
+facility inspector, construction UI and `data/example_economy.json`. Integration:
+financial reports, consumer markets, sourcing/logistics, company reports, city
+rendering and legacy Debug display. Historical tests only adopt explicit public
+API names and allow productless construction in their archetype loop; their
+assertions and long-run coverage remain. The full PowerShell wrapper includes the
+new short R&D suite and headless research smoke; the focused long run is explicit.
+README and existing architecture/economy/technology/roadmap/Milestone6/validation
+documents are updated; no redundant milestone document was created.
+
+Limits: research balancing is illustrative; 2022 starts know all current technologies.
+Idle operating centers still incur overhead, and AI only assigns existing centers.
+Research is expensed with no intangible capitalization. Schema 7/catalog 3 reject
+older saves without migration. Quality remains the existing scalar. Milestone 7B
+should add continuous product/process projects, attained quality/efficiency levels
+and explicit component-quality provenance; no such effects are implemented in 7A.
+
+### Final complete regression (one full run)
+
+The final `tests/run_tests.ps1` completed successfully with **48,505 checks, zero
+failures**, plus the legacy Debug 30-day flow. The existing suites account for
+48,358 checks and the new short R&D/headless smoke suites add 147. Historical
+counts increase because their data-driven loops now include the R&D archetype
+and generated scenario facility; no old assertions or long replays were removed.
+
+| Suite | Checks | Failures |
+| --- | ---: | ---: |
+| Foundation | 1,524 | 0 |
+| Milestone 2 | 809 | 0 |
+| Game smoke | 15 | 0 |
+| Legacy Debug | 30-day flow | 0 |
+| Milestone 3 | 7,413 | 0 |
+| Construction smoke | 18 | 0 |
+| Milestone 4 | 7,394 | 0 |
+| Logistics smoke | 38 | 0 |
+| Milestone 5 | 28,563 | 0 |
+| City smoke | 17 | 0 |
+| Milestone 6 | 2,547 | 0 |
+| Market smoke | 20 | 0 |
+| Milestone 7A | 134 | 0 |
+| Research smoke, headless | 13 | 0 |
+
+The wrapper imported the project and found no script/parse errors or failed
+assertions. `git diff --check` passed. The restricted editor's existing global
+settings-write warning appeared during the separate development import; it did
+not prevent class registration or testing. Final logs are in ignored
+`.godot/m7a-final-regression.log`, `.godot/m7a-long.log` and
+`.godot/m7a-rendered.log`. No branch or commit was created.

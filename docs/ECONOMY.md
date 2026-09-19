@@ -48,7 +48,9 @@ opening/closing cash and balance snapshots, with older months archived. Current
 month, previous month, TTM and current-year reports use the same history as the HUD.
 Production conversion is capitalized inventory and an operating cash outflow;
 construction is capitalized fixed assets and investing cash. Debug capital is
-financing. There is no interest, debt, tax or dividend system.
+financing. Milestone 7A adds explicit `research_expense` within operating expenses
+and cash expenses; R&D overhead remains other expense. Research is never capitalized
+as an intangible. There is no interest, debt, tax or dividend system.
 
 ## Accounting and statistics
 Revenue includes wholesale and retail sales. COGS is the carrying value sold;
@@ -64,12 +66,14 @@ Do not sum intercompany revenue to measure final consumer spending.
 ## Tick order
 1. Record prior between-day profit and clear daily accounts.
 2. AI submits bounded weekly price decisions; apply queued commands in order.
-3. Deliver due shipments and charge fixed-asset depreciation.
+3. Assign eligible projects to idle operating AI R&D centers, then deliver due shipments and charge fixed-asset depreciation.
 4. Charge affordable overhead and mark active facilities.
 5. Source manufacturing inputs and produce in stable facility order.
 6. Replenish retailers and warehouses, accounting for goods already in transit.
-7. Draw product demand shocks and allocate consumer sales.
-8. Record profit history, publish reports and advance the Gregorian clock.
+7. Draw category demand shocks and allocate consumer sales.
+8. Charge funded active research projects and advance work; completion grants company
+   knowledge for the next production day. See [research rules](TECHNOLOGY.md).
+9. Record profit history, publish reports and advance the Gregorian clock.
 
 Reports describe the day just completed; displayed clock is the next day to run.
 Quality is fixed per facility output/offer initially; provenance and quality-mixed

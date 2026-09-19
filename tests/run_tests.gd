@@ -120,9 +120,9 @@ func _test_demand() -> void:
 func _test_eras_and_clock() -> void:
 	var early: Economy = fresh(2012)
 	var late: Economy = fresh(2022)
-	check(early.catalog.available("smartphone", 2012), "Baseline phone available in 2012")
-	check(not early.catalog.available("advanced_phone", 2012) and late.catalog.available("advanced_phone", 2022), "Era gates differ")
-	check(not early.catalog.available("advanced_phone", 2019) and early.catalog.available("advanced_phone", 2020), "Availability progresses with year")
+	check(early.catalog.product_public("smartphone", 2012), "Baseline phone available in 2012")
+	check(not early.catalog.product_public("advanced_phone", 2012) and late.catalog.product_public("advanced_phone", 2022), "Era gates differ")
+	check(not early.catalog.product_public("advanced_phone", 2019) and early.catalog.product_public("advanced_phone", 2020), "Availability progresses with year")
 	for tick: int in range(30):
 		early.step()
 		late.step()

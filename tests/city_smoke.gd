@@ -122,7 +122,7 @@ func _run() -> void:
 	screen.city_seed.get_line_edit().text = "42"
 	screen._new_session(2012)
 	session.time.set_speed(0)
-	check(original == session.sim.city.snapshot() and not session.sim.available("advanced_phone"), "2012 shares generated city and keeps era gates")
+	check(original == session.sim.city.snapshot() and not session.sim.product_public("advanced_phone"), "2012 shares generated city and keeps era gates")
 	for day: int in range(30): session.sim.step()
 	screen.inspector.hide()
 	await capture("09-city-2012")

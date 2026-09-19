@@ -69,7 +69,7 @@ func refresh() -> void:
 	context.text = owner.display_name + " • " + sim.clock.date_string() + "\n" + periods.get_item_text(periods.selected) + " • integer cents; current period includes activity through today."
 	match tabs.current_tab:
 		0:
-			for pair: Array in [["Retail sales", "retail_revenue"], ["Wholesale sales", "wholesale_revenue"], ["REVENUE", "revenue"], ["Cost of goods sold", "cogs"], ["GROSS PROFIT", "gross_profit"], ["Freight / logistics", "freight"], ["Depreciation", "depreciation"], ["Other expenses / disposal losses", "other_expenses"], ["TOTAL OPERATING EXPENSES", "expenses"], ["OPERATING / NET PROFIT", "profit"]]: amount(pair[0], p[pair[1]])
+			for pair: Array in [["Retail sales", "retail_revenue"], ["Wholesale sales", "wholesale_revenue"], ["REVENUE", "revenue"], ["Cost of goods sold", "cogs"], ["GROSS PROFIT", "gross_profit"], ["Freight / logistics", "freight"], ["Depreciation", "depreciation"], ["R&D research", "research_expense"], ["Other expenses / disposal losses", "other_expenses"], ["TOTAL OPERATING EXPENSES", "expenses"], ["OPERATING / NET PROFIT", "profit"]]: amount(pair[0], p[pair[1]])
 			context.text += "\nNo tax or interest: net profit equals operating profit."
 		1:
 			context.text = owner.display_name + " • Balance sheet as of " + sim.clock.date_string()
@@ -105,7 +105,7 @@ func _market(sim: Economy) -> void:
 	var definition: Dictionary = sim.catalog.products[product]
 	var category: Dictionary = sim.category_market.get(definition.category, {})
 	var m: Dictionary = sim.market.get(product, {})
-	context.text = "%s • %s • %s\nResidents %d • segments %s" % [definition.name, definition.category, "Available" if sim.available(product) else "Era locked", sim.city.population.total, str(ConsumerMarket.populations(sim))]
+	context.text = "%s • %s • %s\nResidents %d • segments %s" % [definition.name, definition.category, "Available" if sim.product_public(product) else "Era locked", sim.city.population.total, str(ConsumerMarket.populations(sim))]
 	add_row("Category demand / units sold (last completed day)", "%d / %d" % [category.get("potential", 0), category.get("units", 0)])
 	for segment: String in category.get("segments", {}): add_row(sim.catalog.segments[segment].name + " • potential", str(category.segments[segment]))
 	add_row("Product units sold", str(m.get("units", 0)))

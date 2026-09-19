@@ -3,6 +3,11 @@ extends PanelContainer
 
 signal command_requested(command: Dictionary)
 signal demolition_requested
+var research_choices: OptionButton
+var research_info: RichTextLabel
+var assign_research: Button
+var stop_research: Button
+var tabs: TabContainer
 var choices: OptionButton
 var line: OptionButton
 var configure: Button
@@ -36,7 +41,7 @@ func _ready() -> void:
 	var column: VBoxContainer = VBoxContainer.new()
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(column)
-	var tabs: TabContainer = TabContainer.new()
+	tabs = TabContainer.new()
 	tabs.custom_minimum_size = Vector2(400, 620)
 	column.add_child(tabs)
 	var operations: VBoxContainer = VBoxContainer.new()
@@ -58,6 +63,15 @@ func _ready() -> void:
 		if choices.selected >= 0:
 			var f: SimFacility = session.sim.facility(selected_id)
 			command_requested.emit({"type": "add_line" if session.sim._behavior(f) == "retail" else "set_production", "facility": selected_id, "product": choices.get_item_text(choices.selected)}))
+	research_choices = OptionButton.new()
+	operations.add_child(research_choices)
+	research_choices.item_selected.connect(func(_index: int) -> void: refresh())
+	research_info = RichTextLabel.new()
+	research_info.custom_minimum_size = Vector2(390, 225)
+	operations.add_child(research_info)
+	assign_research = _button(operations, "Assign / resume research", func() -> void:
+		if research_choices.selected >= 0: command_requested.emit({"type": "assign_research", "facility": selected_id, "technology": research_choices.get_item_metadata(research_choices.selected)}))
+	stop_research = _button(operations, "Stop research (retain progress)", func() -> void: command_requested.emit({"type": "stop_research", "facility": selected_id}))
 	line = OptionButton.new()
 	operations.add_child(line)
 	line.item_selected.connect(func(_index: int) -> void:
@@ -136,11 +150,19 @@ func bind(game_session: GameSession, id: String) -> void:
 	session = game_session
 	selected_id = id
 	var f: SimFacility = session.sim.facility(id)
-	layout_key = str(f.line_ids()) + f.product_id
+	layout_key = _layout_key(f)
+	var selected_technology: String = str(research_choices.get_item_metadata(research_choices.selected)) if research_choices.selected >= 0 else ""
+	research_choices.clear()
+	var tech_ids: Array = session.sim.catalog.technologies.keys()
+	tech_ids.sort()
+	for technology: String in tech_ids:
+		research_choices.add_item(technology.replace("_", " "))
+		research_choices.set_item_metadata(research_choices.item_count - 1, technology)
+		if technology == selected_technology: research_choices.select(research_choices.item_count - 1)
 	choices.clear()
 	line.clear()
 	for id_value: String in session.sim.catalog.facility_types[f.type_id].products:
-		if session.sim.available(id_value):
+		if session.sim.can_configure(f.company_id, f.type_id, id_value):
 			choices.add_item(id_value)
 			if id_value == f.product_id: choices.select(choices.item_count - 1)
 	for id_value: String in f.line_ids():
@@ -152,14 +174,14 @@ func bind(game_session: GameSession, id: String) -> void:
 	var ids: Array = session.sim.catalog.products.keys()
 	ids.sort()
 	for id_value: String in ids:
-		if session.sim.available(id_value): transfer_product.add_item(id_value)
+		if session.sim.product_public(id_value): transfer_product.add_item(id_value)
 	transfer_destination.clear()
 	for other: SimFacility in session.sim.facilities:
-		if other.company_id == f.company_id and other != f:
+		if other.company_id == f.company_id and other != f and session.sim._behavior(other) != "research":
 			transfer_destination.add_item("To: " + other.id + " / " + other.type_id)
 			transfer_destination.set_item_metadata(transfer_destination.item_count - 1, other.id)
 	product.clear()
-	var inputs: Dictionary = session.sim.catalog.products[f.product_id].inputs
+	var inputs: Dictionary = session.sim.catalog.products.get(f.product_id, {}).get("inputs", {})
 	if str(session.sim.catalog.facility_types[f.type_id].behavior) == "retail":
 		for id_value: String in f.line_ids(): product.add_item(id_value)
 	elif str(session.sim.catalog.facility_types[f.type_id].behavior) == "production":
@@ -192,14 +214,14 @@ func refresh() -> void:
 	var f: SimFacility = session.sim.facility(selected_id)
 	if f == null:
 		return
-	if layout_key != str(f.line_ids()) + f.product_id:
+	if layout_key != _layout_key(f):
 		bind(session, selected_id)
 		return
 	var owner: SimCompany = session.sim.companies[f.company_id]
-	var definition: Dictionary = session.sim.catalog.products[f.product_id]
+	var definition: Dictionary = session.sim.catalog.products.get(f.product_id, {"name": "Research", "inputs": {}})
 	var lines: PackedStringArray = [f.id + " / " + owner.display_name,
 		str(definition.name) + " | " + f.type_id,
-		("Available" if session.sim.available(f.product_id) else "ERA LOCKED") + " | " + ("Operating" if f.operating else "Suspended"),
+		("Available" if session.sim.can_configure(f.company_id, f.type_id, f.product_id) else ("RESEARCH REQUIRED" if session.sim.product_public(f.product_id) else "ERA LOCKED")) + " | " + ("Operating" if f.operating else "Suspended"),
 		"Price $%.2f | Quality %d | Capacity %d/day" % [f.price / 100.0, f.quality, f.capacity],
 		"Today: made %d | consumer sales %d" % [f.produced_today, f.sold_today], "Inventory (units / book value):"]
 	for id: String in f.inventory.quantities:
@@ -274,3 +296,42 @@ func refresh() -> void:
 	if not market.is_empty():
 		details.append("Market: %d sold / %d potential\nAverage price $%.2f | owner share %.1f%%" % [market.units, market.potential, market.average_price / 100.0, float(market.market_share.get(f.company_id, 0.0)) * 100.0])
 	sourcing_info.text = "\n".join(details)
+	var research: bool = session.sim._behavior(f) == "research"
+	for control: Control in [research_choices, research_info, assign_research, stop_research]: control.visible = research
+	tabs.set_tab_title(0, "R&D" if research else "Products")
+	tabs.set_tab_hidden(1, research)
+	tabs.set_tab_hidden(2, research)
+	if research:
+		tabs.current_tab = 0
+		for control: Control in [choices, configure, line, line_info, remove_line, price.get_parent(), stock.get_parent()]: control.hide()
+		info.custom_minimum_size.y = 155
+		info.text = "%s / %s\nR&D center | %s\nRate %d points/day | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", session.sim.catalog.facility_types[f.type_id].research_rate, CompanyReports.money(int(session.sim.catalog.facility_types[f.type_id].overhead)), f.research_project if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
+		_refresh_research(f, own)
+
+func _layout_key(f: SimFacility) -> String:
+	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(session.sim.companies[f.company_id].known_technologies) + str(session.sim.unlocked_technologies)
+
+func _refresh_research(f: SimFacility, own: bool) -> void:
+	if research_choices.selected < 0: return
+	var technology: String = str(research_choices.get_item_metadata(research_choices.selected))
+	var sim: Economy = session.sim
+	var owner: SimCompany = sim.companies[f.company_id]
+	var definition: Dictionary = sim.catalog.technologies[technology]
+	var known: bool = owner.knows(technology)
+	var work: int = int(definition.research_work)
+	var progress: int = work if known else int(owner.research_progress.get(technology, 0))
+	var error: String = sim.research_error(owner.id, technology, f.id)
+	var status: String = "Known" if known else ("Researchable" if error.is_empty() else error)
+	if technology in sim.unlocked_technologies: status += " (Debug public override)"
+	var prerequisites: PackedStringArray = []
+	for prerequisite: String in definition.prerequisites:
+		prerequisites.append(prerequisite.replace("_", " ") + (" (known)" if owner.knows(prerequisite) else " (unknown)"))
+	var assigned: String = "None"
+	for other: SimFacility in sim.facilities:
+		if other.company_id == owner.id and other.research_project == technology: assigned = other.id
+	var eta: int = ceili(float(work - progress) / int(sim.catalog.facility_types[f.type_id].research_rate))
+	research_info.text = "%s | Public year %d\n%s\nPrerequisites: %s\nProgress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s\nStopping retains progress; spending is not refunded." % [technology.replace("_", " "), definition.year, status, ", ".join(prerequisites) if not prerequisites.is_empty() else "None", progress, work, progress * 100.0 / work, CompanyReports.money(int(definition.research_cost)), eta, assigned]
+	if f.research_project == technology and (not f.operating or not f.active or owner.cash < int(definition.research_cost) + int(sim.catalog.facility_types[f.type_id].overhead)):
+		research_info.text += "\nStalled: suspended or insufficient operating funds."
+	assign_research.disabled = not own or not error.is_empty() or f.research_project == technology
+	stop_research.disabled = not own or f.research_project.is_empty()
