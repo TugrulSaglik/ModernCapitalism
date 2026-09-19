@@ -580,3 +580,65 @@ settings-write warning appeared during the separate development import; it did
 not prevent class registration or testing. Final logs are in ignored
 `.godot/m7a-final-regression.log`, `.godot/m7a-long.log` and
 `.godot/m7a-rendered.log`. No branch or commit was created.
+
+
+## Milestone 7B1 validation
+
+Validated September 20, 2026 on Windows / Godot 4.7.2. Initial working tree was
+clean; project instructions, README, architecture, economy, technology, Milestone 6,
+roadmap, validation and committed 7A implementation were inspected before edits.
+No Computer Use, branch, commit, catalog change or external dependency was added.
+
+The targeted baseline was the 7A suite: **134 checks, zero failures**. Development
+validation used the new quality suite and directly affected historical suites:
+
+| Suite | Checks | Failures |
+| --- | ---: | ---: |
+| 7B1 quality provenance | 140 | 0 |
+| Milestone 2 commands/persistence/sourcing | 809 | 0 |
+| Milestone 4 logistics/accounting/replay | 7,394 | 0 |
+| Milestone 6 consumer markets/accounting/replay | 2,547 | 0 |
+| Quality rendered smoke | 7 | 0 |
+
+Focused coverage includes equal/unequal pooling, integer residues, invalid requests,
+partial/full removal and compatibility cost returns; deterministic manufacturing,
+higher-quality inputs, mixed component weights and 1/100 endpoints; external-boundary
+production; inter-company dispatch, warehouse blending, internal outbound transfer,
+retail preservation and line differentiation; actual-quality consumer demand and
+supplier ranking; invalid quality-save rejection and exact disk save continuation.
+The factory-to-warehouse test saves during the warehouse-to-store leg, reloads, and
+compares complete economy snapshots on all 20 continuation days. Accounting identities
+remain exact. Historical sourcing fixtures now alter goods quality instead of the
+process scalar; their ranking assertions are retained.
+
+Initial focused-test failures were fixture errors: requesting a batch above the
+existing factory capacity and changing a scenario AI flag that restore forbids.
+The fixtures were corrected without relaxing production or restore validation.
+
+Two final 1280 x 800 frames were inspected under `.godot/7b1-screenshots/`:
+`01-retail-quality.png` and `02-market-quality.png`. The workflow uses normal
+production/logistics and seven-day retail targets, without injecting inventory or
+changing scenario definitions. It shows smartphone Q52 beside Q50 laptop/TV/earbud
+lines, and corporate smartphone offers at Q52/Q52/Q51 alongside stock, prices,
+realized market price and market share. Initial frames exposed normal stockouts;
+the validation target was raised to retain inspectable stock. The retailer's
+inventory area was increased slightly to expose all four quality-bearing lines.
+No unrelated visual redesign was performed.
+
+The complete regression wrapper includes the 7B1 suite and headless quality smoke.
+Quality is current pooled stock metadata, not supplier lots or a historic sold-quality
+average. Integer removal leaves rounding residues in the source. Older save schemas
+have no migration. Local competition, brand/advertising, continuous improvements and
+catalog expansion remain unimplemented. ROADMAP separates 7B2 Local-market/brand
+foundation from 7B3 continuous product/process R&D.
+
+
+### Final complete regression: one run
+
+`tests/run_tests.ps1` completed with exit code 0 against the final code/data tree:
+**48,650 checks, zero failures**, plus the successful legacy Debug 30-day flow.
+Historical suites contributed 48,505 checks; 7B1 contributed 140 focused checks and
+5 headless smoke checks. The wrapper imported the new scripts and found no script
+errors or failed assertions. The final log is `.godot/7b1-final-regression.log`.
+`git diff --check` passed. Only validation documentation was updated after the run;
+no code/data changed, and the complete suite was not repeated.

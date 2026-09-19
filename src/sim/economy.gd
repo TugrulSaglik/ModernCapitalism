@@ -362,9 +362,18 @@ func produce(f: SimFacility) -> int:
 	var output_cost: int = units * conversion
 	owner.spend(output_cost)
 	owner.production_cash += output_cost
+	var input_points: int = 0
+	var input_units: int = 0
 	for input: String in input_ids:
-		output_cost += f.inventory.remove(input, units * int(inputs[input]))
-	f.inventory.add(f.product_id, units, output_cost)
+		var consumed: int = units * int(inputs[input])
+		var removed: Dictionary = f.inventory.remove_pooled(input, consumed)
+		output_cost += int(removed.cost)
+		input_points += int(removed.quality_points)
+		input_units += consumed
+	# Equal weight for process capability and unit-weighted component quality.
+	@warning_ignore("integer_division")
+	var output_quality: int = f.quality if input_units == 0 else (f.quality + input_points / input_units) / 2
+	f.inventory.add(f.product_id, units, output_cost, clampi(output_quality, 1, 100))
 	f.produced_today += units
 	return units
 
@@ -481,8 +490,11 @@ func invariant_errors() -> Array[String]:
 		if _behavior(f) == "storage" and logistics.used(f) + logistics.incoming(f.id) > f.capacity:
 			errors.append("Warehouse capacity: " + f.id)
 		for product: String in f.inventory.quantities:
-			if f.inventory.quantity(product) < 0 or f.inventory.value(product) < 0 or (f.inventory.quantity(product) == 0 and f.inventory.value(product) != 0):
+			if f.inventory.points(product) < f.inventory.quantity(product) or f.inventory.points(product) > f.inventory.quantity(product) * 100 or f.inventory.quantity(product) < 0 or f.inventory.value(product) < 0 or (f.inventory.quantity(product) == 0 and f.inventory.value(product) != 0):
 				errors.append("Inventory balance: " + f.id + "/" + product)
+	for shipment: Dictionary in logistics.shipments:
+		if int(shipment.quality_points) < int(shipment.quantity) or int(shipment.quality_points) > int(shipment.quantity) * 100:
+			errors.append("Shipment quality: " + str(shipment.id))
 	return errors
 
 func snapshot() -> Dictionary:
@@ -494,7 +506,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 7, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 8, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

@@ -31,7 +31,7 @@ cycles, and invalid research rates. No product or bespoke technology scripts wer
 `SimCompany.known_technologies` maps technology ID to acquisition tick (`-1` for
 starting knowledge). It is the permanent completion record, not a second derived
 completed list. `research_progress` holds only incomplete technology work.
-`SimFacility.research_project` is an optional assigned technology ID. Future 7B
+`SimFacility.research_project` is an optional assigned technology ID. Future 7B3
 project kinds and attained improvement levels can extend this company/facility
 ownership model without moving state into the UI or replacing technology knowledge.
 
@@ -85,7 +85,7 @@ expanded scenario data. An operating idle AI center chooses an eligible technolo
 by public year, then stable ID. Prerequisites are always checked. AI neither builds
 centers nor selects investments or optimizes portfolios. Other companies need a
 center to participate. Current 2022 knowledge means centers have no remaining
-technology projects; continuous improvement is deferred to 7B.
+technology projects; continuous improvement is deferred to 7B3.
 
 Select an R&D center to use its compact R&D inspector. The technology selector
 shows known, researchable or locked state, prerequisite knowledge, required work,
@@ -100,7 +100,7 @@ expenses. Income Statement exposes R&D separately; monthly/archived records, TTM
 retained earnings and operating Cash Flow use the same ledger. Center overhead stays
 in other operating expenses. Research is expensed, never capitalized as an intangible.
 
-Economy schema **7**, catalog version **3**, save format **2** preserve knowledge,
+Economy schema **8**, catalog version **3**, save format **2** preserve knowledge,
 partial work and facility assignment exactly with the existing numeric encoding.
 Restore validates catalog references, prerequisites, progress bounds, duplicate
 assignments, facility behavior and categorized accounts before replacing the session.
@@ -112,6 +112,10 @@ company knowledge**. The R&D inspector identifies a Debug public override explic
 No instant-completion or knowledge-grant action was added. Normal gameplay uses only
 the date gates and funded research.
 
-Milestone 7B will add continuous product/process research, product-quality levels,
-component-quality provenance and efficiency. The facility/offer quality scalar is
-unchanged in 7A; patents, licensing, staff, HQ and strategic AI remain deferred.
+Milestone 7B1 now gives goods integer pooled quality provenance, independently of
+technology unlocks. Facility quality means production process baseline, not retail
+quality. See [quality formula and persistence](ECONOMY.md#milestone-7b1-product-quality-provenance).
+Current saves use economy schema 8 / catalog 3 / format 2. 7B2 adds a Local-market
+baseline competitor and brand foundation; 7B3 adds continuous product/process R&D.
+Neither follow-up is implemented here. Patents, licensing, staff, HQ and strategic
+AI remain deferred.

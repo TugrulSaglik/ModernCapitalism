@@ -46,7 +46,7 @@ household sector, not an income/employment/household-cash simulation.
 For each available retail offer with stock:
 
 `appeal = clamp((product_reference_price / retail_price)^price_sensitivity
-* (facility_quality / 50)^quality_sensitivity, 0.001, 100)`.
+* (inventory_product_quality / 50)^quality_sensitivity, 0.001, 100)`.
 
 An outside option of weight 1 makes total desired purchases
 `floor(potential * total_appeal / (1 + total_appeal))`. Allocate units to the
@@ -56,10 +56,9 @@ are stable, so limited checkout capacity can favor earlier categories/segments.
 There is no random tie-breaking or hidden brand multiplier. Price compares with
 each product's own reference price, representing its position within the category.
 
-Quality remains the existing 1–100 facility/offer scalar. Product definitions carry
-base quality for future configuration. Component quality provenance, mixed lots,
-expertise and R&D effects are deliberately deferred; they do not silently affect
-carrying value or create an untested quality transformation.
+Milestone 7B1 replaces the facility/offer scalar with actual per-product inventory
+quality, including manufacturing inputs and pooled shipment provenance. Empty stock
+has no offer weight and displays "no stock". See [quality rules](ECONOMY.md#milestone-7b1-product-quality-provenance).
 
 ## Catalog and eras
 
@@ -185,7 +184,7 @@ Hydration validates dynamic product maps, slot limits, financial-history equatio
 category totals, and existing inventory/assets/city constraints before replacing
 the live session. There is no migration path yet.
 
-Deferred: input-quality lots, active R&D, product design, advertising/branding,
+Deferred: supplier-specific lots, continuous R&D, product design, advertising/branding,
 headquarters, strategic AI expansion, loans/bonds, taxes, dividends, share ownership,
 stock markets/control/mergers, land ownership, city growth, ports/import/export and
 multiple cities. No individual consumers, external dependencies or final art were

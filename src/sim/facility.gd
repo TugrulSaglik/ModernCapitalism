@@ -10,6 +10,7 @@ var research_project: String = ""
 var product_id: String
 var capacity: int
 var price: int
+# Production process capability only; retail/storage never transform goods.
 var quality: int
 var active: bool = true
 var sold_today: int = 0

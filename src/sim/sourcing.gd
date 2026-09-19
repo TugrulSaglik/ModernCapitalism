@@ -16,9 +16,9 @@ static func offers(sim: Economy, buyer: SimFacility, product: String) -> Array[D
 		var landed: int = price + ceili(float(quote.freight) / quantity)
 		var effective: int = landed + int(quote.lead_days) * int(sim.logistics.config.lead_penalty_cents)
 		result.append({"id": seller.id, "company": seller.company_id, "price": price,
-			"quality": seller.quality, "stock": stock, "eligible": seller.active and seller.operating and sim.product_public(product) and stock > 0 and quote.distance >= 0,
+			"quality": seller.inventory.quality(product), "stock": stock, "eligible": seller.active and seller.operating and sim.product_public(product) and stock > 0 and quote.distance >= 0,
 			"distance": quote.distance, "lead_days": quote.lead_days, "freight": quote.freight,
-			"quote_quantity": quantity, "landed": landed, "effective": effective, "score": float(effective) / seller.quality})
+			"quote_quantity": quantity, "landed": landed, "effective": effective, "score": float(effective) / maxi(1, seller.inventory.quality(product))})
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if a.eligible != b.eligible: return a.eligible
 		var left: int = int(a.effective) * int(b.quality)

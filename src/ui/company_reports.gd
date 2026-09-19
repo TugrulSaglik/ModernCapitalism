@@ -112,7 +112,7 @@ func _market(sim: Economy) -> void:
 	amount("Average realized price", int(m.get("average_price", 0)))
 	for company: String in m.get("market_share", {}): add_row(sim.companies[company].display_name + " • product share", "%.1f%%" % (float(m.market_share[company]) * 100))
 	for f: SimFacility in sim.facilities:
-		if sim._behavior(f) == "retail" and f.assortment.has(product): add_row(f.id + " • stock / quality / price", "%d / Q%d / %s" % [f.inventory.quantity(product), f.quality, money(f.line_price(product))])
+		if sim._behavior(f) == "retail" and f.assortment.has(product): add_row(f.id + " • stock / quality / price", "%d / %s / %s" % [f.inventory.quantity(product), f.inventory.quality_text(product), money(f.line_price(product))])
 	var units: int = 0
 	for row: Dictionary in sim.market_history: units += int(row.categories.get(definition.category, {}).get("units", 0))
 	add_row("Category sales in retained 90-day history", str(units))

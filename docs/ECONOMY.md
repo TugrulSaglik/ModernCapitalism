@@ -76,8 +76,7 @@ Do not sum intercompany revenue to measure final consumer spending.
 9. Record profit history, publish reports and advance the Gregorian clock.
 
 Reports describe the day just completed; displayed clock is the next day to run.
-Quality is fixed per facility output/offer initially; provenance and quality-mixed
-lots are deferred. Negative inventory, free purchases and overdrafts are rejected.
+Product quality follows pooled inventory and shipments as specified below. Negative inventory, free purchases and overdrafts are rejected.
 
 ## Construction and demolition (Milestone 3)
 Construction costs become fixed assets, depreciated straight line over 3,650
@@ -143,3 +142,49 @@ depreciated over 3,650 days. Land valuation does not debit cash or create an own
 land asset. This deliberately defers acquisition, retained land after demolition,
 resale and rent accounting until property ownership is implemented. Demolition and
 the existing accounting invariant are unchanged.
+
+
+## Milestone 7B1: product quality provenance
+
+Inventory holds integer quantity, carrying cost and total `quality_points` per
+product. Adding Q-quality units adds `units * Q` points. `add_pooled` accepts exact
+points for transfers. Displayed/offer quality is `floor(points / quantity)`;
+zero stock returns 0 and UI says **no stock**, with no sellable offer weight.
+For example 20 units at Q70 plus 10 at Q40 hold 1,800 points and display Q60.
+
+`remove_pooled` atomically removes `floor(total * removed_units / quantity)`
+from each pool independently, returning cost and points. The last removal takes
+all remaining cents/points. Integer residues stay in the source pool; a small
+outbound batch may round differently from the remaining stock. Recombining restores
+exact totals. `remove` still returns carrying cost (or -1 for invalid requests).
+Legacy three-argument `add` defaults to Q50 for fixtures; gameplay production and
+logistics always supply explicit quality. There are no per-unit objects or lots.
+
+Manufacturing uses `component_Q = floor(consumed_points / consumed_units)` across
+all recipe inputs, weighted by units consumed, then
+`output_Q = clamp(floor((process_Q + component_Q) / 2), 1, 100)`.
+A zero-input external-boundary product uses clamped process_Q directly. Product
+base_quality is not an additional modifier. Existing configured facility quality
+is the production process baseline; retail/storage retain the legacy saved field
+for compatibility but cannot transform goods. Existing scenario data and 2012/2022
+knowledge are unchanged. Technology unlock research does not change quality.
+
+Shipments carry exact removed points, including fractional pooled remainders.
+Factories, warehouses and retailers use the same pool. Internal transfers retain
+book cost; inter-company sales replace buyer book cost with purchase price while
+retaining points. Freight never alters quality. Mixing metadata adds no cash,
+carrying value or profit. Existing ledger entries and identities are unchanged.
+
+ConsumerMarket reads each product line's current stock quality. Segment/category
+potentials, price/quality sensitivities and the outside option are unchanged.
+Sourcing uses stocked supplier quality in the existing landed-cost/lead-time ratio,
+including owned warehouses; empty suppliers report zero quality and are ineligible.
+The facility inspector and Markets report show current stock quality (not a historic
+sold-quality average), alongside existing price, stock and completed-day share.
+
+Economy schema **8** persists inventory and shipment quality points; SaveStore
+checks integer types, aligned product maps, empty-state zeros and 1-100 bounds.
+Catalog remains **3**, save format **2** retains exact numeric encoding. Schema 7
+and earlier saves are rejected without migration. Future company/product/process
+improvements can modify production's baseline before creating new goods; existing
+inventory needs no redesign or retroactive mutation. No improvements are implemented.

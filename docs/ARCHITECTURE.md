@@ -2,11 +2,18 @@
 
 ## Current milestone
 
+Milestone 7B1 adds integer `quality_points` to SimInventory and shipment records.
+Production consumes pooled component points and combines them with process quality;
+retail, sourcing and reports read actual stock quality. `remove_pooled` returns cost
+and points while `remove` remains cost-compatible. Schema 8 validates this state;
+catalog 3 and save format 2 are unchanged. See [quality rules](ECONOMY.md#milestone-7b1-product-quality-provenance).
+
+
 Milestone 7A extends the Milestone 6 economy with company-owned technology
 knowledge/progress and a non-product research facility behavior. Public catalog gates
 remain distinct from manufacturing capability. Research advances at the end of the
 daily tick; the facility inspector submits ordinary commands. SimCompany's research
-expense joins the existing categorized ledger and histories. Schema 7 persists and
+expense joins the existing categorized ledger and histories. Schema 8 persists and
 transactionally restores this state; save format 2 is unchanged. See
 [technology rules](TECHNOLOGY.md) for state, daily order, resale and AI policy.
 Older milestone sections below are historical.
@@ -19,7 +26,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | --- | --- |
 | Catalog | Read and validate JSON products, technologies, facility types and scenario; resolve public era availability and validate research data |
 | SimClock | Gregorian calendar and explicit daily ticks |
-| Inventory | Quantity and total carrying cost by stable product ID; atomic removals |
+| Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
 | Company | Cash, capital, revenue, operating expense, cost of goods sold and profit |
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers and quality |
 | Demand | Pure price/quality preference and finite consumer allocation |
@@ -56,7 +63,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-7 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-8 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -70,7 +77,7 @@ add migration aliases rather than renaming persisted IDs.
 ## Extension seams (planned, not implemented)
 - Logistics: extend current road-routed shipments with traffic, vehicle fleets,
   route capacity and multiple cities when needed.
-- R&D 7B: extend current company knowledge/progress and facility assignments with
+- R&D 7B3: extend current company knowledge/progress and facility assignments with
   improvement project kinds and attained product/process levels; keep quality
   provenance explicit. Personnel is not implemented.
 - Headquarters: facilities enabling management services, budgets and overhead;

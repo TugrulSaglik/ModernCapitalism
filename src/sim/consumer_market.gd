@@ -64,7 +64,7 @@ static func clear(sim: Economy) -> void:
 				for product: String in f.line_ids():
 					var p: Dictionary = sim.catalog.products[product]
 					if p.category != category_id or not sim.product_public(product): continue
-					offers.append({"facility": f.id, "product": product, "price": f.line_price(product), "reference_price": int(p.reference_price), "quality": f.quality, "stock": mini(f.capacity - f.sold_today, f.inventory.quantity(product)), "price_sensitivity": float(segment.price_sensitivity), "quality_sensitivity": float(segment.quality_sensitivity)})
+					offers.append({"facility": f.id, "product": product, "price": f.line_price(product), "reference_price": int(p.reference_price), "quality": f.inventory.quality(product), "stock": mini(f.capacity - f.sold_today, f.inventory.quantity(product)), "price_sensitivity": float(segment.price_sensitivity), "quality_sensitivity": float(segment.quality_sensitivity)})
 			var allocation: Array[int] = ConsumerDemand.allocate(demand, offers)
 			for index: int in range(offers.size()):
 				var offer: Dictionary = offers[index]

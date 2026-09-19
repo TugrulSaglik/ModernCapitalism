@@ -105,7 +105,7 @@ func _replenishment_sourcing() -> void:
 	check(offers[0].id == a.id and offers[0].landed < offers[1].landed, "Freight influences equal-price quality ranking")
 	sim.city.plots[b.id] = sim.city.plots[a.id].duplicate(true)
 	check(sim.supplier_offers(buyer.id, "smartphone")[0].id == a.id, "True ties use stable ID")
-	b.quality = 90
+	b.inventory.quality_points.smartphone = 90 * b.inventory.quantity("smartphone")
 	check(sim.supplier_offers(buyer.id, "smartphone")[0].id == b.id, "Quality remains influential")
 	buyer.suppliers.smartphone = a.id
 	sim._source(buyer, "smartphone", 48)

@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 7 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 8 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -256,11 +256,14 @@ func restore(state: Dictionary) -> Economy:
 		f.replenishment_targets = item.replenishment_targets.duplicate(true)
 		var quantities: Dictionary = item.inventory.quantities
 		var costs: Dictionary = item.inventory.costs
-		if quantities.size() != costs.size():
+		var points: Dictionary = item.inventory.quality_points
+		if quantities.size() != costs.size() or quantities.size() != points.size():
 			return null
 		for product: String in quantities:
 			if not sim.catalog.products.has(product) or not costs.has(product) or not nonnegative(quantities[product]) or not nonnegative(costs[product]):
 				return null
+			if not points.has(product) or not nonnegative(points[product]) or points[product] < quantities[product] or points[product] > quantities[product] * 100 or (quantities[product] == 0 and costs[product] != 0): return null
+		f.inventory.quality_points = points.duplicate(true)
 		f.inventory.quantities = quantities.duplicate(true)
 		f.inventory.costs = costs.duplicate(true)
 		for product: String in item.suppliers:
@@ -410,10 +413,11 @@ func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
 	sim.logistics.config = state.config.duplicate(true)
 	var previous: int = 0
 	for s: Variant in state.shipments:
-		if not shape(s, {"id": 0, "company": "", "source": "", "destination": "", "product": "", "quantity": 0, "value": 0, "departure": 0, "arrival": 0, "transport_cost": 0, "distance": 0, "status": ""}): return false
+		if not shape(s, {"id": 0, "company": "", "source": "", "destination": "", "product": "", "quantity": 0, "value": 0, "quality_points": 0, "departure": 0, "arrival": 0, "transport_cost": 0, "distance": 0, "status": ""}): return false
 		if not sim.companies.has(s.company) or not sim.catalog.products.has(s.product) or s.status not in ["in_transit", "delivered"] or s.id <= previous or s.id >= state.next_id: return false
 		for field: String in ["quantity", "value", "departure", "arrival", "transport_cost", "distance"]:
 			if not nonnegative(s[field]): return false
+		if not nonnegative(s.quality_points) or s.quality_points < s.quantity or s.quality_points > s.quantity * 100: return false
 		if s.quantity < 1 or s.arrival <= s.departure or s.departure > sim.clock.tick: return false
 		if s.status == "in_transit":
 			var source: SimFacility = sim.facility(s.source)

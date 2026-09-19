@@ -46,7 +46,8 @@ func dispatch(sim: Economy, seller: SimFacility, buyer: SimFacility, product: St
 	if per_unit > 0: units = mini(units, (owner.cash - int(config.base_cents)) / per_unit)
 	if units <= 0: return 0
 	q = quote(sim, seller.id, buyer.id, units)
-	var value: int = seller.inventory.remove(product, units)
+	var removed: Dictionary = seller.inventory.remove_pooled(product, units)
+	var value: int = int(removed.cost)
 	if owner != supplier:
 		owner.spend(units * price)
 		supplier.record_sale(units * price, value)
@@ -55,7 +56,7 @@ func dispatch(sim: Economy, seller: SimFacility, buyer: SimFacility, product: St
 	owner.pay_expense(q.freight)
 	owner.freight += int(q.freight)
 	shipments.append({"id": next_id, "company": buyer.company_id, "source": seller.id, "destination": buyer.id,
-		"product": product, "quantity": units, "value": value, "departure": sim.clock.tick,
+		"product": product, "quality_points": int(removed.quality_points), "quantity": units, "value": value, "departure": sim.clock.tick,
 		"arrival": sim.clock.tick + int(q.lead_days), "transport_cost": int(q.freight), "distance": int(q.distance), "status": "in_transit"})
 	next_id += 1
 	return units
@@ -63,7 +64,7 @@ func dispatch(sim: Economy, seller: SimFacility, buyer: SimFacility, product: St
 func deliver(sim: Economy) -> void:
 	for s: Dictionary in shipments:
 		if s.status == "in_transit" and int(s.arrival) <= sim.clock.tick:
-			sim.facility(s.destination).inventory.add(s.product, s.quantity, s.value)
+			sim.facility(s.destination).inventory.add_pooled(s.product, s.quantity, s.value, s.quality_points)
 			s.status = "delivered"
 	# Retain a week of delivered activity; active shipments are never discarded.
 	shipments = shipments.filter(func(s: Dictionary) -> bool: return s.status == "in_transit" or int(s.arrival) >= sim.clock.tick - 7)

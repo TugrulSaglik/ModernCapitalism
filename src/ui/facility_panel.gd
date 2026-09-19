@@ -222,10 +222,10 @@ func refresh() -> void:
 	var lines: PackedStringArray = [f.id + " / " + owner.display_name,
 		str(definition.name) + " | " + f.type_id,
 		("Available" if session.sim.can_configure(f.company_id, f.type_id, f.product_id) else ("RESEARCH REQUIRED" if session.sim.product_public(f.product_id) else "ERA LOCKED")) + " | " + ("Operating" if f.operating else "Suspended"),
-		"Price $%.2f | Quality %d | Capacity %d/day" % [f.price / 100.0, f.quality, f.capacity],
+		"Price $%.2f | Process Q%d | Capacity %d/day" % [f.price / 100.0, f.quality, f.capacity],
 		"Today: made %d | consumer sales %d" % [f.produced_today, f.sold_today], "Inventory (units / book value):"]
 	for id: String in f.inventory.quantities:
-		lines.append("  %s: %d / $%.2f" % [id, f.inventory.quantity(id), f.inventory.value(id) / 100.0])
+		lines.append("  %s: %d / $%.2f / %s" % [id, f.inventory.quantity(id), f.inventory.value(id) / 100.0, f.inventory.quality_text(id)])
 	if session.sim.catalog.facility_types[f.type_id].behavior == "production":
 		lines.append("Recipe inputs: " + str(definition.inputs))
 	elif session.sim.catalog.facility_types[f.type_id].behavior == "storage":
@@ -234,7 +234,7 @@ func refresh() -> void:
 	var weekly: int = 0
 	if session.sim._behavior(f) == "retail":
 		lines[1] = str(session.sim.catalog.facility_types[f.type_id].name) + " • %d product lines" % f.assortment.size()
-		lines[3] = "Quality %d • Shared checkout capacity %d/day" % [f.quality, f.capacity]
+		lines[3] = "Goods quality per product | Checkout %d/day" % f.capacity
 	for sale: Dictionary in f.recent_sales: weekly += int(sale.units)
 	lines.append("Recent 7 days: %d consumer units" % weekly)
 	lines.append("Owner daily revenue $%.2f / costs $%.2f / profit $%.2f" % [owner.daily_revenue / 100.0, (owner.daily_cogs + owner.daily_expenses) / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0])
@@ -242,7 +242,7 @@ func refresh() -> void:
 	var own: bool = f.company_id == session.player_company
 	configure.disabled = not own
 	configure.text = "Add product line" if session.sim._behavior(f) == "retail" else "Change production (keep stock)"
-	info.custom_minimum_size.y = 310 if session.sim._behavior(f) == "production" else 190
+	info.custom_minimum_size.y = 310 if session.sim._behavior(f) == "production" else (250 if session.sim._behavior(f) == "retail" else 190)
 	remove_line.disabled = not own or f.assortment.size() <= 1
 	configure.visible = session.sim._behavior(f) != "storage"
 	choices.visible = configure.visible
@@ -259,7 +259,7 @@ func refresh() -> void:
 		if f.inventory.quantity(selected) == 0:
 			unit_cost = int(sales.get("cogs", 0)) / maxi(1, int(sales.get("units", 0)))
 			cost_label = "Avg. sold cost"
-		line_info.text = "Lines %d / %d • %s\nStock %d • Incoming %d • Supplier %s\n7 days: %d sold • %s %s\nLifetime gross margin %s" % [f.assortment.size(), session.sim.catalog.facility_types[f.type_id].get("slots", 1), selected, f.inventory.quantity(selected), session.sim.logistics.incoming(f.id, selected), str(f.suppliers.get(selected, "Automatic")), recent, cost_label, CompanyReports.money(unit_cost), CompanyReports.money(int(sales.get("revenue", 0)) - int(sales.get("cogs", 0)))]
+		line_info.text = f.inventory.quality_text(selected) + " | Lines %d / %d • %s\nStock %d • Incoming %d • Supplier %s\n7 days: %d sold • %s %s\nLifetime gross margin %s" % [f.assortment.size(), session.sim.catalog.facility_types[f.type_id].get("slots", 1), selected, f.inventory.quantity(selected), session.sim.logistics.incoming(f.id, selected), str(f.suppliers.get(selected, "Automatic")), recent, cost_label, CompanyReports.money(unit_cost), CompanyReports.money(int(sales.get("revenue", 0)) - int(sales.get("cogs", 0)))]
 	transfer_button.disabled = not own or transfer_destination.item_count == 0
 	warehouse_target.visible = session.sim._behavior(f) == "storage"
 	warehouse_target.disabled = not own

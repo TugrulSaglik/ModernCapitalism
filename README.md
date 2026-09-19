@@ -52,7 +52,16 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 7A
+## Milestone 7B1
+
+Manufactured goods now carry integer pooled quality through components, warehouses,
+shipments and retail. Consumer and supplier offers use actual stocked product
+quality. Stores do not change goods quality. Saves use **economy schema 8 / catalog 3
+/ format 2**; older schemas are incompatible. [Quality rules](docs/ECONOMY.md#milestone-7b1-product-quality-provenance).
+Run `tests/milestone7b1_tests.gd` for focused checks and `tests/quality_smoke.gd`
+for two programmatic rendered frames. Continuous R&D and Local/brand are deferred.
+
+## Milestone 7A (historical checkpoint)
 
 Company knowledge is now separate from public technology. Starting knowledge is
 2012/2022 era-appropriate; later public technologies require company research for
@@ -60,9 +69,9 @@ manufacturing. Retailers may buy/resell public finished goods without recipe kno
 Build an **R&D center** under Corporate, select it, and assign or stop research in
 the R&D inspector. Stopped progress is retained. Projects cost money daily and
 completion unlocks the owner's recipes. Nova has a scenario R&D center and a simple
-deterministic research policy. Quality/process improvements remain Milestone 7B.
+deterministic research policy. Continuous quality/process improvements remain Milestone 7B3.
 
-Saves now use **economy schema 7 / catalog version 3 / format 2**; older saves are
+At the 7A checkpoint saves used **economy schema 7 / catalog version 3 / format 2**; older saves are
 incompatible. See [technology and R&D rules](docs/TECHNOLOGY.md) and
 [validation](docs/VALIDATION.md). Focused checks and three rendered screenshots:
 
@@ -183,4 +192,4 @@ Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
 Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`. Continuous research,
-quality provenance, strategic AI, advertising and corporate finance remain future work.
+strategic AI, advertising and corporate finance remain future work.

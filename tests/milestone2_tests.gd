@@ -99,7 +99,7 @@ func _sourcing() -> void:
 	a.quality = 50
 	b.quality = 50
 	check(sim.supplier_offers("20_player", "smartphone")[0].id == b.id, "Lower price wins")
-	a.quality = 100
+	a.inventory.quality_points.smartphone = 100 * a.inventory.quantity("smartphone")
 	check(sim.supplier_offers("20_player", "smartphone")[0].id == a.id, "Quality changes ranking")
 	a.active = false
 	check(sim.supplier_offers("20_player", "smartphone")[0].id == b.id, "Inactive offer excluded")
