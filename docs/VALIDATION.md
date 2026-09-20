@@ -686,3 +686,66 @@ catalog expansion, save migration or new long-term charts. Existing strategic AI
 and wholesale-allocation limitations remain. 7B3 should add funded repeatable
 product/process improvements affecting newly produced goods, preserving inventory
 quality provenance, brand independence, deterministic replay and exact accounts.
+
+## Milestone 7B3A validation
+
+Validated September 20, 2026 on Windows / Godot 4.7.2. The initial tree was clean
+at committed 7B2. Required project documentation and the 7A/7B1/7B2 research,
+quality, market, UI and persistence implementation were inspected before edits.
+No branch, commit, Computer Use, dependency, catalog product, process-efficiency,
+brand-growth or Local behavior change was introduced.
+
+The targeted baseline was Milestone 7B2: **240 checks, zero failures**. The new
+`milestone7b3a_tests.gd` suite passes **137 checks, zero failures**. It covers the
+0–5 company/product level model; typed technology and quality projects; public,
+knowledge, manufacturing-compatibility, exact-target, duplicate and maximum gates;
+funding stalls; retained stop/resume progress; deterministic level completion and
+scaling; research accounting; monotonic/bounded output; component and zero-input
+formulas; non-retroactive factory/transit/warehouse state; improved shipment/retail
+quality; normal consumer preference; unchanged Local/brand; deterministic AI
+fallback; schema corruption rejection; exact partial restore and matching replay
+completion tick. Directly affected Milestone 2, 6, 7A, 7B1 and 7B2 suites and the
+historical R&D smoke also passed during development.
+
+The exact implemented formula is
+`effective_process_Q = clamp(facility_process_Q + 5 × level, 1, 100)` and, for
+recipes with inputs, `output_Q = clamp(floor((effective_process_Q +
+floor(consumed_quality_points / consumed_input_units)) / 2), 1, 100)`.
+Zero-input products use `effective_process_Q`. Level L takes `300 × L` work and
+costs `2,500 × L` cents per funded day. Completion affects only subsequently
+manufactured units; existing pooled goods and shipments retain their points.
+
+The non-headless programmatic workflow passed **15 checks, zero failures** and
+captured exactly two inspected 1280 × 800 frames under `.godot/7b3a-screenshots/`:
+
+1. `01-quality-project.png` shows smartphone L0 → L1, cap 5, 120/300 retained
+   progress, $25/day project cost, 18 funded days remaining and active assignment.
+2. `02-factory-quality.png` shows company smartphone level 1/5, effective process
+   Q55 and newly produced physical stock Q52.
+
+The required information is readable in the existing compact inspector. The factory
+detail area remains scrollable as designed; no required row is clipped. No unrelated
+visual polish was performed.
+
+### Final complete regression: one run
+
+`tests/run_tests.ps1` completed once against the final code/data tree with exit code
+0: **49,049 checks, zero failures**, plus the successful legacy Debug 30-day flow.
+The new suite contributed 137 checks and its headless smoke 13; all historical
+milestone, long-run and smoke suites passed. The only recurring message was the
+documented host root-certificate-store warning. `git diff --check` passed.
+
+Economy schema **10**, catalog **5** and save format **2** persist complete levels,
+sparse retained quality progress, structured active assignments and target levels.
+Older schemas/catalog fingerprints remain intentionally incompatible. Save restore
+rejects unknown products, levels outside 0–5, impossible targets, missing knowledge,
+invalid progress and duplicate active assignments before replacing the session.
+
+Substantial implementation changes are in company, facility, catalog, economy,
+SaveStore and the compact facility inspector, plus catalog defaults and the new
+focused/rendered tests. Documentation and the historical structured-project test
+fixtures were synchronized. Current limits are deliberate: no efficiency/throughput,
+conversion-cost, yield/scrap, advertising/brand, dynamic Local, patents, licensing,
+staff or strategic AI. Recommended 7B3B is company/process efficiency levels through
+the same typed, funded, persistent scheduler, with separately documented effects on
+throughput and/or conversion cost and no retroactive inventory mutation.

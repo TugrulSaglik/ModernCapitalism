@@ -70,7 +70,9 @@ func _ready() -> void:
 	research_info.custom_minimum_size = Vector2(390, 225)
 	operations.add_child(research_info)
 	assign_research = _button(operations, "Assign / resume research", func() -> void:
-		if research_choices.selected >= 0: command_requested.emit({"type": "assign_research", "facility": selected_id, "technology": research_choices.get_item_metadata(research_choices.selected)}))
+		if research_choices.selected >= 0:
+			var project: Dictionary = research_choices.get_item_metadata(research_choices.selected)
+			if not project.is_empty(): command_requested.emit({"type": "assign_research", "facility": selected_id, "project": project}))
 	stop_research = _button(operations, "Stop research (retain progress)", func() -> void: command_requested.emit({"type": "stop_research", "facility": selected_id}))
 	line = OptionButton.new()
 	operations.add_child(line)
@@ -151,14 +153,30 @@ func bind(game_session: GameSession, id: String) -> void:
 	selected_id = id
 	var f: SimFacility = session.sim.facility(id)
 	layout_key = _layout_key(f)
-	var selected_technology: String = str(research_choices.get_item_metadata(research_choices.selected)) if research_choices.selected >= 0 else ""
+	var selected_project: Dictionary = research_choices.get_item_metadata(research_choices.selected) if research_choices.selected >= 0 and research_choices.get_item_metadata(research_choices.selected) is Dictionary else {}
 	research_choices.clear()
+	research_choices.add_item("TECHNOLOGY PROJECTS")
+	research_choices.set_item_disabled(0, true)
+	research_choices.set_item_metadata(0, {})
 	var tech_ids: Array = session.sim.catalog.technologies.keys()
 	tech_ids.sort()
 	for technology: String in tech_ids:
-		research_choices.add_item(technology.replace("_", " "))
-		research_choices.set_item_metadata(research_choices.item_count - 1, technology)
-		if technology == selected_technology: research_choices.select(research_choices.item_count - 1)
+		var project: Dictionary = session.sim.technology_project(technology)
+		research_choices.add_item("Technology — " + technology.replace("_", " "))
+		research_choices.set_item_metadata(research_choices.item_count - 1, project)
+		if session.sim.project_equal(project, selected_project): research_choices.select(research_choices.item_count - 1)
+	research_choices.add_item("PRODUCT QUALITY PROJECTS")
+	research_choices.set_item_disabled(research_choices.item_count - 1, true)
+	research_choices.set_item_metadata(research_choices.item_count - 1, {})
+	var product_ids: Array = session.sim.catalog.products.keys()
+	product_ids.sort()
+	for product_id: String in product_ids:
+		if not session.sim.catalog.manufacturable_product(product_id): continue
+		var project: Dictionary = session.sim.product_quality_project(f.company_id, product_id)
+		research_choices.add_item("Product quality — " + product_id.replace("_", " "))
+		research_choices.set_item_metadata(research_choices.item_count - 1, project)
+		if session.sim.project_equal(project, selected_project): research_choices.select(research_choices.item_count - 1)
+	if research_choices.selected <= 0 and research_choices.item_count > 1: research_choices.select(1)
 	choices.clear()
 	line.clear()
 	for id_value: String in session.sim.catalog.facility_types[f.type_id].products:
@@ -227,6 +245,8 @@ func refresh() -> void:
 	for id: String in f.inventory.quantities:
 		lines.append("  %s: %d / $%.2f / %s" % [id, f.inventory.quantity(id), f.inventory.value(id) / 100.0, f.inventory.quality_text(id)])
 	if session.sim.catalog.facility_types[f.type_id].behavior == "production":
+		var quality_level: int = owner.product_quality_level(f.product_id)
+		lines.insert(4, "Product quality R&D L%d/%d | Effective process Q%d" % [quality_level, session.sim.catalog.quality_max_level(), clampi(f.quality + session.sim.catalog.quality_bonus(quality_level), 1, 100)])
 		lines.append("Recipe inputs: " + str(definition.inputs))
 	elif session.sim.catalog.facility_types[f.type_id].behavior == "storage":
 		lines[3] = "Storage: %d / %d units | free %d (after reservations)" % [session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f)]
@@ -305,33 +325,45 @@ func refresh() -> void:
 		tabs.current_tab = 0
 		for control: Control in [choices, configure, line, line_info, remove_line, price.get_parent(), stock.get_parent()]: control.hide()
 		info.custom_minimum_size.y = 155
-		info.text = "%s / %s\nR&D center | %s\nRate %d points/day | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", session.sim.catalog.facility_types[f.type_id].research_rate, CompanyReports.money(int(session.sim.catalog.facility_types[f.type_id].overhead)), f.research_project if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
+		info.text = "%s / %s\nR&D center | %s\nRate %d points/day | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", session.sim.catalog.facility_types[f.type_id].research_rate, CompanyReports.money(int(session.sim.catalog.facility_types[f.type_id].overhead)), session.sim.project_name(f.research_project) if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
 		_refresh_research(f, own)
 
 func _layout_key(f: SimFacility) -> String:
-	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(session.sim.companies[f.company_id].known_technologies) + str(session.sim.unlocked_technologies)
+	var owner: SimCompany = session.sim.companies[f.company_id]
+	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(owner.known_technologies) + str(owner.product_quality_levels) + str(owner.product_quality_progress) + str(session.sim.unlocked_technologies)
 
 func _refresh_research(f: SimFacility, own: bool) -> void:
 	if research_choices.selected < 0: return
-	var technology: String = str(research_choices.get_item_metadata(research_choices.selected))
+	var project: Dictionary = research_choices.get_item_metadata(research_choices.selected)
+	if project.is_empty(): return
 	var sim: Economy = session.sim
 	var owner: SimCompany = sim.companies[f.company_id]
-	var definition: Dictionary = sim.catalog.technologies[technology]
-	var known: bool = owner.knows(technology)
-	var work: int = int(definition.research_work)
-	var progress: int = work if known else int(owner.research_progress.get(technology, 0))
-	var error: String = sim.research_error(owner.id, technology, f.id)
-	var status: String = "Known" if known else ("Researchable" if error.is_empty() else error)
-	if technology in sim.unlocked_technologies: status += " (Debug public override)"
-	var prerequisites: PackedStringArray = []
-	for prerequisite: String in definition.prerequisites:
-		prerequisites.append(prerequisite.replace("_", " ") + (" (known)" if owner.knows(prerequisite) else " (unknown)"))
+	var work: int = sim.project_work(project)
+	var progress: int = sim.project_progress(owner, project)
+	var error: String = sim.research_project_error(owner.id, project, f.id)
+	var status: String = "Researchable" if error.is_empty() else error
 	var assigned: String = "None"
 	for other: SimFacility in sim.facilities:
-		if other.company_id == owner.id and other.research_project == technology: assigned = other.id
+		if other.company_id == owner.id and not other.research_project.is_empty() and sim.project_equal(other.research_project, project): assigned = other.id
 	var eta: int = ceili(float(work - progress) / int(sim.catalog.facility_types[f.type_id].research_rate))
-	research_info.text = "%s | Public year %d\n%s\nPrerequisites: %s\nProgress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s\nStopping retains progress; spending is not refunded." % [technology.replace("_", " "), definition.year, status, ", ".join(prerequisites) if not prerequisites.is_empty() else "None", progress, work, progress * 100.0 / work, CompanyReports.money(int(definition.research_cost)), eta, assigned]
-	if f.research_project == technology and (not f.operating or not f.active or owner.cash < int(definition.research_cost) + int(sim.catalog.facility_types[f.type_id].overhead)):
+	if project.kind == "technology":
+		var technology: String = str(project.technology)
+		var definition: Dictionary = sim.catalog.technologies[technology]
+		var known: bool = owner.knows(technology)
+		if known:
+			status = "Known"
+			progress = work
+		if technology in sim.unlocked_technologies: status += " (Debug public override)"
+		var prerequisites: PackedStringArray = []
+		for prerequisite: String in definition.prerequisites:
+			prerequisites.append(prerequisite.replace("_", " ") + (" (known)" if owner.knows(prerequisite) else " (unknown)"))
+		research_info.text = "TECHNOLOGY PROJECT\n%s | Public year %d\n%s\nPrerequisites: %s\nProgress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s" % [technology.replace("_", " "), definition.year, status, ", ".join(prerequisites) if not prerequisites.is_empty() else "None", progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), assigned]
+	else:
+		var product: String = str(project.product)
+		var current: int = owner.product_quality_level(product)
+		research_info.text = "PRODUCT QUALITY PROJECT\nProduct: %s\nCurrent level: %d | Target level: %d | Maximum: %d\n%s\nRetained progress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s" % [product.replace("_", " "), current, int(project.target_level), sim.catalog.quality_max_level(), status, progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), assigned]
+	research_info.text += "\nStopping retains progress; spending is not refunded."
+	if not f.research_project.is_empty() and sim.project_equal(f.research_project, project) and (not f.operating or not f.active or owner.cash < sim.project_cost(project) + int(sim.catalog.facility_types[f.type_id].overhead)):
 		research_info.text += "\nStalled: suspended or insufficient operating funds."
-	assign_research.disabled = not own or not error.is_empty() or f.research_project == technology
+	assign_research.disabled = not own or not error.is_empty() or (not f.research_project.is_empty() and sim.project_equal(f.research_project, project))
 	stop_research.disabled = not own or f.research_project.is_empty()

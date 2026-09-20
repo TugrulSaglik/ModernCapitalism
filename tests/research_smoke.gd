@@ -46,7 +46,8 @@ func _run() -> void:
 	screen.select_facility("built_000001")
 	var panel: FacilityPanel = screen.inspector
 	for index: int in range(panel.research_choices.item_count):
-		if panel.research_choices.get_item_metadata(index) == "modern_wearables": panel.research_choices.select(index)
+		var project: Variant = panel.research_choices.get_item_metadata(index)
+		if project is Dictionary and project.get("kind") == "technology" and project.get("technology") == "modern_wearables": panel.research_choices.select(index)
 	panel.refresh()
 	check(panel.assign_research.disabled and panel.research_info.text.contains("Not publicly available"), "Locked status and disabled assignment")
 	s.unlock_debug(DebugConfig.PASSWORD)

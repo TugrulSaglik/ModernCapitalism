@@ -57,6 +57,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	for definition: Dictionary in definitions:
 		companies[str(definition.id)] = Company.new(definition)
 		for product: String in catalog.products:
+			if catalog.manufacturable_product(product): companies[str(definition.id)].product_quality_levels[product] = 0
 			if catalog.consumer_product(product): companies[str(definition.id)].product_brands[product] = catalog.starting_brand(product)
 		for technology: String in catalog.technologies:
 			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
@@ -105,33 +106,91 @@ func can_configure(company: String, type_id: String, product: String) -> bool:
 	if behavior == "research": return true
 	return can_manufacture(company, product) if behavior == "production" else product_public(product)
 
-func research_error(company: String, technology: String, except_facility: String = "") -> String:
-	if not companies.has(company) or not catalog.technologies.has(technology): return "Unknown company or technology."
-	if not technology_public(technology): return "Not publicly available."
+func technology_project(technology: String) -> Dictionary:
+	return {"kind": "technology", "technology": technology}
+
+func product_quality_project(company: String, product: String) -> Dictionary:
+	var level: int = companies[company].product_quality_level(product) if companies.has(company) else 0
+	return {"kind": "product_quality", "product": product, "target_level": level + 1}
+
+func project_equal(a: Dictionary, b: Dictionary) -> bool:
+	if str(a.get("kind", "")) != str(b.get("kind", "")): return false
+	if a.get("kind") == "technology": return str(a.get("technology", "")) == str(b.get("technology", ""))
+	return str(a.get("product", "")) == str(b.get("product", "")) and int(a.get("target_level", -1)) == int(b.get("target_level", -2))
+
+func project_work(project: Dictionary) -> int:
+	if project.get("kind") == "technology": return int(catalog.technologies.get(str(project.get("technology", "")), {}).get("research_work", 0))
+	if project.get("kind") == "product_quality": return catalog.quality_research_work(int(project.get("target_level", 0)))
+	return 0
+
+func project_cost(project: Dictionary) -> int:
+	if project.get("kind") == "technology": return int(catalog.technologies.get(str(project.get("technology", "")), {}).get("research_cost", 0))
+	if project.get("kind") == "product_quality": return catalog.quality_research_cost(int(project.get("target_level", 0)))
+	return 0
+
+func project_progress(owner: SimCompany, project: Dictionary) -> int:
+	if project.get("kind") == "technology": return int(owner.research_progress.get(str(project.get("technology", "")), 0))
+	return int(owner.product_quality_progress.get(str(project.get("product", "")), {}).get("progress", 0))
+
+func project_name(project: Dictionary) -> String:
+	if project.get("kind") == "technology": return str(project.get("technology", "")).replace("_", " ")
+	if project.get("kind") == "product_quality": return "Improve %s Quality (Level %d)" % [str(project.get("product", "")).replace("_", " "), int(project.get("target_level", 0))]
+	return "Unknown project"
+
+func research_project_error(company: String, project: Dictionary, except_facility: String = "") -> String:
+	if not companies.has(company): return "Unknown company."
 	var owner: SimCompany = companies[company]
-	if owner.knows(technology): return "Already known."
-	for prerequisite: String in catalog.technologies[technology].prerequisites:
-		if not owner.knows(prerequisite): return "Requires knowledge: " + prerequisite
+	var kind: String = str(project.get("kind", ""))
+	if kind == "technology":
+		if project.size() != 2 or not project.get("technology") is String: return "Invalid technology project."
+		var technology: String = str(project.technology)
+		if not catalog.technologies.has(technology): return "Unknown technology."
+		if not technology_public(technology): return "Not publicly available."
+		if owner.knows(technology): return "Already known."
+		for prerequisite: String in catalog.technologies[technology].prerequisites:
+			if not owner.knows(prerequisite): return "Requires knowledge: " + prerequisite
+	elif kind == "product_quality":
+		if project.size() != 3 or not project.get("product") is String or not project.get("target_level") is int: return "Invalid product-quality project."
+		var product: String = str(project.product)
+		var target: int = int(project.target_level)
+		if not catalog.products.has(product): return "Unknown product."
+		if not catalog.manufacturable_product(product): return "Product has no compatible manufacturing facility."
+		if not product_public(product): return "Product is not publicly available."
+		if not owner.knows(str(catalog.products[product].technology)): return "Requires manufacturing knowledge."
+		var level: int = owner.product_quality_level(product)
+		if level >= catalog.quality_max_level(): return "Maximum quality level reached."
+		if target != level + 1 or target < 1 or target > catalog.quality_max_level(): return "Target must be the next quality level."
+	else:
+		return "Unknown research project kind."
 	for f: SimFacility in facilities:
-		if f.company_id == company and f.id != except_facility and f.research_project == technology: return "Assigned to " + f.id
+		if f.company_id == company and f.id != except_facility and not f.research_project.is_empty() and project_equal(f.research_project, project): return "Assigned to " + f.id
 	return ""
+
+# Compatibility API for callers that inspect technology eligibility directly.
+func research_error(company: String, technology: String, except_facility: String = "") -> String:
+	return research_project_error(company, technology_project(technology), except_facility)
 
 func _research() -> void:
 	# End-of-day completion: capability becomes operational on the next tick.
 	for f: SimFacility in facilities:
 		if _behavior(f) != "research" or not f.active or f.research_project.is_empty(): continue
-		var technology: String = f.research_project
-		if not research_error(f.company_id, technology, f.id).is_empty(): continue
+		var project: Dictionary = f.research_project
+		if not research_project_error(f.company_id, project, f.id).is_empty(): continue
 		var owner: SimCompany = companies[f.company_id]
-		var definition: Dictionary = catalog.technologies[technology]
-		if not owner.pay_expense(int(definition.research_cost)): continue
-		owner.research_expense += int(definition.research_cost)
-		var progress: int = int(owner.research_progress.get(technology, 0)) + int(catalog.facility_types[f.type_id].research_rate)
-		if progress >= int(definition.research_work):
-			owner.known_technologies[technology] = clock.tick
-			owner.research_progress.erase(technology)
-			f.research_project = ""
-		else: owner.research_progress[technology] = progress
+		var cost: int = project_cost(project)
+		if not owner.pay_expense(cost): continue
+		owner.research_expense += cost
+		var progress: int = project_progress(owner, project) + int(catalog.facility_types[f.type_id].research_rate)
+		if progress >= project_work(project):
+			if project.kind == "technology":
+				owner.known_technologies[str(project.technology)] = clock.tick
+				owner.research_progress.erase(str(project.technology))
+			else:
+				owner.product_quality_levels[str(project.product)] = int(project.target_level)
+				owner.product_quality_progress.erase(str(project.product))
+			f.research_project = {}
+		elif project.kind == "technology": owner.research_progress[str(project.technology)] = progress
+		else: owner.product_quality_progress[str(project.product)] = {"target_level": int(project.target_level), "progress": progress}
 
 func _ai_research() -> void:
 	var ids: Array = catalog.technologies.keys()
@@ -141,7 +200,15 @@ func _ai_research() -> void:
 		if _behavior(f) != "research" or not companies[f.company_id].ai or not f.operating or not f.research_project.is_empty(): continue
 		for technology: String in ids:
 			if research_error(f.company_id, technology).is_empty():
-				f.research_project = technology
+				f.research_project = technology_project(technology)
+				break
+		if not f.research_project.is_empty(): continue
+		var products: Array = catalog.products.keys()
+		products.sort()
+		for product: String in products:
+			var project: Dictionary = product_quality_project(f.company_id, product)
+			if research_project_error(f.company_id, project).is_empty():
+				f.research_project = project
 				break
 
 func command_error(command: Dictionary) -> String:
@@ -153,7 +220,10 @@ func command_error(command: Dictionary) -> String:
 	match str(command.get("type", "")):
 		"assign_research":
 			if _behavior(target) != "research": return "Select an R&D facility."
-			return research_error(target.company_id, str(command.get("technology", "")), target.id)
+			var project_value: Variant = command.get("project", technology_project(str(command.get("technology", ""))))
+			if not project_value is Dictionary: return "Invalid research project."
+			var project: Dictionary = project_value
+			return research_project_error(target.company_id, project, target.id)
 		"stop_research":
 			if _behavior(target) != "research": return "Select an R&D facility."
 		"add_line", "remove_line", "set_production":
@@ -216,8 +286,10 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
-				"assign_research": target.research_project = command.technology
-				"stop_research": target.research_project = ""
+				"assign_research":
+					var project: Dictionary = command.get("project", technology_project(str(command.get("technology", ""))))
+					target.research_project = project.duplicate(true)
+				"stop_research": target.research_project = {}
 				"set_warehouse_target": target.replenishment_targets[command.product] = command.quantity
 				"build_facility": _construct(command)
 				"demolish_facility": _demolish(target)
@@ -372,9 +444,13 @@ func produce(f: SimFacility) -> int:
 		output_cost += int(removed.cost)
 		input_points += int(removed.quality_points)
 		input_units += consumed
-	# Equal weight for process capability and unit-weighted component quality.
+	# Product quality R&D improves the owner's design/manufacturing capability for
+	# newly created goods only. Physical inventory is never rewritten.
+	var quality_level: int = owner.product_quality_level(f.product_id)
+	var effective_process_quality: int = clampi(f.quality + catalog.quality_bonus(quality_level), 1, 100)
+	# Equal weight for effective process/design capability and unit-weighted components.
 	@warning_ignore("integer_division")
-	var output_quality: int = f.quality if input_units == 0 else (f.quality + input_points / input_units) / 2
+	var output_quality: int = effective_process_quality if input_units == 0 else (effective_process_quality + input_points / input_units) / 2
 	f.inventory.add(f.product_id, units, output_cost, clampi(output_quality, 1, 100))
 	f.produced_today += units
 	return units
@@ -508,7 +584,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 9, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 10, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

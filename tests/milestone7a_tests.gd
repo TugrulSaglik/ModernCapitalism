@@ -184,10 +184,10 @@ func _persistence() -> void:
 			_:
 				for f: Dictionary in bad.facilities:
 					if f.id == lab.id:
-						if corruption == "assignment": f.research_project = "electronics"
+						if corruption == "assignment": f.research_project = s.sim.technology_project("electronics")
 						if corruption == "product": f.product = "smartphone"
 						if corruption == "inventory": f.inventory.quantities.smartphone = 1; f.inventory.costs.smartphone = 0
-					if f.id == spare.id and corruption == "duplicate": f.research_project = "modern_wearables"
+					if f.id == spare.id and corruption == "duplicate": f.research_project = s.sim.technology_project("modern_wearables")
 		check(SaveStore.new().restore(bad) == null, "Reject corrupted research " + corruption)
 	var before: Dictionary = copy.snapshot()
 	var invalid: Dictionary = copy.snapshot()
@@ -207,7 +207,7 @@ func _long_run() -> void:
 	for day: int in range(60):
 		s.sim.step()
 		check(s.sim.invariant_errors().is_empty(), "Long research daily invariants")
-		if day == 0: check(s.sim.facility("30_research").research_project == "modern_wearables", "AI deterministic earliest public project")
+		if day == 0: check(s.sim.facility("30_research").research_project == s.sim.technology_project("modern_wearables"), "AI deterministic earliest public project")
 	check(s.sim.companies.maker_b.knows("modern_wearables") and s.sim.companies.maker_b.known_technologies.modern_wearables == started + 59, "AI completes on expected tick")
 	check(s.sim.can_manufacture("maker_b", "earbuds") and not s.sim.can_manufacture("maker_a", "earbuds"), "Research company capability stays specific")
 	for day: int in range(7): s.sim.step()

@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 9 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 10 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -191,6 +191,19 @@ func restore(state: Dictionary) -> Economy:
 			for prerequisite: String in sim.catalog.technologies[technology].prerequisites:
 				if not owner.knows(prerequisite): return null
 		owner.research_progress = item.research_progress.duplicate(true)
+		if item.product_quality_levels.size() != owner.product_quality_levels.size(): return null
+		for product: String in item.product_quality_levels:
+			var level: Variant = item.product_quality_levels[product]
+			if not owner.product_quality_levels.has(product) or not level is int or level < 0 or level > sim.catalog.quality_max_level(): return null
+		owner.product_quality_levels = item.product_quality_levels.duplicate(true)
+		for product: String in item.product_quality_progress:
+			var project_progress: Variant = item.product_quality_progress[product]
+			if not owner.product_quality_levels.has(product) or not project_progress is Dictionary or not shape(project_progress, {"target_level": 0, "progress": 0}): return null
+			var target: int = int(project_progress.target_level)
+			var progress: int = int(project_progress.progress)
+			if target != owner.product_quality_level(product) + 1 or target > sim.catalog.quality_max_level() or not nonnegative(progress) or progress <= 0 or progress >= sim.catalog.quality_research_work(target): return null
+			if not owner.knows(str(sim.catalog.products[product].technology)): return null
+		owner.product_quality_progress = item.product_quality_progress.duplicate(true)
 		if absi(item.capital) > 100000000000000:
 			return null
 		owner.capital = item.capital
@@ -298,11 +311,13 @@ func restore(state: Dictionary) -> Economy:
 	for item: Dictionary in state.facilities:
 		var f: SimFacility = sim.facility(item.id)
 		if not item.research_project.is_empty():
-			if sim._behavior(f) != "research" or not sim.research_error(f.company_id, item.research_project).is_empty(): return null
-			f.research_project = item.research_project
+			if sim._behavior(f) != "research" or not sim.research_project_error(f.company_id, item.research_project).is_empty(): return null
+			f.research_project = item.research_project.duplicate(true)
 	for owner: SimCompany in sim.companies.values():
 		for technology: String in owner.research_progress:
 			if not sim.technology_public(technology): return null
+		for product: String in owner.product_quality_progress:
+			if not sim.product_public(product) or not owner.knows(str(sim.catalog.products[product].technology)): return null
 		for technology: String in owner.known_technologies:
 			if not sim.technology_public(technology): return null
 			for prerequisite: String in sim.catalog.technologies[technology].prerequisites:

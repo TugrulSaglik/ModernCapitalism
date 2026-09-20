@@ -52,7 +52,18 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 7B2
+## Milestone 7B3A
+
+R&D now supports repeatable company/product quality projects through level 5.
+Each completed level improves only newly manufactured goods; existing factory,
+transit, warehouse and retail inventory keeps its physical pooled quality. Projects
+share the funded 7A scheduler, accounting and stop/resume behavior. Current saves:
+**economy schema 10 / catalog 5 / format 2**. See
+[technology and project rules](docs/TECHNOLOGY.md),
+[the manufacturing formula](docs/ECONOMY.md#milestone-7b3a-repeatable-product-quality-rd),
+and [validation](docs/VALIDATION.md). 7B3B process/efficiency R&D is next.
+
+## Milestone 7B2 (historical checkpoint)
 
 Public consumer goods now compete with a synthetic **Local** offer as well as
 the separate no-purchase option. Company/product brand is static and read-only.
@@ -62,7 +73,8 @@ Current saves: **economy schema 9 / catalog 4 / format 2**; older saves are inco
 See [model and formulas](docs/ECONOMY.md#milestone-7b2-local-market-and-brand-foundation)
 and [validation](docs/VALIDATION.md). Focused tests: tests/milestone7b2_tests.gd;
 two-frame programmatic workflow: tests/local_market_smoke.gd.
-7B3 continuous product/process improvements is next; advertising remains deferred.
+Product-quality improvement is superseded by 7B3A above; process/efficiency and
+advertising remain deferred.
 
 ## Milestone 7B1 (historical checkpoint)
 

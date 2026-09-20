@@ -72,7 +72,8 @@ Do not sum intercompany revenue to measure final consumer spending.
 6. Replenish retailers and warehouses, accounting for goods already in transit.
 7. Draw category demand shocks and allocate consumer sales.
 8. Charge funded active research projects and advance work; completion grants company
-   knowledge for the next production day. See [research rules](TECHNOLOGY.md).
+   technology knowledge or one product-quality level for the next production day.
+   See [research rules](TECHNOLOGY.md).
 9. Record profit history, publish reports and advance the Gregorian clock.
 
 Reports describe the day just completed; displayed clock is the next day to run.
@@ -160,14 +161,12 @@ exact totals. `remove` still returns carrying cost (or -1 for invalid requests).
 Legacy three-argument `add` defaults to Q50 for fixtures; gameplay production and
 logistics always supply explicit quality. There are no per-unit objects or lots.
 
-Manufacturing uses `component_Q = floor(consumed_points / consumed_units)` across
-all recipe inputs, weighted by units consumed, then
-`output_Q = clamp(floor((process_Q + component_Q) / 2), 1, 100)`.
-A zero-input external-boundary product uses clamped process_Q directly. Product
-base_quality is not an additional modifier. Existing configured facility quality
-is the production process baseline; retail/storage retain the legacy saved field
-for compatibility but cannot transform goods. Existing scenario data and 2012/2022
-knowledge are unchanged. Technology unlock research does not change quality.
+At the 7B1 checkpoint manufacturing used process quality and unit-weighted component
+quality directly. Milestone 7B3A now adds company/product capability to the process
+side before applying the same component formula; see the current formula below.
+Product `base_quality` remains unused. Retail/storage retain the legacy saved field
+for compatibility but cannot transform goods. Technology unlock research does not
+itself change quality.
 
 Shipments carry exact removed points, including fractional pooled remainders.
 Factories, warehouses and retailers use the same pool. Internal transfers retain
@@ -259,3 +258,44 @@ maps, ratings, report averages/shares and category reconciliation, and preserves
 exact numeric continuation. Older schemas/catalog hashes are rejected without
 migration. Debug behavior is unchanged; inspection is through Markets/snapshots.
 No new product, physical Local supply chain or long-term chart is introduced.
+
+## Milestone 7B3A: repeatable product-quality R&D
+
+Every company owns an integer level 0–5 for every catalog-manufacturable product.
+The state belongs to company + product, not to a facility, store or inventory pool.
+A structured `product_quality` project targets exactly the next level. Target L
+requires `300 × L` work points and costs `2,500 × L` cents on each funded day.
+The existing R&D center rate, daily phase, cash stall, expense ledger, stop/resume
+and duplicate-assignment rules apply unchanged. Technology projects remain distinct.
+
+Eligibility requires the product to be public, supported by at least one production
+facility type, and backed by company knowledge of its manufacturing technology.
+The current level must be below five and no other center may hold the same next-level
+project. Buying or retailing a finished good does not satisfy the knowledge rule.
+
+For company/product level L, the exact production formula is:
+
+`effective_process_Q = clamp(facility_process_Q + 5 × L, 1, 100)`
+
+For recipes with inputs:
+
+`component_Q = floor(total_consumed_quality_points / total_consumed_input_units)`
+
+`output_Q = clamp(floor((effective_process_Q + component_Q) / 2), 1, 100)`
+
+For zero-input/external-boundary products, `output_Q = effective_process_Q`.
+Component quality therefore remains equally weighted for ordinary recipes. Higher
+levels monotonically improve new output until the bound is reached.
+
+Completion changes capability only. Existing factory stock, in-transit shipments,
+warehouse pools and retailer inventory are never rewritten. Newly produced units
+enter the existing quality-point pools, so mixing, shipments, supplier ranking,
+retail display, consumer preference and Local-inclusive competition require no
+special cases. Corporate brand and static Local values are untouched.
+
+An idle AI center continues to prefer eligible technology unlocks. When none exist,
+it selects the first eligible product-quality project in stable product-ID order.
+There is no profitability or market strategy. Research spending remains ordinary
+research expense with no intangible asset. Economy schema 10 / catalog 5 / save
+format 2 persist levels, retained quality progress and typed active assignments;
+restore validates bounds, target continuity, knowledge and duplicate assignments.

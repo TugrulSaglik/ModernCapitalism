@@ -6,7 +6,9 @@ var id: String
 var company_id: String
 var city_id: String
 var type_id: String
-var research_project: String = ""
+# Empty or a structured record such as {kind, technology} or
+# {kind, product, target_level}. Never encode project kinds into catalog IDs.
+var research_project: Dictionary = {}
 var product_id: String
 var capacity: int
 var price: int
@@ -50,7 +52,7 @@ func _init(definition: Dictionary) -> void:
 	if not product_id.is_empty(): assortment[product_id] = price
 
 func snapshot() -> Dictionary:
-	return {"research_project": research_project, "id": id, "company": company_id, "city": city_id, "type": type_id,
+	return {"research_project": research_project.duplicate(true), "id": id, "company": company_id, "city": city_id, "type": type_id,
 		"assortment": assortment.duplicate(true), "line_sales": line_sales.duplicate(true),
 		"line_today": line_today.duplicate(true), "product_history": product_history.duplicate(true),
 		"asset_cost": asset_cost, "accumulated_depreciation": accumulated_depreciation, "asset_days": asset_days,

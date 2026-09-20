@@ -10,6 +10,7 @@ var errors: Array[String] = []
 var categories: Dictionary = {}
 var segments: Dictionary = {}
 var market_defaults: Dictionary = {}
+var product_quality_research: Dictionary = {}
 
 func load_data(path: String = "res://data/example_economy.json") -> bool:
 	products.clear()
@@ -25,6 +26,15 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		errors.append("Market defaults required")
 		return false
 	market_defaults = root.market_defaults.duplicate(true)
+	if not root.get("product_quality_research") is Dictionary:
+		errors.append("Product quality research defaults required")
+		return false
+	product_quality_research = root.product_quality_research.duplicate(true)
+	for field: String in ["max_level", "base_work", "base_daily_cost", "quality_bonus_per_level"]:
+		if not _positive_integer(product_quality_research.get(field)):
+			errors.append("Invalid product quality research definition: " + field)
+	if int(product_quality_research.get("max_level", 0)) > 10 or int(product_quality_research.get("quality_bonus_per_level", 0)) > 25:
+		errors.append("Product quality research bounds are too large")
 	categories.clear()
 	segments.clear()
 	_index(root.get("categories", []), categories)
@@ -185,6 +195,25 @@ func supports_product(type_id: String, product: String) -> bool:
 	if not facility_types.has(type_id): return false
 	var definition: Dictionary = facility_types[type_id]
 	return product.is_empty() if definition.behavior == "research" else product in definition.get("products", []) and products.has(product)
+
+func manufacturable_product(product: String) -> bool:
+	if not products.has(product): return false
+	for type_id: String in facility_types:
+		var definition: Dictionary = facility_types[type_id]
+		if definition.behavior == "production" and product in definition.get("products", []): return true
+	return false
+
+func quality_max_level() -> int:
+	return int(product_quality_research.max_level)
+
+func quality_research_work(target_level: int) -> int:
+	return int(product_quality_research.base_work) * target_level
+
+func quality_research_cost(target_level: int) -> int:
+	return int(product_quality_research.base_daily_cost) * target_level
+
+func quality_bonus(level: int) -> int:
+	return int(product_quality_research.quality_bonus_per_level) * level
 
 # Positive legacy product demand identifies consumer goods; category demand sizes pools.
 func consumer_product(product: String) -> bool:

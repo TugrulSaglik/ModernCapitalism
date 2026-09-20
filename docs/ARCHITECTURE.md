@@ -2,6 +2,17 @@
 
 ## Current milestone
 
+Milestone 7B3A extends the existing R&D scheduler with explicit structured
+`technology` and `product_quality` projects. SimCompany owns bounded per-product
+quality levels and retained next-level progress; SimFacility owns only its active
+project assignment. Economy applies the catalog-defined company/product bonus when
+creating new manufacturing output, before the unchanged component-quality blend.
+Inventory and logistics remain physical provenance, so completion never mutates
+existing goods. The R&D inspector presents both project kinds and factory reads
+show the current level. AI uses stable quality fallback ordering only after technology
+projects are exhausted. Schema 10 / catalog 5 / format 2 validate and preserve this
+state. Production efficiency remains 7B3B.
+
 Milestone 7B2 adds catalog-derived synthetic Local offers to ConsumerMarket, sharing
 the existing segment/category allocator and preserving the outside option.
 SimCompany owns authoritative product_brands; goods remain brand-free.
@@ -37,8 +48,8 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Catalog | Read and validate JSON products, technologies, facility types and scenario; resolve public era availability and validate research data |
 | SimClock | Gregorian calendar and explicit daily ticks |
 | Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
-| Company | Accounts, research knowledge/progress and company-product brand |
-| Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers and quality |
+| Company | Accounts, technology knowledge/progress, company-product quality levels/progress and brand |
+| Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment |
 | Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
 | SupplierMarket | Produce deterministic eligible offers ranked by price per quality point |
@@ -73,7 +84,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-9 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-10 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -87,9 +98,9 @@ add migration aliases rather than renaming persisted IDs.
 ## Extension seams (planned, not implemented)
 - Logistics: extend current road-routed shipments with traffic, vehicle fleets,
   route capacity and multiple cities when needed.
-- R&D 7B3: extend current company knowledge/progress and facility assignments with
-  improvement project kinds and attained product/process levels; keep quality
-  provenance explicit. Personnel is not implemented.
+- R&D 7B3B: add process/efficiency improvements through the same typed project and
+  funded scheduler architecture. Do not conflate throughput/cost effects with the
+  implemented product-quality levels. Personnel is not implemented.
 - Headquarters: facilities enabling management services, budgets and overhead;
   do not turn the headquarters Node into the company model.
 - Finance: replace aggregate accounts with journal entries and balance-sheet

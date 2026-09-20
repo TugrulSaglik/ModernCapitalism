@@ -2,7 +2,8 @@
 
 This is the Milestone 6 specification. Milestone 7A supersedes its global
 technology capability, inactive R&D and schema-6 descriptions; see
-[Technology](TECHNOLOGY.md). Historical milestone sections elsewhere describe
+[Technology](TECHNOLOGY.md). Milestone 7B3A now supersedes the deferred continuous
+product-quality statements while preserving these market/accounting rules. Historical milestone sections elsewhere describe
 their implementation at the time; the rules below supersede their single-product
 market and profit-only reporting descriptions.
 
