@@ -12,7 +12,7 @@
 | 7B1 - Product quality provenance (implemented) | Integer pooled goods quality, component inputs, shipments, retail and sourcing | 7A |
 | 7B2 - Local-market baseline competitor and brand foundation (implemented) | Transparent baseline supply competition and minimal brand state/read-model foundation | 7B1 |
 | 7B3A — Repeatable product-quality R&D (implemented) | Funded company/product quality levels affecting only newly manufactured goods | 7B2 |
-| 7B3B — Production/process-efficiency R&D (next) | Repeatable process improvements without changing product-quality provenance | 7B3A |
+| 7B3B — Production/process-efficiency R&D (implemented) | Repeatable conversion-cost improvements without changing product-quality provenance | 7B3A |
 | 8 — Competitive management | AI investment/sourcing/research, corporate headquarters, hiring, difficulty, advertising/branding and balancing | 2–7 |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
@@ -42,5 +42,5 @@ Its categorized accounts and exact cash/equity reconciliations provide the found
 for later debt, dividends and ownership. Headquarters, advertising/branding, mergers,
 real estate, active ports/import/export and multi-city play remain future systems.
 Quality provenance is implemented in 7B1; Local competition and static company-product
-brand in 7B2; repeatable product-quality R&D is implemented in 7B3A. Production/process
-efficiency remains 7B3B.
+brand in 7B2; repeatable product-quality and conversion-cost process R&D are
+implemented in 7B3A/7B3B. Milestone 8 is next; no additional Milestone 7 feature is implied.

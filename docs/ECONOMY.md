@@ -299,3 +299,45 @@ There is no profitability or market strategy. Research spending remains ordinary
 research expense with no intangible asset. Economy schema 10 / catalog 5 / save
 format 2 persist levels, retained quality progress and typed active assignments;
 restore validates bounds, target continuity, knowledge and duplicate assignments.
+
+## Milestone 7B3B: repeatable process-efficiency R&D
+
+Every company also owns an independent process-efficiency level 0–5 for each
+catalog-manufacturable product. A structured `process_efficiency` project targets
+exactly the next company/product level. Public availability, manufacturing facility
+support, company knowledge and duplicate-assignment eligibility are identical to
+product-quality projects; retail access alone never qualifies. In both starting
+eras, any already-public, known product is immediately eligible.
+
+Target level L requires `300 × L` work and costs `2,500 × L` cents per funded day.
+It uses the same facility rate, cash stall, expense accounting, stop/resume progress
+and end-of-day completion phase. These defaults, the level cap and the 5% reduction
+per level are validated catalog data.
+
+For company/product level L:
+
+`reduction_percent = 5 × L`
+
+`effective_conversion_cost = floor(base_conversion_cost × (100 - reduction_percent) / 100)`
+
+A positive base cost retains a minimum effective cost of one cent; a zero base cost
+stays zero. All arithmetic is integer cents. Production affordability, cash spending,
+`production_cash` and finished inventory carrying value use the actual effective
+cost. Consumed input carrying value is added unchanged. No efficiency income or
+expense is invented: lower carrying value becomes lower COGS only when the new goods
+are sold, producing the margin benefit through the existing accounts.
+
+Completion never rewrites factory, in-transit, warehouse or retail inventory and
+never changes previously paid production cash. Only later production uses the new
+cost. Recipe quantities, component and finished physical quality, product-quality
+level, corporate brand, Local, capacity, throughput and stock targets are unchanged.
+Zero-input/external-boundary products use the same reduced conversion/resource cash
+formula and their existing physical-quality formula.
+
+After eligible technology projects, AI builds one stable list of continuous choices:
+lowest attained level first, then product ID, then `product_quality` before
+`process_efficiency`. This balances the two capabilities without profitability
+reasoning and makes process research useful in 2022. Economy schema 11 / catalog 6 /
+save format 2 persist levels, partial progress, active kind/product/target and exact
+continuation. Restore validates product, public/manufacturable status, knowledge,
+bounds, next target, progress range and duplicate assignments.

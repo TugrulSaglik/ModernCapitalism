@@ -11,6 +11,7 @@ var categories: Dictionary = {}
 var segments: Dictionary = {}
 var market_defaults: Dictionary = {}
 var product_quality_research: Dictionary = {}
+var process_efficiency_research: Dictionary = {}
 
 func load_data(path: String = "res://data/example_economy.json") -> bool:
 	products.clear()
@@ -35,6 +36,15 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 			errors.append("Invalid product quality research definition: " + field)
 	if int(product_quality_research.get("max_level", 0)) > 10 or int(product_quality_research.get("quality_bonus_per_level", 0)) > 25:
 		errors.append("Product quality research bounds are too large")
+	if not root.get("process_efficiency_research") is Dictionary:
+		errors.append("Process efficiency research defaults required")
+		return false
+	process_efficiency_research = root.process_efficiency_research.duplicate(true)
+	for field: String in ["max_level", "base_work", "base_daily_cost", "conversion_cost_reduction_per_level"]:
+		if not _positive_integer(process_efficiency_research.get(field)):
+			errors.append("Invalid process efficiency research definition: " + field)
+	if int(process_efficiency_research.get("max_level", 0)) > 10 or int(process_efficiency_research.get("max_level", 0)) * int(process_efficiency_research.get("conversion_cost_reduction_per_level", 0)) >= 100:
+		errors.append("Process efficiency research bounds are too large")
 	categories.clear()
 	segments.clear()
 	_index(root.get("categories", []), categories)
@@ -214,6 +224,18 @@ func quality_research_cost(target_level: int) -> int:
 
 func quality_bonus(level: int) -> int:
 	return int(product_quality_research.quality_bonus_per_level) * level
+
+func efficiency_max_level() -> int:
+	return int(process_efficiency_research.max_level)
+
+func efficiency_research_work(target_level: int) -> int:
+	return int(process_efficiency_research.base_work) * target_level
+
+func efficiency_research_cost(target_level: int) -> int:
+	return int(process_efficiency_research.base_daily_cost) * target_level
+
+func conversion_cost_reduction(level: int) -> int:
+	return int(process_efficiency_research.conversion_cost_reduction_per_level) * level
 
 # Positive legacy product demand identifies consumer goods; category demand sizes pools.
 func consumer_product(product: String) -> bool:

@@ -30,6 +30,10 @@ var research_progress: Dictionary = {}
 # retained separately from technology work and records the exact next target.
 var product_quality_levels: Dictionary = {}
 var product_quality_progress: Dictionary = {}
+# Process efficiency is a separate company/product capability. It affects only
+# conversion cash for future production, never recipes or physical quality.
+var process_efficiency_levels: Dictionary = {}
+var process_efficiency_progress: Dictionary = {}
 # Market presence belongs to the seller, never to goods or individual shops.
 var product_brands: Dictionary = {}
 
@@ -41,6 +45,9 @@ func knows(technology: String) -> bool:
 
 func product_quality_level(product: String) -> int:
 	return int(product_quality_levels.get(product, 0))
+
+func process_efficiency_level(product: String) -> int:
+	return int(process_efficiency_levels.get(product, 0))
 
 var recorded_accounts: Dictionary = {}
 var archived_months: Array[Dictionary] = []
@@ -122,7 +129,7 @@ func profit() -> int:
 	return revenue - cogs - expenses
 
 func snapshot() -> Dictionary:
-	return {"product_brands": product_brands.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
+	return {"product_brands": product_brands.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
 		"freight": freight, "purchases": purchases, "depreciation": depreciation,
 		"recorded_profit": recorded_profit, "daily_history": daily_history.duplicate(true), "monthly_history": monthly_history.duplicate(true),
 		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense,

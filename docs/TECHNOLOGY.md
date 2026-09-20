@@ -32,9 +32,11 @@ cycles, and invalid research rates. No product or bespoke technology scripts wer
 starting knowledge). It is the permanent completion record, not a second derived
 completed list. `research_progress` holds only incomplete technology work.
 Milestone 7B3A adds complete company/product `product_quality_levels` and sparse
-retained `product_quality_progress`. `SimFacility.research_project` is now a
-structured record with explicit `technology` or `product_quality` kind; quality
-records also carry product and exact target level. Technology IDs are not overloaded.
+retained `product_quality_progress`. Milestone 7B3B similarly adds
+`process_efficiency_levels` and retained `process_efficiency_progress`.
+`SimFacility.research_project` is a structured record with explicit `technology`,
+`product_quality` or `process_efficiency` kind; continuous records carry product and
+exact target level. Technology IDs are not overloaded.
 
 ## R&D facilities and projects
 
@@ -50,9 +52,10 @@ Scenario R&D, like other scenario buildings, starts with zero fixed book value.
 has at most one structured project; a company cannot assign the same technology or
 exact product/next-level project to two facilities, including suspended facilities.
 Different projects can run concurrently. Technology assignment requires an unknown
-public technology and company-known prerequisites. Quality assignment requires a
-public, catalog-manufacturable product, knowledge of its manufacturing technology,
-the exact next level, and a current level below five. Retail access never qualifies.
+public technology and company-known prerequisites. Product-quality and
+process-efficiency assignments require a public, catalog-manufacturable product,
+knowledge of its manufacturing technology, the exact next level, and a current
+level below five. Retail access never qualifies.
 Stopping,
 changing projects, suspending or demolishing a facility never erases company progress
 and never refunds money. Another eligible center can resume the retained work.
@@ -61,7 +64,9 @@ Product-quality levels are bounded 0–5. Target level L requires `300 × L` wor
 costs `2,500 × L` cents per funded day. These defaults and the five-point quality
 bonus per attained level are catalog data and validated as small positive integers.
 Completion raises exactly one company/product level and makes the next project
-available. No throughput, yield or conversion-cost effect is included.
+available. Process-efficiency levels use the same work/cost scale and 0–5 bound;
+each level reduces future conversion cash by the catalog-defined 5%. Neither
+continuous kind changes throughput, recipe quantities or yield.
 
 Daily research occurs after production, replenishment and consumer sales, before
 financial history closes and the date advances. Facilities run in stable ID order.
@@ -72,9 +77,10 @@ or overhead-unfunded facilities cannot research, even if sales later increase ca
 Idle operating centers still pay overhead; suspend them to avoid it.
 
 Completion records the executing tick, removes partial work, and clears assignment.
-New technology or product-quality capability operates on the following day's
-production phase; dependent/next-level projects can be assigned at the next boundary.
-There is no frame-time work, random research progress, personnel or efficiency effect.
+New technology, product-quality or process-efficiency capability operates on the
+following day's production phase; dependent/next-level projects can be assigned at
+the next boundary.
+There is no frame-time work, random research progress or personnel.
 
 ## Manufacturing versus buying finished goods
 
@@ -93,16 +99,19 @@ explicit resale exception prevents R&D from becoming a requirement for every sho
 
 Nova (`maker_b`) is enabled as an AI company and receives `30_research` through
 expanded scenario data. An operating idle AI center first chooses an eligible
-technology by public year then stable ID. If none exists, it chooses the first
-eligible product-quality project by stable product ID. Prerequisites are always
-checked. AI neither builds centers nor evaluates profitability, markets or portfolios.
+technology by public year then stable ID. If none exists, eligible continuous
+projects sort by lowest attained level, stable product ID, then stable kind order
+(`product_quality` before `process_efficiency`). Prerequisites are always checked.
+AI neither builds centers nor evaluates profitability, markets or portfolios.
 Thus 2022 R&D is immediately useful despite complete starting technology knowledge.
 
 Select an R&D center to use its compact R&D inspector. The selector separates
-technology and product-quality projects. Quality details show product, current,
-target and maximum level, retained/required work, daily cost, funded days remaining
-and assigned facility. Assign/resume and stop controls use normal commands; rival
-centers are read-only. Completion and public-year changes refresh capability choices.
+technology, product-quality and process-efficiency projects. Continuous details show
+product, current/target/maximum level, retained/required work, daily cost, funded
+days remaining and assigned facility; process projects also show reduction and
+base/target conversion cost. Assign/resume and stop controls use normal commands;
+rival centers are read-only. Factory reads keep quality separate from process level
+and base/effective conversion cost.
 
 ## Accounting, persistence and Debug
 
@@ -111,8 +120,8 @@ expenses. Income Statement exposes R&D separately; monthly/archived records, TTM
 retained earnings and operating Cash Flow use the same ledger. Center overhead stays
 in other operating expenses. Research is expensed, never capitalized as an intangible.
 
-Economy schema **10**, catalog version **5**, save format **2** preserve knowledge,
-quality levels, typed assignments and both partial-work kinds exactly with the
+Economy schema **11**, catalog version **6**, save format **2** preserve knowledge,
+quality/efficiency levels, typed assignments and all partial-work kinds exactly with the
 existing numeric encoding. Restore validates product/technology references, levels,
 targets, knowledge, progress bounds, duplicate assignments, facility behavior and
 categorized accounts before replacing the session.
@@ -127,9 +136,9 @@ the date gates and funded research.
 Milestone 7B1 now gives goods integer pooled quality provenance, independently of
 technology unlocks. Facility quality means production process baseline, not retail
 quality. See [quality formula and persistence](ECONOMY.md#milestone-7b1-product-quality-provenance).
-Current saves use economy schema 10 / catalog 5 / format 2. 7B2 is implemented:
+Current saves use economy schema 11 / catalog 6 / format 2. 7B2 is implemented:
 Local offers obey public availability (including existing Debug overrides), but
 never grant company knowledge. Corporate product brands are static seller state,
-independent of research and goods quality. 7B3A product-quality R&D is implemented;
-7B3B process/efficiency improvements are next. Patents, licensing, staff, HQ and
-strategic AI remain deferred.
+independent of research and goods quality. 7B3A product-quality and 7B3B
+conversion-cost process-efficiency R&D are implemented. Patents, licensing,
+throughput research, staff, HQ and strategic AI remain deferred.

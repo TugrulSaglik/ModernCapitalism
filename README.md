@@ -52,7 +52,18 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 7B3A
+## Milestone 7B3B
+
+R&D now also supports repeatable company/product process-efficiency projects through
+level 5. Each level reduces conversion cash for future production by 5%, up to 25%,
+without changing recipes, capacity or physical quality. Actual reduced cash is
+capitalized into new inventory and later flows through COGS; existing inventory and
+shipments are never repriced. Current saves: **economy schema 11 / catalog 6 /
+format 2**. See [technology and project rules](docs/TECHNOLOGY.md),
+[the cost and accounting formula](docs/ECONOMY.md#milestone-7b3b-repeatable-process-efficiency-rd),
+and [validation](docs/VALIDATION.md).
+
+## Milestone 7B3A (historical checkpoint)
 
 R&D now supports repeatable company/product quality projects through level 5.
 Each completed level improves only newly manufactured goods; existing factory,
@@ -61,7 +72,7 @@ share the funded 7A scheduler, accounting and stop/resume behavior. Current save
 **economy schema 10 / catalog 5 / format 2**. See
 [technology and project rules](docs/TECHNOLOGY.md),
 [the manufacturing formula](docs/ECONOMY.md#milestone-7b3a-repeatable-product-quality-rd),
-and [validation](docs/VALIDATION.md). 7B3B process/efficiency R&D is next.
+and [validation](docs/VALIDATION.md). Process efficiency is implemented by 7B3B above.
 
 ## Milestone 7B2 (historical checkpoint)
 
@@ -73,8 +84,8 @@ Current saves: **economy schema 9 / catalog 4 / format 2**; older saves are inco
 See [model and formulas](docs/ECONOMY.md#milestone-7b2-local-market-and-brand-foundation)
 and [validation](docs/VALIDATION.md). Focused tests: tests/milestone7b2_tests.gd;
 two-frame programmatic workflow: tests/local_market_smoke.gd.
-Product-quality improvement is superseded by 7B3A above; process/efficiency and
-advertising remain deferred.
+Product-quality improvement and process efficiency are superseded by 7B3A/7B3B
+above; advertising remains deferred.
 
 ## Milestone 7B1 (historical checkpoint)
 

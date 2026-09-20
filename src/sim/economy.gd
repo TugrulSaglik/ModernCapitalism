@@ -57,7 +57,9 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	for definition: Dictionary in definitions:
 		companies[str(definition.id)] = Company.new(definition)
 		for product: String in catalog.products:
-			if catalog.manufacturable_product(product): companies[str(definition.id)].product_quality_levels[product] = 0
+			if catalog.manufacturable_product(product):
+				companies[str(definition.id)].product_quality_levels[product] = 0
+				companies[str(definition.id)].process_efficiency_levels[product] = 0
 			if catalog.consumer_product(product): companies[str(definition.id)].product_brands[product] = catalog.starting_brand(product)
 		for technology: String in catalog.technologies:
 			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
@@ -113,6 +115,10 @@ func product_quality_project(company: String, product: String) -> Dictionary:
 	var level: int = companies[company].product_quality_level(product) if companies.has(company) else 0
 	return {"kind": "product_quality", "product": product, "target_level": level + 1}
 
+func process_efficiency_project(company: String, product: String) -> Dictionary:
+	var level: int = companies[company].process_efficiency_level(product) if companies.has(company) else 0
+	return {"kind": "process_efficiency", "product": product, "target_level": level + 1}
+
 func project_equal(a: Dictionary, b: Dictionary) -> bool:
 	if str(a.get("kind", "")) != str(b.get("kind", "")): return false
 	if a.get("kind") == "technology": return str(a.get("technology", "")) == str(b.get("technology", ""))
@@ -121,21 +127,37 @@ func project_equal(a: Dictionary, b: Dictionary) -> bool:
 func project_work(project: Dictionary) -> int:
 	if project.get("kind") == "technology": return int(catalog.technologies.get(str(project.get("technology", "")), {}).get("research_work", 0))
 	if project.get("kind") == "product_quality": return catalog.quality_research_work(int(project.get("target_level", 0)))
+	if project.get("kind") == "process_efficiency": return catalog.efficiency_research_work(int(project.get("target_level", 0)))
 	return 0
 
 func project_cost(project: Dictionary) -> int:
 	if project.get("kind") == "technology": return int(catalog.technologies.get(str(project.get("technology", "")), {}).get("research_cost", 0))
 	if project.get("kind") == "product_quality": return catalog.quality_research_cost(int(project.get("target_level", 0)))
+	if project.get("kind") == "process_efficiency": return catalog.efficiency_research_cost(int(project.get("target_level", 0)))
 	return 0
 
 func project_progress(owner: SimCompany, project: Dictionary) -> int:
 	if project.get("kind") == "technology": return int(owner.research_progress.get(str(project.get("technology", "")), 0))
-	return int(owner.product_quality_progress.get(str(project.get("product", "")), {}).get("progress", 0))
+	if project.get("kind") == "product_quality": return int(owner.product_quality_progress.get(str(project.get("product", "")), {}).get("progress", 0))
+	return int(owner.process_efficiency_progress.get(str(project.get("product", "")), {}).get("progress", 0))
 
 func project_name(project: Dictionary) -> String:
 	if project.get("kind") == "technology": return str(project.get("technology", "")).replace("_", " ")
 	if project.get("kind") == "product_quality": return "Improve %s Quality (Level %d)" % [str(project.get("product", "")).replace("_", " "), int(project.get("target_level", 0))]
+	if project.get("kind") == "process_efficiency": return "Improve %s Process Efficiency (Level %d)" % [str(project.get("product", "")).replace("_", " "), int(project.get("target_level", 0))]
 	return "Unknown project"
+
+func conversion_cost_at_level(product: String, level: int) -> int:
+	if not catalog.products.has(product): return 0
+	var base: int = int(catalog.products[product].conversion_cost)
+	if base == 0: return 0
+	var bounded_level: int = clampi(level, 0, catalog.efficiency_max_level())
+	@warning_ignore("integer_division")
+	return maxi(1, base * (100 - catalog.conversion_cost_reduction(bounded_level)) / 100)
+
+func effective_conversion_cost(company: String, product: String) -> int:
+	if not companies.has(company): return 0
+	return conversion_cost_at_level(product, companies[company].process_efficiency_level(product))
 
 func research_project_error(company: String, project: Dictionary, except_facility: String = "") -> String:
 	if not companies.has(company): return "Unknown company."
@@ -160,6 +182,17 @@ func research_project_error(company: String, project: Dictionary, except_facilit
 		var level: int = owner.product_quality_level(product)
 		if level >= catalog.quality_max_level(): return "Maximum quality level reached."
 		if target != level + 1 or target < 1 or target > catalog.quality_max_level(): return "Target must be the next quality level."
+	elif kind == "process_efficiency":
+		if project.size() != 3 or not project.get("product") is String or not project.get("target_level") is int: return "Invalid process-efficiency project."
+		var product: String = str(project.product)
+		var target: int = int(project.target_level)
+		if not catalog.products.has(product): return "Unknown product."
+		if not catalog.manufacturable_product(product): return "Product has no compatible manufacturing facility."
+		if not product_public(product): return "Product is not publicly available."
+		if not owner.knows(str(catalog.products[product].technology)): return "Requires manufacturing knowledge."
+		var level: int = owner.process_efficiency_level(product)
+		if level >= catalog.efficiency_max_level(): return "Maximum process-efficiency level reached."
+		if target != level + 1 or target < 1 or target > catalog.efficiency_max_level(): return "Target must be the next process-efficiency level."
 	else:
 		return "Unknown research project kind."
 	for f: SimFacility in facilities:
@@ -185,12 +218,16 @@ func _research() -> void:
 			if project.kind == "technology":
 				owner.known_technologies[str(project.technology)] = clock.tick
 				owner.research_progress.erase(str(project.technology))
-			else:
+			elif project.kind == "product_quality":
 				owner.product_quality_levels[str(project.product)] = int(project.target_level)
 				owner.product_quality_progress.erase(str(project.product))
+			else:
+				owner.process_efficiency_levels[str(project.product)] = int(project.target_level)
+				owner.process_efficiency_progress.erase(str(project.product))
 			f.research_project = {}
 		elif project.kind == "technology": owner.research_progress[str(project.technology)] = progress
-		else: owner.product_quality_progress[str(project.product)] = {"target_level": int(project.target_level), "progress": progress}
+		elif project.kind == "product_quality": owner.product_quality_progress[str(project.product)] = {"target_level": int(project.target_level), "progress": progress}
+		else: owner.process_efficiency_progress[str(project.product)] = {"target_level": int(project.target_level), "progress": progress}
 
 func _ai_research() -> void:
 	var ids: Array = catalog.technologies.keys()
@@ -203,13 +240,18 @@ func _ai_research() -> void:
 				f.research_project = technology_project(technology)
 				break
 		if not f.research_project.is_empty(): continue
-		var products: Array = catalog.products.keys()
-		products.sort()
-		for product: String in products:
-			var project: Dictionary = product_quality_project(f.company_id, product)
-			if research_project_error(f.company_id, project).is_empty():
-				f.research_project = project
-				break
+		var candidates: Array[Dictionary] = []
+		for product: String in catalog.products:
+			for project: Dictionary in [product_quality_project(f.company_id, product), process_efficiency_project(f.company_id, product)]:
+				if research_project_error(f.company_id, project).is_empty(): candidates.append(project)
+		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			var owner: SimCompany = companies[f.company_id]
+			var level_a: int = owner.product_quality_level(a.product) if a.kind == "product_quality" else owner.process_efficiency_level(a.product)
+			var level_b: int = owner.product_quality_level(b.product) if b.kind == "product_quality" else owner.process_efficiency_level(b.product)
+			if level_a != level_b: return level_a < level_b
+			if a.product != b.product: return a.product < b.product
+			return a.kind == "product_quality" and b.kind == "process_efficiency")
+		if not candidates.is_empty(): f.research_project = candidates[0]
 
 func command_error(command: Dictionary) -> String:
 	if str(command.get("type", "")) == "build_facility":
@@ -424,7 +466,7 @@ func produce(f: SimFacility) -> int:
 	# Limit finished stock to the facility's configured stock target.
 	var units: int = mini(f.capacity - f.produced_today, maxi(0, f.capacity * f.stock_days - f.inventory.quantity(f.product_id)))
 	var owner: SimCompany = companies[f.company_id]
-	var conversion: int = int(definition.conversion_cost)
+	var conversion: int = effective_conversion_cost(f.company_id, f.product_id)
 	if conversion > 0:
 		units = mini(units, int(owner.cash / conversion))
 	var input_ids: Array = inputs.keys()
@@ -584,7 +626,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 10, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 11, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

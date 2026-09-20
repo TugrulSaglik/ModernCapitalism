@@ -749,3 +749,70 @@ conversion-cost, yield/scrap, advertising/brand, dynamic Local, patents, licensi
 staff or strategic AI. Recommended 7B3B is company/process efficiency levels through
 the same typed, funded, persistent scheduler, with separately documented effects on
 throughput and/or conversion cost and no retroactive inventory mutation.
+
+## Milestone 7B3B validation
+
+Validated September 20, 2026 on Windows / Godot 4.7.2. The initial tree was clean at
+committed 7B3A. Required project documentation and the committed 7A/7B1/7B2/7B3A
+research, production, accounting, UI and persistence implementation were inspected
+before edits. No branch, commit, Computer Use, dependency, throughput/yield feature,
+brand/Local change or strategic AI was introduced.
+
+The targeted baseline was Milestone 7B3A: **137 checks, zero failures**. Development
+validation used the new 7B3B suite and directly affected historical suites:
+
+| Suite | Checks | Failures |
+| --- | ---: | ---: |
+| 7B3B process efficiency | 137 | 0 |
+| Foundation production/accounting | 1,524 | 0 |
+| Milestone 2 commands/persistence | 809 | 0 |
+| Milestone 6 markets/accounting/replay | 2,547 | 0 |
+| Milestone 7A research | 134 | 0 |
+| Milestone 7B3A product-quality research | 137 | 0 |
+| Process R&D rendered workflow | 15 | 0 |
+
+Focused coverage includes catalog validation; structured project eligibility;
+retail-only, unknown-knowledge, skipped-target, maximum and duplicate rejection;
+funding stalls; retained stop/resume work; exact completion; 0–5 monotonic costs;
+25% maximum reduction; integer-floor and zero-cost behavior; zero-input production;
+actual cash, `production_cash`, inventory value, COGS and balance identities; no
+retroactive factory/transit/warehouse/retail or prior-production-cash mutation;
+unchanged recipe quantities, physical quality, quality level, capacity, corporate
+brand and Local; technology-first balanced AI behavior in 2022; corruption rejection;
+and exact partial save/replay with a matching completion tick.
+
+The exact implemented conversion formula is
+`max(1, floor(base_cost × (100 - 5 × level) / 100))` for positive base costs;
+zero stays zero. Only future production pays and capitalizes this reduced amount.
+Research itself remains an operating research expense. Economy schema **11**,
+catalog **6** and save format **2** persist complete levels, sparse partial progress,
+structured active assignments and target levels. Restore validates product/public/
+manufacturable state, technology knowledge, bounds, exact next target, progress and
+duplicates before replacing the session.
+
+Exactly two 1280 × 800 programmatic frames were captured and inspected under
+`.godot/7b3b-screenshots/`:
+
+1. `01-process-project.png` shows smartphone L0 → L1, 120/300 retained work,
+   $25/day, 18 funded days remaining, 5% target reduction and $30.00 → $28.50.
+2. `02-factory-process.png` shows process L1/5 and $30.00 → $28.50 beside the
+   separate product-quality/effective-process-Q read model.
+
+Both required read models are legible in the existing compact, scrollable inspector;
+no clipping fix or additional frame was needed.
+
+### Final complete regression: one run
+
+`tests/run_tests.ps1` completed once against the final code/data tree with exit code
+0: **49,199 checks, zero failures**, plus the successful legacy Debug 30-day flow.
+The new focused suite contributed 137 checks and its headless smoke contributed 13;
+all historical milestone, long-run and smoke suites passed. The only recurring
+message was the documented Windows root-certificate-store warning. `git diff --check`
+passed after the documentation update; the complete suite was not repeated for that
+documentation-only change.
+
+Current deliberate limits are no throughput/capacity research, material reduction,
+yield/scrap, advertising/brand growth, dynamic Local, strategic ROI AI, patents,
+licensing or R&D staff. Milestone 7 is complete. The recommended next milestone is
+Milestone 8 — Competitive management, delivered in a separately scoped increment
+rather than adding another research feature.

@@ -176,6 +176,15 @@ func bind(game_session: GameSession, id: String) -> void:
 		research_choices.add_item("Product quality — " + product_id.replace("_", " "))
 		research_choices.set_item_metadata(research_choices.item_count - 1, project)
 		if session.sim.project_equal(project, selected_project): research_choices.select(research_choices.item_count - 1)
+	research_choices.add_item("PROCESS EFFICIENCY PROJECTS")
+	research_choices.set_item_disabled(research_choices.item_count - 1, true)
+	research_choices.set_item_metadata(research_choices.item_count - 1, {})
+	for product_id: String in product_ids:
+		if not session.sim.catalog.manufacturable_product(product_id): continue
+		var project: Dictionary = session.sim.process_efficiency_project(f.company_id, product_id)
+		research_choices.add_item("Process efficiency — " + product_id.replace("_", " "))
+		research_choices.set_item_metadata(research_choices.item_count - 1, project)
+		if session.sim.project_equal(project, selected_project): research_choices.select(research_choices.item_count - 1)
 	if research_choices.selected <= 0 and research_choices.item_count > 1: research_choices.select(1)
 	choices.clear()
 	line.clear()
@@ -247,6 +256,9 @@ func refresh() -> void:
 	if session.sim.catalog.facility_types[f.type_id].behavior == "production":
 		var quality_level: int = owner.product_quality_level(f.product_id)
 		lines.insert(4, "Product quality R&D L%d/%d | Effective process Q%d" % [quality_level, session.sim.catalog.quality_max_level(), clampi(f.quality + session.sim.catalog.quality_bonus(quality_level), 1, 100)])
+		var efficiency_level: int = owner.process_efficiency_level(f.product_id)
+		lines.insert(5, "Process efficiency R&D: L%d/%d" % [efficiency_level, session.sim.catalog.efficiency_max_level()])
+		lines.insert(6, "Base conversion cost: %s | Effective: %s" % [CompanyReports.money(int(definition.conversion_cost)), CompanyReports.money(session.sim.effective_conversion_cost(owner.id, f.product_id))])
 		lines.append("Recipe inputs: " + str(definition.inputs))
 	elif session.sim.catalog.facility_types[f.type_id].behavior == "storage":
 		lines[3] = "Storage: %d / %d units | free %d (after reservations)" % [session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f)]
@@ -330,7 +342,7 @@ func refresh() -> void:
 
 func _layout_key(f: SimFacility) -> String:
 	var owner: SimCompany = session.sim.companies[f.company_id]
-	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(owner.known_technologies) + str(owner.product_quality_levels) + str(owner.product_quality_progress) + str(session.sim.unlocked_technologies)
+	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(owner.known_technologies) + str(owner.product_quality_levels) + str(owner.product_quality_progress) + str(owner.process_efficiency_levels) + str(owner.process_efficiency_progress) + str(session.sim.unlocked_technologies)
 
 func _refresh_research(f: SimFacility, own: bool) -> void:
 	if research_choices.selected < 0: return
@@ -358,10 +370,16 @@ func _refresh_research(f: SimFacility, own: bool) -> void:
 		for prerequisite: String in definition.prerequisites:
 			prerequisites.append(prerequisite.replace("_", " ") + (" (known)" if owner.knows(prerequisite) else " (unknown)"))
 		research_info.text = "TECHNOLOGY PROJECT\n%s | Public year %d\n%s\nPrerequisites: %s\nProgress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s" % [technology.replace("_", " "), definition.year, status, ", ".join(prerequisites) if not prerequisites.is_empty() else "None", progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), assigned]
-	else:
+	elif project.kind == "product_quality":
 		var product: String = str(project.product)
 		var current: int = owner.product_quality_level(product)
 		research_info.text = "PRODUCT QUALITY PROJECT\nProduct: %s\nCurrent level: %d | Target level: %d | Maximum: %d\n%s\nRetained progress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s" % [product.replace("_", " "), current, int(project.target_level), sim.catalog.quality_max_level(), status, progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), assigned]
+	else:
+		var product: String = str(project.product)
+		var current: int = owner.process_efficiency_level(product)
+		var base_cost: int = int(sim.catalog.products[product].conversion_cost)
+		var reduction: int = sim.catalog.conversion_cost_reduction(int(project.target_level))
+		research_info.text = "PROCESS EFFICIENCY PROJECT\nProduct: %s\nCurrent level: %d | Target level: %d | Maximum: %d\n%s\nRetained progress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead) | Remaining: %d funded days\nTarget reduction: %d%%\nBase conversion cost: %s | Target effective cost: %s\nAssigned facility: %s" % [product.replace("_", " "), current, int(project.target_level), sim.catalog.efficiency_max_level(), status, progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), reduction, CompanyReports.money(base_cost), CompanyReports.money(sim.conversion_cost_at_level(product, int(project.target_level))), assigned]
 	research_info.text += "\nStopping retains progress; spending is not refunded."
 	if not f.research_project.is_empty() and sim.project_equal(f.research_project, project) and (not f.operating or not f.active or owner.cash < sim.project_cost(project) + int(sim.catalog.facility_types[f.type_id].overhead)):
 		research_info.text += "\nStalled: suspended or insufficient operating funds."

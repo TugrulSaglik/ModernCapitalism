@@ -1,5 +1,11 @@
 {
-  "version": 5,
+  "version": 6,
+  "process_efficiency_research": {
+    "max_level": 5,
+    "base_work": 300,
+    "base_daily_cost": 2500,
+    "conversion_cost_reduction_per_level": 5
+  },
   "product_quality_research": {
     "max_level": 5,
     "base_work": 300,
