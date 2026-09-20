@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 11 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 12 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -166,7 +166,7 @@ func restore(state: Dictionary) -> Economy:
 		template.known_technologies = {}
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex", "research_expense"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex", "research_expense", "advertising_expense"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
@@ -174,6 +174,12 @@ func restore(state: Dictionary) -> Economy:
 		for product: String in item.product_brands:
 			if not owner.product_brands.has(product) or not item.product_brands[product] is int or item.product_brands[product] < 0 or item.product_brands[product] > 100: return null
 		owner.product_brands = item.product_brands.duplicate(true)
+		if item.advertising_budgets.size() != owner.advertising_budgets.size() or item.advertising_progress.size() != owner.advertising_progress.size(): return null
+		for product: String in owner.advertising_budgets:
+			if not item.advertising_budgets.has(product) or not item.advertising_progress.has(product) or not item.advertising_budgets[product] is int or not item.advertising_progress[product] is int: return null
+			if item.advertising_budgets[product] < 0 or item.advertising_budgets[product] > 100000000 or item.advertising_progress[product] < 0: return null
+		owner.advertising_budgets = item.advertising_budgets.duplicate(true)
+		owner.advertising_progress = item.advertising_progress.duplicate(true)
 		owner.known_technologies.clear()
 		for technology: String in item.known_technologies:
 			var acquired: Variant = item.known_technologies[technology]
@@ -228,7 +234,7 @@ func restore(state: Dictionary) -> Economy:
 		for entry: Variant in item.archived_months:
 			if not shape(entry, {"month": "", "profit": 0}): return null
 			owner.archived_months.append(entry.duplicate(true))
-		if item.freight + item.depreciation + item.research_expense > item.expenses or item.research_expense > item.cash_expenses or absi(item.recorded_profit) > 100000000000000 or item.daily_history.size() > 367 or item.monthly_history.size() > 13: return null
+		if item.freight + item.depreciation + item.research_expense + item.advertising_expense > item.expenses or item.research_expense + item.advertising_expense > item.cash_expenses or absi(item.recorded_profit) > 100000000000000 or item.daily_history.size() > 367 or item.monthly_history.size() > 13: return null
 		owner.recorded_profit = item.recorded_profit
 		var previous: String = ""
 		for entry: Variant in item.daily_history:

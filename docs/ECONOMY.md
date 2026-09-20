@@ -1,5 +1,26 @@
 # Economic model
 
+## Milestone 8A1 player advertising and brand growth
+
+Each company has an integer-cent daily advertising budget and retained advertising
+progress for every consumer product; both default to zero. At the start of each
+simulation day, after queued commands, positive budgets are paid in full or skipped
+in full when cash is insufficient. Paid advertising is an operating and cash expense,
+never an asset.
+
+For current company-product brand `b`, the next point costs
+`reference_price * (20 + b) / 10` cents. This is the integer equivalent of
+`reference_price * (2 + b / 10)` while retaining tenths. Each crossed threshold is
+subtracted, one brand point is awarded, and the threshold is recomputed; excess
+progress remains and multiple points may be earned in a day. Brand is capped at 100
+and does not decay in 8A1.
+
+Advertising changes only the existing company-product seller/market-presence brand.
+It does not alter inventory quality, either continuous R&D capability, production
+cost, or the catalog-derived Local price, quality and brand. Inventory still carries
+no manufacturer-brand provenance. ConsumerDemand uses the resulting brand through
+its existing appeal factor and retains the same separate outside option.
+
 ## Units and firms
 One tick is one calendar day. Quantities are whole units, currency integer cents,
 quality an integer 1–100. Every company starts with contributed equity and cash;

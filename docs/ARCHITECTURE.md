@@ -2,6 +2,14 @@
 
 ## Current milestone
 
+Milestone 8A1 adds company-owned consumer-product advertising budgets and retained
+progress. Economy validates the company-level player command and advances advertising
+in stable company/product order before consumer clearing. SimCompany records the
+separate cash operating expense and the existing history/report pipeline carries it
+through profit, cash flow and equity. Schema 12 persists and validates budget,
+progress, brand and accounts. Brand remains seller company-product market presence;
+inventory has no manufacturer-brand provenance. AI budgets remain zero in 8A1.
+
 Milestone 7B3B extends the shared R&D scheduler with a third structured kind,
 `process_efficiency`. SimCompany owns bounded company/product efficiency levels and
 retained next-level progress; SimFacility still owns only an active assignment.
@@ -85,7 +93,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-11 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-12 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller

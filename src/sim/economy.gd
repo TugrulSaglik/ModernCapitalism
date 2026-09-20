@@ -60,7 +60,10 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 			if catalog.manufacturable_product(product):
 				companies[str(definition.id)].product_quality_levels[product] = 0
 				companies[str(definition.id)].process_efficiency_levels[product] = 0
-			if catalog.consumer_product(product): companies[str(definition.id)].product_brands[product] = catalog.starting_brand(product)
+			if catalog.consumer_product(product):
+				companies[str(definition.id)].product_brands[product] = catalog.starting_brand(product)
+				companies[str(definition.id)].advertising_budgets[product] = 0
+				companies[str(definition.id)].advertising_progress[product] = 0
 		for technology: String in catalog.technologies:
 			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
 	definitions = catalog.scenario.facilities.duplicate(true)
@@ -256,6 +259,16 @@ func _ai_research() -> void:
 func command_error(command: Dictionary) -> String:
 	if str(command.get("type", "")) == "build_facility":
 		return construction_error(command)
+	if str(command.get("type", "")) == "set_advertising_budget":
+		var company: String = str(command.get("company", ""))
+		var product: String = str(command.get("product", ""))
+		if not companies.has(company): return "Unknown company."
+		if not catalog.products.has(product): return "Unknown product."
+		if not catalog.consumer_product(product): return "Advertising requires a consumer product."
+		if not product_public(product): return "Product is not publicly available."
+		if not command.get("budget") is int or int(command.budget) < 0 or int(command.budget) > 100000000:
+			return "Daily advertising budget must be integer cents between 0 and 100000000."
+		return ""
 	var target: SimFacility = facility(str(command.get("facility", "")))
 	if target == null or target.company_id != str(command.get("company", "")):
 		return "Unknown facility or company does not own it."
@@ -328,6 +341,7 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"set_advertising_budget": companies[str(command.company)].advertising_budgets[str(command.product)] = int(command.budget)
 				"assign_research":
 					var project: Dictionary = command.get("project", technology_project(str(command.get("technology", ""))))
 					target.research_project = project.duplicate(true)
@@ -527,6 +541,7 @@ func step() -> void:
 	market.clear()
 	_ai_decisions()
 	_apply_commands()
+	_advertise()
 	_ai_research()
 	logistics.deliver(self)
 	for f: SimFacility in facilities:
@@ -582,6 +597,28 @@ func step() -> void:
 	clock.advance()
 	record_history()
 
+func advertising_threshold(product: String, brand: int) -> int:
+	# Equivalent to reference_price * (2 + brand / 10), retaining tenths with integers.
+	return int(catalog.products[product].reference_price) * (20 + clampi(brand, 0, 100)) / 10
+
+func _advertise() -> void:
+	var company_ids: Array = companies.keys()
+	company_ids.sort()
+	for company_id: String in company_ids:
+		var owner: SimCompany = companies[company_id]
+		var products: Array = owner.advertising_budgets.keys()
+		products.sort()
+		for product: String in products:
+			var budget: int = int(owner.advertising_budgets[product])
+			if budget <= 0 or not owner.pay_expense(budget): continue
+			owner.advertising_expense += budget
+			owner.advertising_progress[product] = int(owner.advertising_progress[product]) + budget
+			while owner.brand(product) < 100:
+				var threshold: int = advertising_threshold(product, owner.brand(product))
+				if int(owner.advertising_progress[product]) < threshold: break
+				owner.advertising_progress[product] = int(owner.advertising_progress[product]) - threshold
+				owner.product_brands[product] = owner.brand(product) + 1
+
 func _clear_consumer_markets() -> void:
 	ConsumerMarket.clear(self)
 
@@ -626,7 +663,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 11, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 12, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

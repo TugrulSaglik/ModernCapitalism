@@ -22,6 +22,7 @@ var production_cash: int = 0
 var cash_expenses: int = 0
 var capex: int = 0
 var research_expense: int = 0
+var advertising_expense: int = 0
 # Knowledge maps technology to acquisition tick (-1 = starting-era baseline).
 # Completion is permanent here; partial work is removed on completion.
 var known_technologies: Dictionary = {}
@@ -36,6 +37,8 @@ var process_efficiency_levels: Dictionary = {}
 var process_efficiency_progress: Dictionary = {}
 # Market presence belongs to the seller, never to goods or individual shops.
 var product_brands: Dictionary = {}
+var advertising_budgets: Dictionary = {}
+var advertising_progress: Dictionary = {}
 
 func brand(product: String) -> int:
 	return int(product_brands.get(product, 0))
@@ -54,7 +57,7 @@ var archived_months: Array[Dictionary] = []
 
 func accounts() -> Dictionary:
 	return {"revenue": revenue, "retail_revenue": retail_revenue, "wholesale_revenue": revenue - retail_revenue,
-		"cogs": cogs, "expenses": expenses, "research_expense": research_expense, "freight": freight, "depreciation": depreciation,
+		"cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense, "freight": freight, "depreciation": depreciation,
 		"profit": profit(), "purchases": purchases, "production_cash": production_cash,
 		"cash_expenses": cash_expenses, "capex": capex, "capital": capital, "cash": cash}
 var daily_history: Array[Dictionary] = []
@@ -129,10 +132,10 @@ func profit() -> int:
 	return revenue - cogs - expenses
 
 func snapshot() -> Dictionary:
-	return {"product_brands": product_brands.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
+	return {"product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
 		"freight": freight, "purchases": purchases, "depreciation": depreciation,
 		"recorded_profit": recorded_profit, "daily_history": daily_history.duplicate(true), "monthly_history": monthly_history.duplicate(true),
-		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense,
+		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense,
 		"profit": profit(), "daily_revenue": daily_revenue,
 		"daily_cogs": daily_cogs, "daily_expenses": daily_expenses,
 		"daily_profit": daily_revenue - daily_cogs - daily_expenses}

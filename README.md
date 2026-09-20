@@ -52,13 +52,22 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
+## Milestone 8A1
+
+Players can set a daily advertising budget for each public consumer product from
+Company → Markets. Fully funded daily spending is expensed immediately and retained
+progress raises the existing company-product market-presence brand with transparent
+diminishing returns. Brand remains seller state rather than inventory provenance;
+Local and product quality are unchanged. Current saves: **economy schema 12 / catalog
+6 / format 2**.
+
 ## Milestone 7B3B
 
 R&D now also supports repeatable company/product process-efficiency projects through
 level 5. Each level reduces conversion cash for future production by 5%, up to 25%,
 without changing recipes, capacity or physical quality. Actual reduced cash is
 capitalized into new inventory and later flows through COGS; existing inventory and
-shipments are never repriced. Current saves: **economy schema 11 / catalog 6 /
+shipments are never repriced. At that checkpoint saves used **economy schema 11 / catalog 6 /
 format 2**. See [technology and project rules](docs/TECHNOLOGY.md),
 [the cost and accounting formula](docs/ECONOMY.md#milestone-7b3b-repeatable-process-efficiency-rd),
 and [validation](docs/VALIDATION.md).
@@ -227,4 +236,4 @@ Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
 Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`. Continuous research,
-strategic AI, advertising and corporate finance remain future work.
+Strategic AI, brand decay/AI advertising and corporate finance remain future work.

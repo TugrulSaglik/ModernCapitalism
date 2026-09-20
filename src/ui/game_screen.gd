@@ -261,6 +261,9 @@ func _build_dialogs() -> void:
 	reports = CompanyReports.new()
 	overview.add_child(reports)
 	reports.session = session
+	reports.command_requested.connect(func(command: Dictionary) -> void:
+		session.submit(command)
+		refresh())
 	settings = AcceptDialog.new()
 	settings.title = "Session settings"
 	add_child(settings)

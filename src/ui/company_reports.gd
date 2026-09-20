@@ -1,12 +1,16 @@
 class_name CompanyReports
 extends VBoxContainer
 
+signal command_requested(command: Dictionary)
+
 var session: GameSession
 var tabs: TabBar
 var periods: OptionButton
 var products: OptionButton
 var table: Tree
 var context: Label
+var advertising_budget: SpinBox
+var apply_advertising: Button
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(760, 510)
@@ -20,6 +24,15 @@ func _ready() -> void:
 	row.add_child(periods)
 	products = OptionButton.new()
 	row.add_child(products)
+	advertising_budget = SpinBox.new()
+	advertising_budget.min_value = 0
+	advertising_budget.max_value = 1000000
+	advertising_budget.step = 1
+	advertising_budget.suffix = " $/day"
+	row.add_child(advertising_budget)
+	apply_advertising = Button.new()
+	apply_advertising.text = "Queue advertising"
+	row.add_child(apply_advertising)
 	context = Label.new()
 	context.clip_text = true
 	context.custom_minimum_size.y = 52
@@ -37,6 +50,9 @@ func _ready() -> void:
 	tabs.tab_changed.connect(func(_index: int) -> void: refresh())
 	periods.item_selected.connect(func(_index: int) -> void: refresh())
 	products.item_selected.connect(func(_index: int) -> void: refresh())
+	apply_advertising.pressed.connect(func() -> void:
+		if products.selected >= 0:
+			command_requested.emit({"type": "set_advertising_budget", "product": str(products.get_item_metadata(products.selected)), "budget": int(round(advertising_budget.value * 100.0))}))
 
 static func money(cents: int) -> String:
 	var parts: PackedStringArray = ("%.2f" % (absi(cents) / 100.0)).split(".")
@@ -74,10 +90,12 @@ func refresh() -> void:
 	table.create_item()
 	periods.visible = tabs.current_tab in [0, 2]
 	products.visible = tabs.current_tab == 3
+	advertising_budget.visible = tabs.current_tab == 3
+	apply_advertising.visible = tabs.current_tab == 3
 	context.text = owner.display_name + " • " + sim.clock.date_string() + "\n" + periods.get_item_text(periods.selected) + " • integer cents; current period includes activity through today."
 	match tabs.current_tab:
 		0:
-			for pair: Array in [["Retail sales", "retail_revenue"], ["Wholesale sales", "wholesale_revenue"], ["REVENUE", "revenue"], ["Cost of goods sold", "cogs"], ["GROSS PROFIT", "gross_profit"], ["Freight / logistics", "freight"], ["Depreciation", "depreciation"], ["R&D research", "research_expense"], ["Other expenses / disposal losses", "other_expenses"], ["TOTAL OPERATING EXPENSES", "expenses"], ["OPERATING / NET PROFIT", "profit"]]: amount(pair[0], p[pair[1]])
+			for pair: Array in [["Retail sales", "retail_revenue"], ["Wholesale sales", "wholesale_revenue"], ["REVENUE", "revenue"], ["Cost of goods sold", "cogs"], ["GROSS PROFIT", "gross_profit"], ["Freight / logistics", "freight"], ["Depreciation", "depreciation"], ["R&D research", "research_expense"], ["Advertising", "advertising_expense"], ["Other expenses / disposal losses", "other_expenses"], ["TOTAL OPERATING EXPENSES", "expenses"], ["OPERATING / NET PROFIT", "profit"]]: amount(pair[0], p[pair[1]])
 			context.text += "\nNo tax or interest: net profit equals operating profit."
 		1:
 			context.text = owner.display_name + " • Balance sheet as of " + sim.clock.date_string()
@@ -118,6 +136,8 @@ func _market(sim: Economy) -> void:
 			products.set_item_metadata(products.item_count - 1, id)
 	var product: String = str(products.get_item_metadata(products.selected))
 	var definition: Dictionary = sim.catalog.products[product]
+	var owner: SimCompany = sim.companies[session.player_company]
+	advertising_budget.set_value_no_signal(int(owner.advertising_budgets[product]) / 100.0)
 	var category: Dictionary = sim.category_market.get(definition.category, {})
 	var m: Dictionary = sim.market.get(product, ConsumerMarket.empty_report())
 	var local: Dictionary = ConsumerMarket.local_offer(sim, product)
@@ -129,7 +149,9 @@ Category potential %d / purchased %d • no purchase or unfilled %d" % [definiti
 	comparison("Brand", str(local.brand) if not local.is_empty() else "—", "%.1f" % m.average_brand if realized else "—")
 	comparison("Overall / 100", "%.1f" % ConsumerDemand.overall(local.price, definition.reference_price, local.quality, local.brand) if not local.is_empty() else "—", "%.1f" % m.average_overall if realized else "—")
 	comparison("Units / realized share", "%d / %.1f%%" % [m.local_units, m.local_share * 100] if not local.is_empty() else "—", "%d / 100%%" % m.units if realized else "—")
-	comparison("Your product brand (read-only)", str(sim.companies[session.player_company].brand(product)), "")
+	comparison("Your company brand", str(owner.brand(product)), "")
+	comparison("Advertising budget / day", money(int(owner.advertising_budgets[product])), "")
+	comparison("Advertising progress / next point", "%s / %s" % [money(int(owner.advertising_progress[product])), money(sim.advertising_threshold(product, owner.brand(product))) if owner.brand(product) < 100 else "MAX"], "")
 	comparison("CORPORATE OFFERS", "Price / stock quality", "Brand / sold / share")
 	if sim.product_public(product):
 		for f: SimFacility in sim.facilities:
