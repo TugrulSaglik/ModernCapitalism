@@ -152,6 +152,7 @@ Category potential %d / purchased %d • no purchase or unfilled %d" % [definiti
 	comparison("Your company brand", str(owner.brand(product)), "")
 	comparison("Advertising budget / day", money(int(owner.advertising_budgets[product])), "")
 	comparison("Advertising progress / next point", "%s / %s" % [money(int(owner.advertising_progress[product])), money(sim.advertising_threshold(product, owner.brand(product))) if owner.brand(product) < 100 else "MAX"], "")
+	comparison("Inactive advertising days", str(owner.advertising_inactive_days[product]), "")
 	comparison("CORPORATE OFFERS", "Price / stock quality", "Brand / sold / share")
 	if sim.product_public(product):
 		for f: SimFacility in sim.facilities:

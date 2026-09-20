@@ -1,6 +1,6 @@
 # Economic model
 
-## Milestone 8A1 player advertising and brand growth
+## Milestone 8A2A advertising, brand growth and decay
 
 Each company has an integer-cent daily advertising budget and retained advertising
 progress for every consumer product; both default to zero. At the start of each
@@ -12,13 +12,21 @@ For current company-product brand `b`, the next point costs
 `reference_price * (20 + b) / 10` cents. This is the integer equivalent of
 `reference_price * (2 + b / 10)` while retaining tenths. Each crossed threshold is
 subtracted, one brand point is awarded, and the threshold is recomputed; excess
-progress remains and multiple points may be earned in a day. Brand is capped at 100
-and does not decay in 8A1.
+progress remains and multiple points may be earned in a day. Brand is capped at 100.
+
+Each company also stores consecutive advertising inactivity days for each consumer
+product. Only public products advance this counter. A day with actual fully funded
+advertising resets it to zero and cannot decay brand; a zero budget or unaffordable
+positive budget increments it. Days 1–30 are a grace period. Brand then loses one
+point on inactive days 60, 90, 120 and every following 30-day boundary, bounded at
+zero. Retained advertising progress is never reduced by inactivity. Products locked
+by public technology/era gates remain at zero inactive days until they become public.
+Decay has no cash, expense, inventory, asset or liability entry.
 
 Advertising changes only the existing company-product seller/market-presence brand.
 It does not alter inventory quality, either continuous R&D capability, production
 cost, or the catalog-derived Local price, quality and brand. Inventory still carries
-no manufacturer-brand provenance. ConsumerDemand uses the resulting brand through
+no manufacturer-brand provenance. Local neither advertises nor decays. ConsumerDemand uses the resulting brand through
 its existing appeal factor and retains the same separate outside option.
 
 ## Units and firms

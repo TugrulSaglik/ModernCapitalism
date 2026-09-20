@@ -2,13 +2,15 @@
 
 ## Current milestone
 
-Milestone 8A1 adds company-owned consumer-product advertising budgets and retained
-progress. Economy validates the company-level player command and advances advertising
-in stable company/product order before consumer clearing. SimCompany records the
-separate cash operating expense and the existing history/report pipeline carries it
-through profit, cash flow and equity. Schema 12 persists and validates budget,
-progress, brand and accounts. Brand remains seller company-product market presence;
-inventory has no manufacturer-brand provenance. AI budgets remain zero in 8A1.
+Milestone 8A2A extends company-owned consumer-product advertising with consecutive
+inactive-day state. Economy advances funded growth or deterministic decay in stable
+company/product order before consumer clearing, gated by public product availability.
+Actual paid advertising resets inactivity; skipped or unaffordable spending advances
+it. SimCompany retains advertising progress independently and records only funded
+spending as a cash operating expense. Schema 13 persists and validates budget,
+progress, inactivity, brand and accounts. Brand remains seller company-product market
+presence; inventory has no manufacturer-brand provenance. Local remains static and AI
+budgets remain zero until 8A2B.
 
 Milestone 7B3B extends the shared R&D scheduler with a third structured kind,
 `process_efficiency`. SimCompany owns bounded company/product efficiency levels and
@@ -57,7 +59,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Catalog | Read and validate JSON products, technologies, facility types and scenario; resolve public era availability and validate research data |
 | SimClock | Gregorian calendar and explicit daily ticks |
 | Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
-| Company | Accounts, technology knowledge/progress, company-product quality and process-efficiency levels/progress, and brand |
+| Company | Accounts, technology knowledge/progress, company-product quality and process-efficiency levels/progress, brand, and advertising state |
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment |
 | Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
@@ -93,7 +95,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-12 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-13 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller

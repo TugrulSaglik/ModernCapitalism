@@ -39,6 +39,7 @@ var process_efficiency_progress: Dictionary = {}
 var product_brands: Dictionary = {}
 var advertising_budgets: Dictionary = {}
 var advertising_progress: Dictionary = {}
+var advertising_inactive_days: Dictionary = {}
 
 func brand(product: String) -> int:
 	return int(product_brands.get(product, 0))
@@ -132,7 +133,7 @@ func profit() -> int:
 	return revenue - cogs - expenses
 
 func snapshot() -> Dictionary:
-	return {"product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
+	return {"product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "advertising_inactive_days": advertising_inactive_days.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
 		"freight": freight, "purchases": purchases, "depreciation": depreciation,
 		"recorded_profit": recorded_profit, "daily_history": daily_history.duplicate(true), "monthly_history": monthly_history.duplicate(true),
 		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense,

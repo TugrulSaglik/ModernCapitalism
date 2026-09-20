@@ -64,6 +64,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 				companies[str(definition.id)].product_brands[product] = catalog.starting_brand(product)
 				companies[str(definition.id)].advertising_budgets[product] = 0
 				companies[str(definition.id)].advertising_progress[product] = 0
+				companies[str(definition.id)].advertising_inactive_days[product] = 0
 		for technology: String in catalog.technologies:
 			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
 	definitions = catalog.scenario.facilities.duplicate(true)
@@ -609,8 +610,15 @@ func _advertise() -> void:
 		var products: Array = owner.advertising_budgets.keys()
 		products.sort()
 		for product: String in products:
+			if not product_public(product): continue
 			var budget: int = int(owner.advertising_budgets[product])
-			if budget <= 0 or not owner.pay_expense(budget): continue
+			if budget <= 0 or not owner.pay_expense(budget):
+				var inactive_days: int = int(owner.advertising_inactive_days[product]) + 1
+				owner.advertising_inactive_days[product] = inactive_days
+				if inactive_days > 30 and inactive_days % 30 == 0:
+					owner.product_brands[product] = maxi(0, owner.brand(product) - 1)
+				continue
+			owner.advertising_inactive_days[product] = 0
 			owner.advertising_expense += budget
 			owner.advertising_progress[product] = int(owner.advertising_progress[product]) + budget
 			while owner.brand(product) < 100:
@@ -663,7 +671,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 12, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 13, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

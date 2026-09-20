@@ -14,7 +14,8 @@
 | 7B3A — Repeatable product-quality R&D (implemented) | Funded company/product quality levels affecting only newly manufactured goods | 7B2 |
 | 7B3B — Production/process-efficiency R&D (implemented) | Repeatable conversion-cost improvements without changing product-quality provenance | 7B3A |
 | 8A1 — Player advertising and brand growth (implemented) | Daily company-product budgets, operating expense and deterministic brand growth | 7B2–7B3B |
-| 8A2 — Brand dynamics and AI advertising | Brand decay/dynamics and deterministic competitor advertising policy | 8A1 |
+| 8A2A — Brand decay dynamics (implemented) | Actual-spend inactivity tracking and deterministic company-product brand decay | 8A1 |
+| 8A2B — AI advertising policy (next) | Deterministic competitor advertising budgets and funding policy | 8A2A |
 | 8B — Headquarters and staffing | Corporate headquarters, staff and hiring | 8A2 |
 | 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8B |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
@@ -49,4 +50,6 @@ Quality provenance is implemented in 7B1; Local competition and static company-p
 brand in 7B2; repeatable product-quality and conversion-cost process R&D are
 implemented in 7B3A/7B3B. Milestone 8A1 adds player advertising without changing
 brand provenance: brand remains company-product market-presence state, not
-manufacturer provenance carried through inventory.
+manufacturer provenance carried through inventory. Milestone 8A2A adds deterministic
+decay for public products after unfunded advertising inactivity; 8A2B is the next
+increment and supplies AI advertising policy.

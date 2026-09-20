@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 12 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 13 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -174,12 +174,13 @@ func restore(state: Dictionary) -> Economy:
 		for product: String in item.product_brands:
 			if not owner.product_brands.has(product) or not item.product_brands[product] is int or item.product_brands[product] < 0 or item.product_brands[product] > 100: return null
 		owner.product_brands = item.product_brands.duplicate(true)
-		if item.advertising_budgets.size() != owner.advertising_budgets.size() or item.advertising_progress.size() != owner.advertising_progress.size(): return null
+		if item.advertising_budgets.size() != owner.advertising_budgets.size() or item.advertising_progress.size() != owner.advertising_progress.size() or item.advertising_inactive_days.size() != owner.advertising_inactive_days.size(): return null
 		for product: String in owner.advertising_budgets:
-			if not item.advertising_budgets.has(product) or not item.advertising_progress.has(product) or not item.advertising_budgets[product] is int or not item.advertising_progress[product] is int: return null
-			if item.advertising_budgets[product] < 0 or item.advertising_budgets[product] > 100000000 or item.advertising_progress[product] < 0: return null
+			if not item.advertising_budgets.has(product) or not item.advertising_progress.has(product) or not item.advertising_inactive_days.has(product) or not item.advertising_budgets[product] is int or not item.advertising_progress[product] is int or not item.advertising_inactive_days[product] is int: return null
+			if item.advertising_budgets[product] < 0 or item.advertising_budgets[product] > 100000000 or item.advertising_progress[product] < 0 or item.advertising_inactive_days[product] < 0: return null
 		owner.advertising_budgets = item.advertising_budgets.duplicate(true)
 		owner.advertising_progress = item.advertising_progress.duplicate(true)
+		owner.advertising_inactive_days = item.advertising_inactive_days.duplicate(true)
 		owner.known_technologies.clear()
 		for technology: String in item.known_technologies:
 			var acquired: Variant = item.known_technologies[technology]
