@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 8 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 9 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -170,6 +170,10 @@ func restore(state: Dictionary) -> Economy:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
+		if item.product_brands.size() != owner.product_brands.size(): return null
+		for product: String in item.product_brands:
+			if not owner.product_brands.has(product) or not item.product_brands[product] is int or item.product_brands[product] < 0 or item.product_brands[product] > 100: return null
+		owner.product_brands = item.product_brands.duplicate(true)
 		owner.known_technologies.clear()
 		for technology: String in item.known_technologies:
 			var acquired: Variant = item.known_technologies[technology]
@@ -316,18 +320,7 @@ func restore(state: Dictionary) -> Economy:
 			return null
 		sim.debug_actions.append(action.duplicate(true))
 	for product: String in state.market:
-		var record: Variant = state.market[product]
-		if not sim.catalog.products.has(product) or not shape(record, {"potential": 0, "units": 0, "revenue": 0, "average_price": 0.0, "company_units": {}, "market_share": {}}):
-			return null
-		for field: String in ["potential", "units", "revenue"]:
-			if not nonnegative(record[field]):
-				return null
-		for id: String in record.company_units:
-			if not sim.companies.has(id) or not nonnegative(record.company_units[id]):
-				return null
-		for id: String in record.market_share:
-			if not sim.companies.has(id) or not record.market_share[id] is float or not is_finite(record.market_share[id]):
-				return null
+		if not _valid_market(sim, product, state.market[product]): return null
 	if not nonnegative(state.consumer_units) or not nonnegative(state.consumer_revenue):
 		return null
 	sim.market = state.market.duplicate(true)
@@ -335,11 +328,16 @@ func restore(state: Dictionary) -> Economy:
 		if not sim.catalog.categories.has(category) or not _valid_category(sim, state.category_market[category]): return null
 		var units: int = 0
 		var revenue: int = 0
+		var local_units: int = 0
+		var local_revenue: int = 0
 		for product: String in sim.market:
 			if sim.catalog.products[product].category == category:
 				units += int(sim.market[product].units)
 				revenue += int(sim.market[product].revenue)
+				local_units += int(sim.market[product].local_units)
+				if sim.catalog.consumer_product(product): local_revenue += int(sim.market[product].local_units) * int(sim.catalog.local_values(product).price)
 		if units != int(state.category_market[category].units) or revenue != int(state.category_market[category].revenue): return null
+		if local_units != int(state.category_market[category].local_units) or local_revenue != int(state.category_market[category].local_revenue): return null
 	sim.category_market = state.category_market.duplicate(true)
 	if state.market_history.size() > 90: return null
 	for entry: Variant in state.market_history:
@@ -362,10 +360,10 @@ func restore(state: Dictionary) -> Economy:
 	return sim
 
 func _valid_category(sim: Economy, row: Variant) -> bool:
-	if not shape(row, {"potential": 0, "units": 0, "revenue": 0, "segments": {}}): return false
-	for field: String in ["potential", "units", "revenue"]:
+	if not shape(row, {"potential": 0, "units": 0, "revenue": 0, "local_units": 0, "local_revenue": 0, "segments": {}}): return false
+	for field: String in ["potential", "units", "revenue", "local_units", "local_revenue"]:
 		if not nonnegative(row[field]): return false
-	if row.units > row.potential: return false
+	if row.units > row.potential or row.local_units > row.units or row.local_revenue > row.revenue: return false
 	var total: int = 0
 	for segment: String in row.segments:
 		if not sim.catalog.segments.has(segment) or not nonnegative(row.segments[segment]): return false
@@ -429,4 +427,21 @@ func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
 		previous = s.id
 		sim.logistics.shipments.append(s.duplicate(true))
 	sim.logistics.next_id = state.next_id
+	return true
+
+func _valid_market(sim: Economy, product: String, record: Variant) -> bool:
+	if not sim.catalog.products.has(product) or not shape(record, ConsumerMarket.empty_report()): return false
+	for field: String in ["potential", "units", "revenue", "local_units", "quality_total", "brand_total"]:
+		if not nonnegative(record[field]): return false
+	var units: int = record.local_units
+	if record.local_units > 0 and not sim.catalog.consumer_product(product): return false
+	for id: String in record.company_units:
+		if not sim.companies.has(id) or not nonnegative(record.company_units[id]): return false
+		units += int(record.company_units[id])
+	if units != record.units or units > record.potential or record.quality_total < units or record.quality_total > 100 * units or record.brand_total > 100 * units: return false
+	if units == 0 and record.revenue != 0: return false
+	var expected: Dictionary = record.duplicate(true)
+	ConsumerMarket.finish_report(expected, int(sim.catalog.products[product].reference_price))
+	for field: String in ["average_price", "average_quality", "average_brand", "average_overall", "local_share", "market_share"]:
+		if expected[field] != record[field]: return false
 	return true

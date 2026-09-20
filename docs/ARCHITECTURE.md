@@ -2,6 +2,16 @@
 
 ## Current milestone
 
+Milestone 7B2 adds catalog-derived synthetic Local offers to ConsumerMarket, sharing
+the existing segment/category allocator and preserving the outside option.
+SimCompany owns authoritative product_brands; goods remain brand-free.
+Market reports retain Local units, realized weighted quality/brand totals and
+Local-inclusive shares/averages. Category 90-day history includes separate Local
+units/spending. No Local domain entity, account or inventory is created.
+Schema 9 / catalog 4 / format 2 validates brands and report reconciliation.
+See [exact formulas and semantics](ECONOMY.md#milestone-7b2-local-market-and-brand-foundation).
+The following milestone descriptions are historical.
+
 Milestone 7B1 adds integer `quality_points` to SimInventory and shipment records.
 Production consumes pooled component points and combines them with process quality;
 retail, sourcing and reports read actual stock quality. `remove_pooled` returns cost
@@ -27,9 +37,9 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Catalog | Read and validate JSON products, technologies, facility types and scenario; resolve public era availability and validate research data |
 | SimClock | Gregorian calendar and explicit daily ticks |
 | Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
-| Company | Cash, capital, revenue, operating expense, cost of goods sold and profit |
+| Company | Accounts, research knowledge/progress and company-product brand |
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers and quality |
-| Demand | Pure price/quality preference and finite consumer allocation |
+| Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
 | SupplierMarket | Produce deterministic eligible offers ranked by price per quality point |
 | GameSession | Own the Economy, player authorization, mode, save/load and Debug access |
@@ -63,7 +73,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-8 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-9 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller

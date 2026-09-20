@@ -9,6 +9,7 @@ var version: int = 0
 var errors: Array[String] = []
 var categories: Dictionary = {}
 var segments: Dictionary = {}
+var market_defaults: Dictionary = {}
 
 func load_data(path: String = "res://data/example_economy.json") -> bool:
 	products.clear()
@@ -20,6 +21,10 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		errors.append("Invalid catalog JSON: " + path)
 		return false
 	var root: Dictionary = parser.data
+	if not root.get("market_defaults") is Dictionary:
+		errors.append("Market defaults required")
+		return false
+	market_defaults = root.market_defaults.duplicate(true)
 	categories.clear()
 	segments.clear()
 	_index(root.get("categories", []), categories)
@@ -47,6 +52,9 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		_validate_technology(id, [])
 	for id: String in categories:
 		var c: Dictionary = categories[id]
+		if not c.get("market", {}) is Dictionary:
+			errors.append("Invalid category market overrides: " + id)
+			return false
 		if not technologies.has(str(c.get("technology", ""))) or float(c.get("daily_demand", -1)) < 0 or float(c.get("purchase_frequency", -1)) < 0 or float(c.get("income_sensitivity", -1)) < 0: errors.append("Invalid category: " + id)
 	if segments.is_empty(): errors.append("Consumer segments required")
 	for id: String in segments:
@@ -56,8 +64,23 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 			if not categories.has(category) or float(s.category_preferences[category]) < 0: errors.append("Invalid segment preference: " + id)
 	for id: String in products:
 		var p: Dictionary = products[id]
+		if not p.get("market", {}) is Dictionary:
+			errors.append("Invalid product market overrides: " + id)
+			return false
 		if not categories.has(str(p.get("category", ""))): errors.append("Unknown category: " + id)
 		_validate_recipe(id, [])
+		if consumer_product(id):
+			var config: Dictionary = market_config(id)
+			var multiplier: Variant = config.get("local_price_multiplier")
+			if not (multiplier is int or multiplier is float) or not is_finite(float(multiplier)) or float(multiplier) <= 0 or float(multiplier) > 100:
+				errors.append("Invalid Local price multiplier: " + id)
+			else:
+				var price: int = int(round(float(p.reference_price) * float(multiplier)))
+				if price < 1 or price > 100000000: errors.append("Invalid Local price: " + id)
+			for field: String in ["local_quality", "local_brand", "corporate_brand"]:
+				var value: Variant = config.get(field)
+				if not (value is int or value is float) or not is_finite(float(value)) or float(value) != floor(float(value)) or float(value) < (1 if field == "local_quality" else 0) or float(value) > 100:
+					errors.append("Invalid market rating: " + id + "/" + field)
 		if not technologies.has(str(p.get("technology", ""))) or int(p.get("reference_price", 0)) <= 0 or int(p.get("conversion_cost", -1)) < 0 or int(p.get("daily_demand", -1)) < 0:
 			errors.append("Invalid product: " + id)
 		for input: String in p.get("inputs", {}):
@@ -162,3 +185,22 @@ func supports_product(type_id: String, product: String) -> bool:
 	if not facility_types.has(type_id): return false
 	var definition: Dictionary = facility_types[type_id]
 	return product.is_empty() if definition.behavior == "research" else product in definition.get("products", []) and products.has(product)
+
+# Positive legacy product demand identifies consumer goods; category demand sizes pools.
+func consumer_product(product: String) -> bool:
+	return products.has(product) and int(products[product].get("daily_demand", 0)) > 0
+
+func market_config(product: String) -> Dictionary:
+	var config: Dictionary = market_defaults.duplicate()
+	config.merge(categories.get(products[product].category, {}).get("market", {}), true)
+	config.merge(products[product].get("market", {}), true)
+	return config
+
+func starting_brand(product: String) -> int:
+	return int(market_config(product).corporate_brand)
+
+func local_values(product: String) -> Dictionary:
+	if not consumer_product(product): return {}
+	var config: Dictionary = market_config(product)
+	return {"product": product, "price": int(round(float(products[product].reference_price) * float(config.local_price_multiplier))),
+		"quality": int(config.local_quality), "brand": int(config.local_brand)}

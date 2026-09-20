@@ -56,6 +56,8 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	definitions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	for definition: Dictionary in definitions:
 		companies[str(definition.id)] = Company.new(definition)
+		for product: String in catalog.products:
+			if catalog.consumer_product(product): companies[str(definition.id)].product_brands[product] = catalog.starting_brand(product)
 		for technology: String in catalog.technologies:
 			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
 	definitions = catalog.scenario.facilities.duplicate(true)
@@ -506,7 +508,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 8, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 9, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

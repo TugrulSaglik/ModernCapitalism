@@ -43,6 +43,10 @@ household sector, not an income/employment/household-cash simulation.
 
 ## Competition and quality
 
+The formula below describes the 7B1 checkpoint. Milestone 7B2 adds synthetic Local
+offers and a positive brand factor, Local-inclusive shares and weighted averages;
+see [current market rules](ECONOMY.md#milestone-7b2-local-market-and-brand-foundation).
+
 For each available retail offer with stock:
 
 `appeal = clamp((product_reference_price / retail_price)^price_sensitivity

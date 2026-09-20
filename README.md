@@ -52,14 +52,26 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 7B1
+## Milestone 7B2
+
+Public consumer goods now compete with a synthetic **Local** offer as well as
+the separate no-purchase option. Company/product brand is static and read-only.
+Company → Markets compares Local and realized market averages, corporate prices,
+stocked quality, brands, sales and shares. Shares include Local purchases.
+Current saves: **economy schema 9 / catalog 4 / format 2**; older saves are incompatible.
+See [model and formulas](docs/ECONOMY.md#milestone-7b2-local-market-and-brand-foundation)
+and [validation](docs/VALIDATION.md). Focused tests: tests/milestone7b2_tests.gd;
+two-frame programmatic workflow: tests/local_market_smoke.gd.
+7B3 continuous product/process improvements is next; advertising remains deferred.
+
+## Milestone 7B1 (historical checkpoint)
 
 Manufactured goods now carry integer pooled quality through components, warehouses,
 shipments and retail. Consumer and supplier offers use actual stocked product
 quality. Stores do not change goods quality. Saves use **economy schema 8 / catalog 3
 / format 2**; older schemas are incompatible. [Quality rules](docs/ECONOMY.md#milestone-7b1-product-quality-provenance).
 Run `tests/milestone7b1_tests.gd` for focused checks and `tests/quality_smoke.gd`
-for two programmatic rendered frames. Continuous R&D and Local/brand are deferred.
+for two programmatic rendered frames. Local/brand is superseded by 7B2 above; continuous R&D remains deferred.
 
 ## Milestone 7A (historical checkpoint)
 

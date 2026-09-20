@@ -1,5 +1,11 @@
 {
-  "version": 3,
+  "version": 4,
+  "market_defaults": {
+    "local_price_multiplier": 1.15,
+    "local_quality": 50,
+    "local_brand": 60,
+    "corporate_brand": 20
+  },
   "technologies": [
     {
       "id": "electronics",

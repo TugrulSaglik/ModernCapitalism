@@ -642,3 +642,47 @@ Historical suites contributed 48,505 checks; 7B1 contributed 140 focused checks 
 errors or failed assertions. The final log is `.godot/7b1-final-regression.log`.
 `git diff --check` passed. Only validation documentation was updated after the run;
 no code/data changed, and the complete suite was not repeated.
+
+## Milestone 7B2 validation
+
+Validated September 20, 2026 on Windows / Godot 4.7.2. The fresh-session working
+tree was clean at 3c9ceeb (committed 7B1). README, AGENTS, roadmap, Milestone 6,
+economy, technology, architecture and validation documentation were read before
+editing, alongside consumer allocation, goods quality, catalog, Markets UI and
+SaveStore. No branch, commit, Computer Use or external dependency was used.
+
+Targeted baseline: 7B1, **140 checks, zero failures**. Development verification:
+
+| Suite | Checks | Failures |
+| --- | ---: | ---: |
+| 7B2 Local/brand/averages/persistence | 240 | 0 |
+| Milestone 6 consumer markets/finance/replay | 2,547 | 0 |
+| Milestone 2 commands/persistence | 809 | 0 |
+| Local Markets rendered smoke | 11 | 0 |
+| Local Markets headless smoke after layout fix | 9 | 0 |
+
+Focused tests cover all 17 consumer products and component exclusion, public
+availability independent of knowledge, category/product defaults, invalid ratings,
+Local-only clearing without corporate state mutation, corporate competition with
+no AI supply, outside-option retention, low-brand demand, stock limits, seller
+brand separate from goods, realized shares, independently calculated weighted
+price/quality/brand, bounded Overall, zero-sales fallback, category history, exact
+accounting/cash flow, disk persistence, invalid-save rejection, and 30-day complete
+snapshot continuation in both eras. An initial test-only AI ID typo was corrected;
+the clean rerun passed without script errors.
+
+Exactly two 1280 × 800 programmatic frames were captured and inspected:
+.godot/7b2-screenshots/smartphone.png and laptop.png. Local/Average and corporate
+offers are readable in the existing dialog. Smartphone displayed Local 33.3%,
+player combined 40.0% and rival 26.7%; laptop displayed Local 75.0% and rival 25.0%.
+A clipped ancillary segment-summary row was split across the existing three columns
+after inspection; headless UI checks passed. No additional frames or general
+graphical polish were performed. The scrollable report retains its existing size.
+
+Current intentional limitations: static brand and Local values; integer allocations
+can produce zero sales for small offers; Local supply has no physical/accounting
+simulation; no Concern display, advertising, loyalty, continuous improvements,
+catalog expansion, save migration or new long-term charts. Existing strategic AI
+and wholesale-allocation limitations remain. 7B3 should add funded repeatable
+product/process improvements affecting newly produced goods, preserving inventory
+quality provenance, brand independence, deterministic replay and exact accounts.

@@ -100,7 +100,7 @@ expenses. Income Statement exposes R&D separately; monthly/archived records, TTM
 retained earnings and operating Cash Flow use the same ledger. Center overhead stays
 in other operating expenses. Research is expensed, never capitalized as an intangible.
 
-Economy schema **8**, catalog version **3**, save format **2** preserve knowledge,
+Economy schema **9**, catalog version **4**, save format **2** preserve knowledge,
 partial work and facility assignment exactly with the existing numeric encoding.
 Restore validates catalog references, prerequisites, progress bounds, duplicate
 assignments, facility behavior and categorized accounts before replacing the session.
@@ -115,7 +115,8 @@ the date gates and funded research.
 Milestone 7B1 now gives goods integer pooled quality provenance, independently of
 technology unlocks. Facility quality means production process baseline, not retail
 quality. See [quality formula and persistence](ECONOMY.md#milestone-7b1-product-quality-provenance).
-Current saves use economy schema 8 / catalog 3 / format 2. 7B2 adds a Local-market
-baseline competitor and brand foundation; 7B3 adds continuous product/process R&D.
-Neither follow-up is implemented here. Patents, licensing, staff, HQ and strategic
-AI remain deferred.
+Current saves use economy schema 9 / catalog 4 / format 2. 7B2 is implemented:
+Local offers obey public availability (including existing Debug overrides), but
+never grant company knowledge. Corporate product brands are static seller state,
+independent of research and goods quality. 7B3 continuous product/process R&D is
+next. Patents, licensing, staff, HQ and strategic AI remain deferred.

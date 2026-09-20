@@ -62,6 +62,14 @@ func refresh() -> void:
 	var sim: Economy = session.sim
 	var owner: SimCompany = sim.companies[session.player_company]
 	var p: Dictionary = FinancialReports.period(owner, sim.clock, ["current_month", "previous_month", "ttm", "year"][periods.selected])
+	table.columns = 3 if tabs.current_tab == 3 else 2
+	table.set_column_title(0, "Market / offer" if tabs.current_tab == 3 else "Account / metric")
+	table.set_column_title(1, "Local" if tabs.current_tab == 3 else "Amount")
+	if tabs.current_tab == 3:
+		table.set_column_title(2, "Market average")
+		table.set_column_expand_ratio(0, 3)
+		table.set_column_expand_ratio(1, 2)
+		table.set_column_expand_ratio(2, 2)
 	table.clear()
 	table.create_item()
 	periods.visible = tabs.current_tab in [0, 2]
@@ -94,25 +102,50 @@ func refresh() -> void:
 				amount("Revenue", company.revenue)
 				amount("Accumulated profit", company.profit())
 
+func comparison(label: String, local: String, average: String) -> void:
+	add_row(label, local)
+	var row: TreeItem = table.get_root().get_children().back()
+	row.set_text(2, average)
+	row.set_text_alignment(2, HORIZONTAL_ALIGNMENT_RIGHT)
+
 func _market(sim: Economy) -> void:
 	if products.item_count == 0:
 		var ids: Array = sim.catalog.products.keys()
 		ids.sort()
 		for id: String in ids:
+			if not sim.catalog.consumer_product(id): continue
 			products.add_item(sim.catalog.products[id].name)
 			products.set_item_metadata(products.item_count - 1, id)
 	var product: String = str(products.get_item_metadata(products.selected))
 	var definition: Dictionary = sim.catalog.products[product]
 	var category: Dictionary = sim.category_market.get(definition.category, {})
-	var m: Dictionary = sim.market.get(product, {})
-	context.text = "%s • %s • %s\nResidents %d • segments %s" % [definition.name, definition.category, "Available" if sim.product_public(product) else "Era locked", sim.city.population.total, str(ConsumerMarket.populations(sim))]
-	add_row("Category demand / units sold (last completed day)", "%d / %d" % [category.get("potential", 0), category.get("units", 0)])
-	for segment: String in category.get("segments", {}): add_row(sim.catalog.segments[segment].name + " • potential", str(category.segments[segment]))
-	add_row("Product units sold", str(m.get("units", 0)))
-	amount("Average realized price", int(m.get("average_price", 0)))
-	for company: String in m.get("market_share", {}): add_row(sim.companies[company].display_name + " • product share", "%.1f%%" % (float(m.market_share[company]) * 100))
-	for f: SimFacility in sim.facilities:
-		if sim._behavior(f) == "retail" and f.assortment.has(product): add_row(f.id + " • stock / quality / price", "%d / %s / %s" % [f.inventory.quantity(product), f.inventory.quality_text(product), money(f.line_price(product))])
+	var m: Dictionary = sim.market.get(product, ConsumerMarket.empty_report())
+	var local: Dictionary = ConsumerMarket.local_offer(sim, product)
+	var realized: bool = int(m.units) > 0
+	context.text = "%s • %s • %s
+Category potential %d / purchased %d • no purchase or unfilled %d" % [definition.name, definition.category, "Public" if sim.product_public(product) else "Era locked", category.get("potential", 0), category.get("units", 0), int(category.get("potential", 0)) - int(category.get("units", 0))]
+	comparison("Price", money(local.price) if not local.is_empty() else "—", money(int(round(m.average_price))) if realized else "—")
+	comparison("Quality", str(local.quality) if not local.is_empty() else "—", "%.1f" % m.average_quality if realized else "—")
+	comparison("Brand", str(local.brand) if not local.is_empty() else "—", "%.1f" % m.average_brand if realized else "—")
+	comparison("Overall / 100", "%.1f" % ConsumerDemand.overall(local.price, definition.reference_price, local.quality, local.brand) if not local.is_empty() else "—", "%.1f" % m.average_overall if realized else "—")
+	comparison("Units / realized share", "%d / %.1f%%" % [m.local_units, m.local_share * 100] if not local.is_empty() else "—", "%d / 100%%" % m.units if realized else "—")
+	comparison("Your product brand (read-only)", str(sim.companies[session.player_company].brand(product)), "")
+	comparison("CORPORATE OFFERS", "Price / stock quality", "Brand / sold / share")
+	if sim.product_public(product):
+		for f: SimFacility in sim.facilities:
+			if sim._behavior(f) != "retail" or not f.assortment.has(product): continue
+			var sold: int = int(f.line_today.get(product, {}).get("units", 0))
+			var share: float = float(sold) / int(m.units) if realized else 0.0
+			comparison(sim.companies[f.company_id].display_name + " • " + f.id, money(f.line_price(product)) + " / " + f.inventory.quality_text(product), "%d / %d / %.1f%%" % [sim.companies[f.company_id].brand(product), sold, share * 100])
+	comparison("COMPANY PRODUCT SHARES", "All retailers combined", "")
+	for company: String in m.market_share:
+		comparison(sim.companies[company].display_name, "%.1f%%" % (float(m.market_share[company]) * 100), "")
+	var segments: Array[String] = []
+	for segment: String in category.get("segments", {}):
+		segments.append("%s %d" % [segment, category.segments[segment]])
+	for index: int in range(0, segments.size(), 3):
+		comparison("Potential: " + segments[index], segments[index + 1] if index + 1 < segments.size() else "", segments[index + 2] if index + 2 < segments.size() else "")
 	var units: int = 0
 	for row: Dictionary in sim.market_history: units += int(row.categories.get(definition.category, {}).get("units", 0))
-	add_row("Category sales in retained 90-day history", str(units))
+	comparison("Category 90-day units (incl. Local)", str(units), "")
+	table.tooltip_text = "Completed-day sales include Local; outside/no-purchase has no share. Corporate prices and quality describe current stock. Averages weight completed-day sales. Overall averages three scores: price competitiveness, quality, brand."

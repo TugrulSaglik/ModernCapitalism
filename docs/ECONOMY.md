@@ -188,3 +188,74 @@ Catalog remains **3**, save format **2** retains exact numeric encoding. Schema 
 and earlier saves are rejected without migration. Future company/product/process
 improvements can modify production's baseline before creating new goods; existing
 inventory needs no redesign or retroactive mutation. No improvements are implemented.
+
+## Milestone 7B2: Local market and brand foundation
+
+Each public consumer product (positive product daily_demand metadata) has one
+synthetic Local offer in this city. Category pools still determine finite demand;
+components with no consumer demand have no Local offer. Local is background
+independent commerce, with enough supply for its allocated demand and no company,
+facility, inventory, shipments, cash, revenue ledger or COGS. Its spending is a
+market statistic only. It never teaches corporate manufacturing knowledge.
+
+Catalog market_defaults supplies Local price multiplier 1.15, quality 50, brand 60
+and starting corporate brand 20. Optional category.market then product.market
+fields override these defaults. Local price is round(reference_price * multiplier)
+in cents; validation requires a positive price, integer quality 1–100 and integer
+brands 0–100. Values are static, deterministic and independent of corporate goods.
+Local observes the same public technology/date/Debug gates as corporate resale.
+
+SimCompany.product_brands maps each consumer product to its authoritative integer
+seller brand, including products not yet public. Player and AI share this state
+and defaults; every shop of the same company uses the same product brand. Brand
+does not enter inventory, shipments or production quality. Markets exposes the
+player's brand read-only. No gameplay mutation, automatic growth/decay, advertising,
+loyalty, or corporate/global brand system exists.
+
+For each segment, the exact offer appeal is:
+
+`clamp((reference_price / price)^price_sensitivity
+* (stock_quality / 50)^quality_sensitivity
+* (0.5 + brand / 100), 0.001, 100)`.
+
+The existing segment price/quality exponents are unchanged. Brand's factor is
+bounded 0.5–1.5, so even brand zero can sell. Empty corporate stock has zero
+weight. Local uses its catalog quality and brand in this same formula. The
+outside/no-purchase option retains weight 1: desired purchases are
+`floor(potential * total_appeal / (1 + total_appeal))`. Stable corporate facility/
+product order followed by sorted Local product IDs resolves allocation ties.
+Corporate inventory and shared checkout limits still apply; Local consumes no
+checkout capacity. Integer rounding can give small offers zero sales on a day.
+
+Local is a purchase; the outside option is not. Product realized units are Local
+units plus all corporate units. Company share is company units / realized units;
+Local share is Local units / realized units. Outside demand is excluded, and
+realized shares sum to one when any units sell. Category unrealized potential in
+the UI includes no-purchase and any stock/checkout allocation shortfall.
+
+Price, quality and brand averages are realized-sales-weighted across Local and
+corporate sales. Quality uses the stocked quality observed at each segment's
+sale, not current post-sale stock. Price is actual spending / units, not reference
+price. Zero-sales averages use zero internally and display an em dash.
+
+Report-only Overall is
+`clamp((clamp(50 * reference_price / price, 0, 100) + quality + brand) / 3, 0, 100)`.
+Market-average Overall applies this formula to the three market-average inputs;
+it is not the weighted average of individual Overall scores or a second demand
+allocator. It is an equally weighted comparison score, not consumer importance.
+
+Markets now shows Local/Average price, quality, brand, Overall and realized units/
+share; read-only player brand; corporate seller/retailer, current price/stock
+quality, brand, last-day units and retailer share; combined company shares; segment
+potential and retained category history. Other Company tabs are unchanged.
+Optional Concern/Importance is deferred to later UI refinement.
+
+Cumulative consumer units/spending and existing 90-day category history include
+Local; category records also retain separate Local units/spending. Current product
+reports retain Local units/share and quality/brand weighted totals. Static Local
+definitions are derived, not duplicated in saves. Economy schema 9 / catalog 4 /
+SaveStore format 2 persists corporate brands and expanded reports, validates brand
+maps, ratings, report averages/shares and category reconciliation, and preserves
+exact numeric continuation. Older schemas/catalog hashes are rejected without
+migration. Debug behavior is unchanged; inspection is through Markets/snapshots.
+No new product, physical Local supply chain or long-term chart is introduced.

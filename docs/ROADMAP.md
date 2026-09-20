@@ -10,8 +10,8 @@
 | 6 — Consumer/product economy and financial statements (implemented) | Aggregate segments, category competition, 26 products, multi-product retail, recipe selection, financial statements and monthly history | 2–5 |
 | 7A — Company research core (implemented) | Company knowledge, active R&D projects, technology unlocks, non-product facilities, expense accounting and exact persistence | 3–6 |
 | 7B1 - Product quality provenance (implemented) | Integer pooled goods quality, component inputs, shipments, retail and sourcing | 7A |
-| 7B2 - Local-market baseline competitor and brand foundation (next) | Transparent baseline supply competition and minimal brand state/read-model foundation | 7B1 |
-| 7B3 - Continuous product/process R&D improvements | Funded repeatable improvements affecting newly produced goods | 7B2 |
+| 7B2 - Local-market baseline competitor and brand foundation (implemented) | Transparent baseline supply competition and minimal brand state/read-model foundation | 7B1 |
+| 7B3 - Continuous product/process R&D improvements (next) | Funded repeatable improvements affecting newly produced goods | 7B2 |
 | 8 — Competitive management | AI investment/sourcing/research, corporate headquarters, hiring, difficulty, advertising/branding and balancing | 2–7 |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
@@ -40,4 +40,4 @@ Milestone 6 deliberately excludes borrowing, taxes and transaction-journal compl
 Its categorized accounts and exact cash/equity reconciliations provide the foundation
 for later debt, dividends and ownership. Headquarters, advertising/branding, mergers,
 real estate, active ports/import/export and multi-city play remain future systems.
-Quality provenance is implemented explicitly in 7B1; no Local competitor, brand or continuous improvements are included.
+Quality provenance is implemented in 7B1; Local competition and static company-product brand in 7B2. Continuous product/process improvements remain 7B3.
