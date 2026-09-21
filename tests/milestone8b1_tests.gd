@@ -116,7 +116,7 @@ func _isolation_and_persistence() -> void:
 	check(session.sim.companies.player.product_brands == brands and session.sim.companies.player.known_technologies == knowledge, "Headquarters adds no brand or research effect")
 	check(headquarters.inventory.quantities.is_empty() and headquarters.assortment.is_empty() and headquarters.suppliers.is_empty() and headquarters.research_project.is_empty(), "Headquarters product/logistics/research state stays empty")
 	var state: Dictionary = session.sim.snapshot()
-	check(state.schema_version == 13 and state.catalog_version == 7 and SaveStore.FORMAT_VERSION == 2, "Only catalog version advances to 7")
+	check(state.schema_version == 14 and state.catalog_version == 8 and SaveStore.FORMAT_VERSION == 2, "Later staffing milestone uses schema 14 and catalog 8")
 	var restored: Economy = SaveStore.new().restore(state)
 	var restored_hq: SimFacility = restored.headquarters("player") if restored != null else null
 	check(restored_hq != null and restored_hq.id == headquarters.id and restored_hq.company_id == headquarters.company_id, "Built headquarters restores exact identity and owner")
@@ -152,7 +152,7 @@ func _ui_read_model() -> void:
 	await process_frame
 	var panel: FacilityPanel = screen.inspector
 	check(panel.selected_id == headquarters.id and panel.visible, "Constructed headquarters can be selected")
-	check(panel.info.text.contains("Corporate headquarters") and panel.info.text.contains("Staffing and management functions arrive in Milestone 8B2."), "Headquarters-specific inspector information shown")
+	check(panel.info.text.contains("Corporate headquarters") and panel.staff_info.text.contains("STAFFING"), "Headquarters-specific inspector information shown")
 	check(panel.info.text.contains("Daily overhead") and panel.info.text.contains("Net book value"), "Headquarters inspector shows overhead and fixed asset")
 	check(not panel.configure.visible and not panel.price.get_parent().visible and not panel.stock.get_parent().visible and panel.tabs.is_tab_hidden(1) and panel.tabs.is_tab_hidden(2), "Product, price, stock, sourcing and logistics controls hidden")
 	check(panel.operating.visible and not panel.operating.disabled and panel.demolish.visible and not panel.demolish.disabled, "Suspend/resume and demolish remain available")

@@ -95,7 +95,7 @@ func refresh() -> void:
 	context.text = owner.display_name + " • " + sim.clock.date_string() + "\n" + periods.get_item_text(periods.selected) + " • integer cents; current period includes activity through today."
 	match tabs.current_tab:
 		0:
-			for pair: Array in [["Retail sales", "retail_revenue"], ["Wholesale sales", "wholesale_revenue"], ["REVENUE", "revenue"], ["Cost of goods sold", "cogs"], ["GROSS PROFIT", "gross_profit"], ["Freight / logistics", "freight"], ["Depreciation", "depreciation"], ["R&D research", "research_expense"], ["Advertising", "advertising_expense"], ["Other expenses / disposal losses", "other_expenses"], ["TOTAL OPERATING EXPENSES", "expenses"], ["OPERATING / NET PROFIT", "profit"]]: amount(pair[0], p[pair[1]])
+			for pair: Array in [["Retail sales", "retail_revenue"], ["Wholesale sales", "wholesale_revenue"], ["REVENUE", "revenue"], ["Cost of goods sold", "cogs"], ["GROSS PROFIT", "gross_profit"], ["Freight / logistics", "freight"], ["Depreciation", "depreciation"], ["R&D research", "research_expense"], ["Advertising", "advertising_expense"], ["Payroll", "payroll_expense"], ["Other expenses / disposal losses", "other_expenses"], ["TOTAL OPERATING EXPENSES", "expenses"], ["OPERATING / NET PROFIT", "profit"]]: amount(pair[0], p[pair[1]])
 			context.text += "\nNo tax or interest: net profit equals operating profit."
 		1:
 			context.text = owner.display_name + " • Balance sheet as of " + sim.clock.date_string()

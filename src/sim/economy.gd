@@ -56,6 +56,8 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	definitions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	for definition: Dictionary in definitions:
 		companies[str(definition.id)] = Company.new(definition)
+		for role: String in catalog.staff_roles:
+			companies[str(definition.id)].staff_counts[role] = 0
 		for product: String in catalog.products:
 			if catalog.manufacturable_product(product):
 				companies[str(definition.id)].product_quality_levels[product] = 0
@@ -274,6 +276,17 @@ func command_error(command: Dictionary) -> String:
 	if target == null or target.company_id != str(command.get("company", "")):
 		return "Unknown facility or company does not own it."
 	match str(command.get("type", "")):
+		"hire_staff", "dismiss_staff":
+			if _behavior(target) != "headquarters" or target != headquarters(target.company_id): return "Select the company's live corporate headquarters."
+			var role: String = str(command.get("role", ""))
+			if not catalog.staff_roles.has(role): return "Unknown staff role."
+			if not command.get("quantity") is int or int(command.quantity) <= 0: return "Staff quantity must be a positive integer."
+			var quantity: int = int(command.quantity)
+			if command.type == "hire_staff":
+				if not target.operating: return "Resume headquarters before hiring staff."
+				if total_staff(target.company_id) + quantity > staff_capacity(target.company_id): return "Headquarters staff capacity exceeded."
+			elif staff_count(target.company_id, role) < quantity:
+				return "Cannot dismiss more staff than employed in this role."
 		"assign_research":
 			if _behavior(target) != "research": return "Select an R&D facility."
 			var project_value: Variant = command.get("project", technology_project(str(command.get("technology", ""))))
@@ -297,6 +310,7 @@ func command_error(command: Dictionary) -> String:
 		"set_warehouse_target":
 			if _behavior(target) != "storage" or not catalog.products.has(str(command.get("product", ""))) or not command.get("quantity") is int or command.quantity < 0 or command.quantity > target.capacity: return "Choose a warehouse product target within capacity."
 		"demolish_facility":
+			if _behavior(target) == "headquarters" and total_staff(target.company_id) > 0: return "Dismiss all staff before demolishing headquarters."
 			for shipment: Dictionary in logistics.shipments:
 				if shipment.status == "in_transit" and (shipment.source == target.id or shipment.destination == target.id): return "Wait for active shipments before demolition."
 		"transfer":
@@ -344,6 +358,12 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"hire_staff":
+					var role: String = str(command.role)
+					companies[str(command.company)].staff_counts[role] = staff_count(str(command.company), role) + int(command.quantity)
+				"dismiss_staff":
+					var role: String = str(command.role)
+					companies[str(command.company)].staff_counts[role] = staff_count(str(command.company), role) - int(command.quantity)
 				"set_advertising_budget": companies[str(command.company)].advertising_budgets[str(command.product)] = int(command.budget)
 				"assign_research":
 					var project: Dictionary = command.get("project", technology_project(str(command.get("technology", ""))))
@@ -510,6 +530,31 @@ func headquarters(company_id: String) -> SimFacility:
 		if f.company_id == company_id and _behavior(f) == "headquarters": return f
 	return null
 
+func staff_count(company_id: String, role: String) -> int:
+	return companies[company_id].staff_count(role) if companies.has(company_id) else 0
+
+func total_staff(company_id: String) -> int:
+	return companies[company_id].total_staff() if companies.has(company_id) else 0
+
+func staff_capacity(company_id: String) -> int:
+	var hq: SimFacility = headquarters(company_id)
+	return int(catalog.facility_types[hq.type_id].staff_capacity) if hq != null else 0
+
+func daily_payroll(company_id: String) -> int:
+	if not companies.has(company_id): return 0
+	var total: int = 0
+	for role: String in catalog.staff_roles:
+		total += staff_count(company_id, role) * int(catalog.staff_roles[role].daily_salary)
+	return total
+
+func _payroll() -> void:
+	var company_ids: Array = companies.keys()
+	company_ids.sort()
+	for company_id: String in company_ids:
+		var owner: SimCompany = companies[company_id]
+		var amount: int = daily_payroll(company_id)
+		if amount > 0 and owner.pay_expense(amount): owner.payroll_expense += amount
+
 func trade(seller: SimFacility, buyer: SimFacility, product: String, requested: int) -> int:
 	return logistics.dispatch(self, seller, buyer, product, requested)
 
@@ -600,6 +645,7 @@ func step() -> void:
 	market.clear()
 	_ai_decisions()
 	_apply_commands()
+	_payroll()
 	_advertise()
 	_ai_research()
 	logistics.deliver(self)
@@ -708,6 +754,10 @@ func invariant_errors() -> Array[String]:
 			if destination == null or facility(shipment.source) == null or destination.company_id != shipment.company or int(shipment.arrival) < clock.tick:
 				errors.append("Shipment endpoint or arrival")
 	for owner: SimCompany in companies.values():
+		if owner.staff_counts.size() != catalog.staff_roles.size(): errors.append("Staff role map: " + owner.id)
+		for role: String in owner.staff_counts:
+			if not catalog.staff_roles.has(role) or not owner.staff_counts[role] is int or int(owner.staff_counts[role]) < 0: errors.append("Staff count: " + owner.id + "/" + role)
+		if owner.total_staff() > 0 and (headquarters(owner.id) == null or owner.total_staff() > staff_capacity(owner.id)): errors.append("Staff headquarters/capacity: " + owner.id)
 		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) != owner.capital + owner.profit():
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
@@ -735,7 +785,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 13, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 14, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

@@ -1,5 +1,11 @@
 {
-  "version": 7,
+  "version": 8,
+  "staff_roles": [
+    {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000},
+    {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000},
+    {"id": "research_manager", "name": "R&D manager", "daily_salary": 6000},
+    {"id": "finance_manager", "name": "Finance manager", "daily_salary": 5500}
+  ],
   "process_efficiency_research": {
     "max_level": 5,
     "base_work": 300,
@@ -647,8 +653,9 @@
       "depth": 3,
       "cost": 5000000,
       "capacity": 1,
+      "staff_capacity": 8,
       "products": [],
-      "description": "Company headquarters foundation. Staffing and management functions arrive in Milestone 8B2."
+      "description": "Company headquarters with capacity for eight aggregate staff. Management effects arrive in Milestone 8B3."
     }
   ],
   "scenario": {

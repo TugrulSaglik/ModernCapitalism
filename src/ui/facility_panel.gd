@@ -33,6 +33,10 @@ var transfer_quantity: SpinBox
 var transfer_button: Button
 var logistics_info: RichTextLabel
 var warehouse_target: Button
+var staff_info: RichTextLabel
+var staff_role: OptionButton
+var hire_staff: Button
+var dismiss_staff: Button
 
 func _ready() -> void:
 	custom_minimum_size.x = 410
@@ -57,6 +61,18 @@ func _ready() -> void:
 	info.custom_minimum_size = Vector2(390, 255)
 	operations.add_child(info)
 	info.custom_minimum_size.y = 190
+	staff_info = RichTextLabel.new()
+	staff_info.custom_minimum_size = Vector2(390, 195)
+	operations.add_child(staff_info)
+	staff_role = OptionButton.new()
+	operations.add_child(staff_role)
+	staff_role.item_selected.connect(func(_index: int) -> void: refresh())
+	var staff_row: HBoxContainer = HBoxContainer.new()
+	operations.add_child(staff_row)
+	hire_staff = _button(staff_row, "Hire 1", func() -> void:
+		if staff_role.selected >= 0: command_requested.emit({"type": "hire_staff", "facility": selected_id, "role": str(staff_role.get_item_metadata(staff_role.selected)), "quantity": 1}))
+	dismiss_staff = _button(staff_row, "Dismiss 1", func() -> void:
+		if staff_role.selected >= 0: command_requested.emit({"type": "dismiss_staff", "facility": selected_id, "role": str(staff_role.get_item_metadata(staff_role.selected)), "quantity": 1}))
 	choices = OptionButton.new()
 	operations.add_child(choices)
 	configure = _button(operations, "Add product line / set production", func() -> void:
@@ -153,6 +169,14 @@ func bind(game_session: GameSession, id: String) -> void:
 	selected_id = id
 	var f: SimFacility = session.sim.facility(id)
 	layout_key = _layout_key(f)
+	var selected_staff_role: String = str(staff_role.get_item_metadata(staff_role.selected)) if staff_role.selected >= 0 else ""
+	staff_role.clear()
+	var role_ids: Array = session.sim.catalog.staff_roles.keys()
+	role_ids.sort()
+	for role_id: String in role_ids:
+		staff_role.add_item(str(session.sim.catalog.staff_roles[role_id].name))
+		staff_role.set_item_metadata(staff_role.item_count - 1, role_id)
+		if role_id == selected_staff_role: staff_role.select(staff_role.item_count - 1)
 	var selected_project: Dictionary = research_choices.get_item_metadata(research_choices.selected) if research_choices.selected >= 0 and research_choices.get_item_metadata(research_choices.selected) is Dictionary else {}
 	research_choices.clear()
 	research_choices.add_item("TECHNOLOGY PROJECTS")
@@ -331,6 +355,7 @@ func refresh() -> void:
 	var research: bool = session.sim._behavior(f) == "research"
 	var headquarters: bool = session.sim._behavior(f) == "headquarters"
 	for control: Control in [research_choices, research_info, assign_research, stop_research]: control.visible = research
+	for control: Control in [staff_info, staff_role, hire_staff, dismiss_staff]: control.visible = headquarters
 	tabs.set_tab_title(0, "R&D" if research else ("Headquarters" if headquarters else "Products"))
 	tabs.set_tab_hidden(1, research or headquarters)
 	tabs.set_tab_hidden(2, research or headquarters)
@@ -343,14 +368,26 @@ func refresh() -> void:
 	elif headquarters:
 		tabs.current_tab = 0
 		for control: Control in [choices, configure, line, line_info, remove_line, price.get_parent(), stock.get_parent()]: control.hide()
-		info.custom_minimum_size.y = 245
+		info.custom_minimum_size.y = 175
 		var facility_definition: Dictionary = session.sim.catalog.facility_types[f.type_id]
 		var book_value: int = f.asset_cost - f.accumulated_depreciation
-		info.text = "Corporate headquarters\n%s\n%s\nDaily overhead: %s\nConstruction / fixed-asset cost: %s\nAccumulated depreciation: %s\nNet book value: %s\n\nStaffing and management functions arrive in Milestone 8B2." % [owner.display_name, "Operating" if f.operating else "Suspended", CompanyReports.money(int(facility_definition.overhead)), CompanyReports.money(f.asset_cost), CompanyReports.money(f.accumulated_depreciation), CompanyReports.money(book_value)]
+		info.text = "Corporate headquarters\n%s\n%s\nDaily overhead: %s\nConstruction / fixed-asset cost: %s\nAccumulated depreciation: %s\nNet book value: %s" % [owner.display_name, "Operating" if f.operating else "Suspended", CompanyReports.money(int(facility_definition.overhead)), CompanyReports.money(f.asset_cost), CompanyReports.money(f.accumulated_depreciation), CompanyReports.money(book_value)]
+		var staff_lines: PackedStringArray = ["STAFFING", "Total staff: %d / %d" % [session.sim.total_staff(owner.id), session.sim.staff_capacity(owner.id)], "Configured daily payroll: %s/day" % CompanyReports.money(session.sim.daily_payroll(owner.id)), ""]
+		var role_ids: Array = session.sim.catalog.staff_roles.keys()
+		role_ids.sort()
+		for role_id: String in role_ids:
+			var role: Dictionary = session.sim.catalog.staff_roles[role_id]
+			staff_lines.append("%s | Count %d | %s/day" % [role.name, session.sim.staff_count(owner.id, role_id), CompanyReports.money(int(role.daily_salary))])
+		staff_info.text = "\n".join(staff_lines)
+		var selected_role: String = str(staff_role.get_item_metadata(staff_role.selected)) if staff_role.selected >= 0 else ""
+		staff_role.disabled = not own
+		hire_staff.disabled = not own or not f.operating or session.sim.total_staff(owner.id) >= session.sim.staff_capacity(owner.id)
+		dismiss_staff.disabled = not own or selected_role.is_empty() or session.sim.staff_count(owner.id, selected_role) <= 0
+		demolish.disabled = not own or session.sim.total_staff(owner.id) > 0
 
 func _layout_key(f: SimFacility) -> String:
 	var owner: SimCompany = session.sim.companies[f.company_id]
-	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(owner.known_technologies) + str(owner.product_quality_levels) + str(owner.product_quality_progress) + str(owner.process_efficiency_levels) + str(owner.process_efficiency_progress) + str(session.sim.unlocked_technologies)
+	return str(f.line_ids()) + f.product_id + str(session.sim.clock.year) + str(owner.known_technologies) + str(owner.product_quality_levels) + str(owner.product_quality_progress) + str(owner.process_efficiency_levels) + str(owner.process_efficiency_progress) + str(owner.staff_counts) + str(session.sim.unlocked_technologies)
 
 func _refresh_research(f: SimFacility, own: bool) -> void:
 	if research_choices.selected < 0: return

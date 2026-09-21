@@ -1,5 +1,30 @@
 # Validation
 
+## Milestone 8B2 validation
+
+Validated on Windows with Godot 4.7.2 stable, September 21, 2026. The required
+working-tree baseline was clean and the initial focused 8B1 suite passed **77 checks,
+zero failures**. Per the milestone checkpoint strategy, the complete historical
+regression and 3,650-day construction soaks were deliberately not run.
+
+- Milestone 8B2 staffing/payroll suite: **90 checks, zero failures**.
+- Milestone 8B1 headquarters suite after changes: **77 checks, zero failures**.
+- Directly affected Milestone 6 financial suite: **2,547 checks, zero failures**.
+- Focused 7A accounting/persistence: **134 checks, zero failures**.
+- Focused 8A1 advertising accounting/persistence: **31 checks, zero failures**.
+- Focused 8A2B AI advertising/funding: **39 checks, zero failures**.
+- Programmatic HQ staffing UI smoke: **6 checks, zero failures**.
+
+Coverage includes catalog roles/capacity, authorized hire/dismiss commands, paused
+and suspended HQ behavior, exact all-or-nothing payroll before advertising, daily and
+monthly accounting/reporting, demolition protection, absence of management effects,
+exact deterministic restore and corrupted-save rejection. One 1280×800 frame at
+`.godot/m8b2-screenshots/01-headquarters-staffing.png` was inspected; all four role
+rows, count/capacity, payroll, selector, Hire/Dismiss, Suspend and disabled Demolish
+controls are readable without clipping. Editor import completed without GDScript
+errors. The host's known root-certificate-store/editor-settings warnings remain
+environment-only.
+
 ## Milestone 1 baseline
 
 Tested on Windows with Godot 4.7.2 stable, September 14, 2026. No external test

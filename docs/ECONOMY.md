@@ -1,6 +1,35 @@
 # Economic model
 
-## Milestone 8B1 corporate headquarters foundation
+## Milestone 8B2 staffing, hiring and payroll
+
+`SimCompany.staff_counts` stores one nonnegative integer count for each catalog role:
+operations manager (5,000 cents/day), marketing manager (5,000), R&D manager (6,000)
+and finance manager (5,500). There are no individual employees. A live Corporate
+Headquarters provides its dedicated catalog staffing capacity of eight; staff state
+remains company-owned rather than facility-owned.
+
+Hiring and dismissal use authorized commands at the ordinary between-day boundary.
+Both require the owned live headquarters, a known role and positive integer quantity.
+Hiring additionally requires the HQ's persistent `operating` setting and available
+total capacity; it deliberately does not depend on transient daily `active` state.
+Dismissal is allowed while suspended and cannot reduce a role below zero. Hiring and
+dismissal move no cash and have no delay, fee, bonus or severance.
+
+After daily commands and before advertising, payroll is the sum of count × catalog
+daily salary across roles. If cash covers the entire amount it is paid once and
+recorded separately as `payroll_expense`, operating expense and operating cash
+expense. Otherwise nothing is paid, cash cannot overdraw, employees remain employed
+and no wage liability is created. This all-or-nothing treatment is an explicit
+limitation until a debt/payables system exists.
+
+Suspending headquarters prevents hiring and avoids its ordinary 2,500-cent building
+overhead, but does not dismiss staff or stop payroll; depreciation also continues.
+A headquarters with any staff cannot be demolished until every role count is zero.
+Schema 14 / catalog 8 / save format 2 persist and validate exact counts, capacity and
+the required live HQ. Staff have no production, capacity, logistics, research,
+advertising, brand, quality, price, demand or AI effects until Milestone 8B3.
+
+## Milestone 8B1 corporate headquarters foundation (historical checkpoint)
 
 `corporate_headquarters` is a catalog-defined Corporate facility available in both
 starting eras. It has a 4 × 3 footprint, costs 5,000,000 cents to construct and has
@@ -17,7 +46,7 @@ Suspension removes only overhead: ownership and footprint remain, and fixed-asse
 depreciation continues over 3,650 days. Demolition pays no refund and writes off the
 remaining book value through the existing disposal-loss path; inventory loss is zero.
 
-Economy schema 13 and save format 2 remain unchanged. Catalog version 7 identifies
+At the 8B1 checkpoint economy schema 13 and save format 2 were unchanged. Catalog 7 identified
 the added type. Restore requires empty product/logistics/research state and rejects
 more than one headquarters per company. Headquarters has no advertising, brand,
 research, quality, efficiency, capacity, supplier, pricing, AI or demand effect.
@@ -135,15 +164,16 @@ Do not sum intercompany revenue to measure final consumer spending.
 ## Tick order
 1. Record prior between-day profit and clear daily accounts.
 2. AI submits bounded weekly price and advertising decisions; apply queued commands in order.
-3. Assign eligible projects to idle operating AI R&D centers, then deliver due shipments and charge fixed-asset depreciation.
-4. Charge affordable overhead and mark active facilities.
-5. Source manufacturing inputs and produce in stable facility order.
-6. Replenish retailers and warehouses, accounting for goods already in transit.
-7. Draw category demand shocks and allocate consumer sales.
-8. Charge funded active research projects and advance work; completion grants company
+3. Pay each company's complete affordable payroll, then process advertising.
+4. Assign eligible projects to idle operating AI R&D centers, then deliver due shipments and charge fixed-asset depreciation.
+5. Charge affordable overhead and mark active facilities.
+6. Source manufacturing inputs and produce in stable facility order.
+7. Replenish retailers and warehouses, accounting for goods already in transit.
+8. Draw category demand shocks and allocate consumer sales.
+9. Charge funded active research projects and advance work; completion grants company
    technology knowledge or one product-quality level for the next production day.
    See [research rules](TECHNOLOGY.md).
-9. Record profit history, publish reports and advance the Gregorian clock.
+10. Record profit history, publish reports and advance the Gregorian clock.
 
 Reports describe the day just completed; displayed clock is the next day to run.
 Product quality follows pooled inventory and shipments as specified below. Negative inventory, free purchases and overdrafts are rejected.

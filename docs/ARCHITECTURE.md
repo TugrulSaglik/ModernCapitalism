@@ -2,22 +2,25 @@
 
 ## Current milestone
 
-Milestone 8B1 adds the catalog-defined `corporate_headquarters` facility with the
-distinct `headquarters` behavior. Catalog validation generalizes the existing
-productless contract shared with R&D: an empty product is required, while product,
-assortment, inventory, sourcing, replenishment and shipments remain invalid. Economy
-derives `headquarters(company_id)` from live facilities and rejects a second global
-headquarters for the same company; no redundant company field stores the relation.
+Milestone 8B2 keeps aggregate `staff_counts` by catalog role on `SimCompany`; no
+employee entities or personnel state live on `SimFacility`. The one live headquarters
+derived from facilities supplies a dedicated catalog `staff_capacity` of eight and
+the inspector surface. Catalog 8 defines operations, marketing, R&D and finance
+manager roles with positive integer daily salaries.
 
-Headquarters construction uses the ordinary command, city occupancy and fixed-asset
-paths. Its catalog cost is 5,000,000 cents, footprint 4 × 3 and daily overhead 2,500
-cents. Operating headquarters pay that overhead through the shared expense path;
-suspended headquarters pay none but continue 3,650-day depreciation. Ordinary
-demolition writes off remaining book value, frees the plot and permits replacement.
-Schema 13 and save format 2 are unchanged; catalog 7 and restore validation enforce
-the productless and one-per-company invariants. The inspector exposes only status,
-cost/book value, Suspend/Resume and Demolish. There are no employees, management
-effects or AI headquarters construction yet.
+Authorized `hire_staff` and `dismiss_staff` commands apply at a between-day command
+boundary. Hiring requires the owned live HQ to be operating and capacity to remain;
+dismissal remains available while suspended. A dedicated deterministic payroll
+phase runs after commands and before advertising. It pays the complete configured
+company payroll or zero, creates no payable, retains employees on failure and records
+`payroll_expense` as operating/cash expense. HQ suspension still removes only its
+ordinary overhead; payroll and depreciation continue. Demolition is rejected until
+all staff are dismissed.
+
+Schema 14 / catalog 8 / save format 2 persist exact counts and payroll histories and
+validate role-map completeness, integer nonnegative counts, capacity and the live-HQ
+invariant. Staff have no production, research, advertising, logistics, market, AI or
+other management effect in 8B2; those bounded effects belong to 8B3.
 
 Milestone 8A2B adds a derived weekly advertising policy beside the existing AI price
 policy. In stable company order it finds public consumer products with an owned retail
@@ -80,7 +83,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Catalog | Read and validate JSON products, technologies, facility types and scenario; resolve public era availability and validate research data |
 | SimClock | Gregorian calendar and explicit daily ticks |
 | Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
-| Company | Accounts, technology knowledge/progress, company-product quality and process-efficiency levels/progress, brand, and advertising state |
+| Company | Accounts, aggregate staff counts, technology knowledge/progress, company-product quality and process-efficiency levels/progress, brand, and advertising state |
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment; productless R&D/HQ types retain empty goods state |
 | Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
@@ -116,7 +119,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-13 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-14 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -130,12 +133,12 @@ add migration aliases rather than renaming persisted IDs.
 ## Extension seams (planned, not implemented)
 - Logistics: extend current road-routed shipments with traffic, vehicle fleets,
   route capacity and multiple cities when needed.
-- R&D: future extensions may add throughput, staffing or other separately typed
-  effects; conversion-cost efficiency is implemented and remains distinct from
-  quality, input quantities and capacity. Personnel is not implemented.
-- Headquarters: the one-per-company physical facility and overhead are implemented;
-  staffing and bounded management services remain future work. Do not turn the
-  headquarters Node into the company model.
+- R&D: future extensions may add separately typed staffed management effects;
+  conversion-cost efficiency is implemented and remains distinct from quality,
+  input quantities and capacity. Aggregate staff currently provide payroll only.
+- Headquarters: the one-per-company physical facility, aggregate company staffing,
+  capacity and payroll are implemented. Bounded management services remain future
+  work. Do not turn the headquarters Node into the company model.
 - Finance: replace aggregate accounts with journal entries and balance-sheet
   accounts; add debt and taxes. Aggregate fixed assets and depreciation now exist.
   A share registry and

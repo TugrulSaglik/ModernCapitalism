@@ -12,17 +12,29 @@ var segments: Dictionary = {}
 var market_defaults: Dictionary = {}
 var product_quality_research: Dictionary = {}
 var process_efficiency_research: Dictionary = {}
+var staff_roles: Dictionary = {}
 
 func load_data(path: String = "res://data/example_economy.json") -> bool:
 	products.clear()
 	technologies.clear()
 	facility_types.clear()
+	staff_roles.clear()
 	errors.clear()
 	var parser: JSON = JSON.new()
 	if parser.parse(FileAccess.get_file_as_string(path)) != OK or not parser.data is Dictionary:
 		errors.append("Invalid catalog JSON: " + path)
 		return false
 	var root: Dictionary = parser.data
+	if not root.get("staff_roles") is Array:
+		errors.append("Staff roles required")
+		return false
+	_index(root.staff_roles, staff_roles)
+	for id: String in staff_roles:
+		var role: Dictionary = staff_roles[id]
+		if str(role.get("name", "")).is_empty() or not _positive_integer(role.get("daily_salary")):
+			errors.append("Invalid staff role: " + id)
+		else:
+			role.daily_salary = int(role.daily_salary)
 	if not root.get("market_defaults") is Dictionary:
 		errors.append("Market defaults required")
 		return false
@@ -121,7 +133,11 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	for id: String in facility_types:
 		var f: Dictionary = facility_types[id]
 		if f.get("behavior") == "research" and (not _positive_integer(f.get("research_rate")) or not f.get("products", []).is_empty()): errors.append("Invalid research facility: " + id)
-		if f.get("behavior") == "headquarters" and not f.get("products", []).is_empty(): errors.append("Invalid headquarters facility: " + id)
+		if f.get("behavior") == "headquarters":
+			if not f.get("products", []).is_empty() or not _positive_integer(f.get("staff_capacity")):
+				errors.append("Invalid headquarters facility: " + id)
+			else:
+				f.staff_capacity = int(f.staff_capacity)
 		if f.get("behavior") == "retail":
 			if int(f.get("slots", 0)) < 1 or not f.get("categories") is Array: errors.append("Retail slots/categories required: " + id)
 			else:

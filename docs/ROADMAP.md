@@ -17,8 +17,8 @@
 | 8A2A — Brand decay dynamics (implemented) | Actual-spend inactivity tracking and deterministic company-product brand decay | 8A1 |
 | 8A2B — AI advertising policy (implemented) | Deterministic competitor advertising budgets and funding policy | 8A2A |
 | 8B1 — Corporate headquarters facility foundation (implemented) | Data-driven headquarters construction, ownership and baseline operating model | 8A2B |
-| 8B2 — Staffing and hiring (next) | Staff roles, hiring and payroll using the headquarters foundation | 8B1 |
-| 8B3 — Headquarters/staff management effects (later) | Bounded management effects from headquarters and staffed roles | 8B2 |
+| 8B2 — Staffing and hiring (implemented) | Staff roles, hiring and payroll using the headquarters foundation | 8B1 |
+| 8B3 — Headquarters/staff management effects (next) | Bounded management effects from headquarters and staffed roles | 8B2 |
 | 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8B3 |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
@@ -56,5 +56,6 @@ brand provenance: brand remains company-product market-presence state, not
 manufacturer provenance carried through inventory. Milestone 8A2A adds deterministic
 decay for public products after unfunded advertising inactivity. Milestone 8A2B adds
 the bounded weekly AI advertising policy without strategic ROI or expansion logic.
-Milestone 8B1 adds the one-per-company productless headquarters building without
-staffing, bonuses or AI construction.
+Milestone 8B1 adds the one-per-company productless headquarters building. Milestone
+8B2 adds aggregate company staff, HQ capacity, authorized hiring/dismissal and
+all-or-nothing daily payroll without bonuses, operational effects or AI hiring.
