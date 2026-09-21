@@ -20,9 +20,9 @@
 | 8B2 — Staffing and hiring (implemented) | Staff roles, hiring and payroll using the headquarters foundation | 8B1 |
 | 8B3 — Headquarters/staff management effects (implemented) | Payroll-funded bounded operations, marketing, R&D and finance effects | 8B2 |
 | 8UI-A1 — Visual design system foundation (implemented) | Reusable top-level theme with a corporate palette, typography and spacing hierarchy, panels, buttons, inputs, tabs and semantic state styles | 8B3 |
-| 8UI-A2 — Game shell, HUD and navigation (next) | Redesign the game shell, top controls, navigation and financial/time HUD using the shared design system | 8UI-A1 |
-| 8UI-B — Management interface redesign | Redesign facility management, sourcing/logistics, R&D, HQ/staffing, Markets and financial reports using the new design system | 8UI-A2 |
-| 8UI-C — City/build interaction polish | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation | 8UI-B |
+| 8UI-A2 — Game shell, HUD and navigation (implemented) | Application bar, gameplay navigation, utility/save controls, facility context bar, financial HUD, profit trend, time controls and subtle status presentation | 8UI-A1 |
+| 8UI-B — Management interface redesign (next) | Redesign facility management, sourcing/logistics, R&D, HQ/staffing, Markets and financial reports using the new design system | 8UI-A2 |
+| 8UI-C — City/build interaction polish (later) | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation | 8UI-B |
 | 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8UI-C |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
@@ -46,6 +46,12 @@ Supplier reliability scoring, fleet/route capacity and traffic remain possible
 extensions. Every milestone preserves deterministic headless execution, exact save
 continuation, shared tutorial/sandbox systems and programmatic rendered validation.
 No branch or commit is created automatically.
+
+8UI-A2 establishes the desktop strategy-game shell without simulation changes:
+the application bar separates company identity and primary Company/Build navigation
+from utility and save-slot controls; a facility context bar fronts the city workspace;
+and a unified bottom HUD presents cash, TTM profit, monthly trend, date, grouped time
+controls and status feedback. Management-screen redesign remains owned by 8UI-B.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.

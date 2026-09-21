@@ -53,6 +53,9 @@ static func _theme_typography(theme: Theme) -> void:
 	_set_variation(theme, "PositiveLabel", "Label", 14, POSITIVE)
 	_set_variation(theme, "WarningLabel", "Label", 14, WARNING)
 	_set_variation(theme, "NegativeLabel", "Label", 14, NEGATIVE)
+	_set_variation(theme, "MetricLabel", "Label", 11, TEXT_MUTED)
+	_set_variation(theme, "MetricValue", "Label", 19, TEXT)
+	_set_variation(theme, "StatusLabel", "Label", 12, TEXT_MUTED)
 
 static func _set_variation(theme: Theme, variation: String, base: String, size: int, color: Color) -> void:
 	theme.set_type_variation(variation, base)
@@ -70,6 +73,10 @@ static func _theme_spacing(theme: Theme) -> void:
 static func _theme_surfaces(theme: Theme) -> void:
 	theme.set_stylebox("panel", "Panel", _box(SURFACE, BORDER, 1, 4, SPACE_3))
 	theme.set_stylebox("panel", "PanelContainer", _box(SURFACE, BORDER, 1, 4, SPACE_3))
+	theme.set_type_variation("AppBarPanel", "PanelContainer")
+	theme.set_stylebox("panel", "AppBarPanel", _box(SURFACE_RAISED, BORDER, 1, 4, SPACE_3))
+	theme.set_type_variation("HudPanel", "PanelContainer")
+	theme.set_stylebox("panel", "HudPanel", _box(SURFACE_RAISED, BORDER, 1, 4, SPACE_3))
 	theme.set_stylebox("panel", "PopupPanel", _box(SURFACE_RAISED, BORDER, 1, 4, SPACE_3))
 	theme.set_stylebox("panel", "Tree", _box(SURFACE, BORDER, 1, 3, SPACE_2))
 	theme.set_stylebox("focus", "Tree", _box(Color.TRANSPARENT, ACCENT, 1, 3, 0))
@@ -86,6 +93,8 @@ static func _theme_buttons(theme: Theme) -> void:
 	_set_button_set(theme, "PrimaryButton", ACCENT.darkened(0.22), ACCENT.darkened(0.08), ACCENT.darkened(0.35), ACCENT, TEXT)
 	theme.set_type_variation("DestructiveButton", "Button")
 	_set_button_set(theme, "DestructiveButton", NEGATIVE.darkened(0.52), NEGATIVE.darkened(0.38), NEGATIVE.darkened(0.60), NEGATIVE.darkened(0.18), TEXT)
+	theme.set_type_variation("NavigationButton", "Button")
+	_set_button_set(theme, "NavigationButton", SURFACE_RAISED, SURFACE_HIGH, ACCENT.darkened(0.35), BORDER, TEXT)
 
 static func _set_button_set(theme: Theme, type_name: String, normal: Color, hover: Color, pressed: Color, border: Color, text_color: Color) -> void:
 	theme.set_stylebox("normal", type_name, _box(normal, border, 1, 3, SPACE_2))

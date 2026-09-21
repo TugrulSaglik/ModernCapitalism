@@ -4,12 +4,22 @@ const Session = preload("res://src/session/game_session.gd")
 const City = preload("res://src/ui/city_view.gd")
 const Inspector = preload("res://src/ui/facility_panel.gd")
 const UITheme = preload("res://src/ui/ui_theme.gd")
+
+class WorkspaceScroll:
+	extends ScrollContainer
+	func _get_minimum_size() -> Vector2:
+		return Vector2(410, 0)
+
 var session: GameSession = Session.new()
 var city: CityView
 var inspector: FacilityPanel
 var city_viewport: SubViewport
 var date_label: Label
 var finance_label: Label
+var cash_value: Label
+var profit_value: Label
+var sim_state_label: Label
+var company_name_label: Label
 var status: Label
 var facility_list: OptionButton
 var settings: AcceptDialog
@@ -50,48 +60,23 @@ func _ready() -> void:
 			save_directory = argument.trim_prefix("--save-dir=")
 	session.start(2022, 42, "sandbox", city_settings)
 	var margin: MarginContainer = MarginContainer.new()
+	margin.name = "ShellMargin"
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, UITheme.SPACE_3)
+		margin.add_theme_constant_override("margin_" + side, UITheme.SPACE_2)
 	add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
+	column.name = "ShellColumn"
 	margin.add_child(column)
-	var toolbar: HBoxContainer = HBoxContainer.new()
-	column.add_child(toolbar)
-	date_label = Label.new()
-	date_label.custom_minimum_size.x = 235
-	toolbar.add_child(date_label)
-	for speed: int in GameTime.SPEEDS:
-		var text_value: String = "Pause" if speed == 0 else ("Max" if speed == 16 else str(speed) + "x")
-		var button: Button = _button(toolbar, text_value, func() -> void:
-			session.time.set_speed(speed)
-			refresh())
-		speed_buttons[speed] = button
-	_button(toolbar, "Company", _show_company)
-	_button(toolbar, "Build", _show_construction)
-	slot = SpinBox.new()
-	slot.min_value = 1
-	slot.max_value = 3
-	slot.prefix = "Slot"
-	toolbar.add_child(slot)
-	_button(toolbar, "Save", _save)
-	_button(toolbar, "Load", _load)
-	_button(toolbar, "Settings", _show_settings)
-	finance_label = Label.new()
-	finance_label.theme_type_variation = "ValueLabel"
-	finance_label.tooltip_text = "Trailing 12 calendar months, updated daily. Uses available history before 12 months."
+	_build_top_shell(column)
 	var body: HBoxContainer = HBoxContainer.new()
+	body.name = "MainWorkspace"
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(body)
 	var left: VBoxContainer = VBoxContainer.new()
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(left)
-	facility_list = OptionButton.new()
-	left.add_child(facility_list)
-	for f: SimFacility in session.sim.facilities:
-		facility_list.add_item(f.id + " / " + str(session.sim.companies[f.company_id].display_name))
-		facility_list.set_item_metadata(facility_list.item_count - 1, f.id)
-	facility_list.item_selected.connect(func(index: int) -> void: select_facility(str(facility_list.get_item_metadata(index))))
+	_build_context_bar(left)
 	var container: SubViewportContainer = SubViewportContainer.new()
 	container.stretch = true
 	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -103,33 +88,30 @@ func _ready() -> void:
 	container.add_child(city_viewport)
 	_build_city()
 	var legend: Label = Label.new()
-	legend.text = "Middle drag: pan | Wheel: zoom | Click: inspect | Esc: cancel / close\nTeal: player • Blue: components • Tan: Orion • Purple: Nova • Coral: rival"
+	legend.text = "CONTROLS  Middle drag: pan  •  Wheel: zoom  •  Click: inspect  •  Esc: cancel / close\nOWNERSHIP  Teal: player  •  Blue: components  •  Tan: Orion  •  Purple: Nova  •  Coral: rival"
 	legend.theme_type_variation = "MetaLabel"
 	left.add_child(legend)
 	inspector = Inspector.new()
-	body.add_child(inspector)
+	var inspector_scroll: ScrollContainer = WorkspaceScroll.new()
+	inspector_scroll.name = "WorkspaceInspectorScroll"
+	inspector_scroll.custom_minimum_size.x = 410
+	inspector_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inspector_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(inspector_scroll)
+	var management_host: VBoxContainer = VBoxContainer.new()
+	management_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inspector_scroll.add_child(management_host)
+	management_host.add_child(inspector)
+	# FacilityPanel owns its internal management scroll; give it the content height
+	# while this shell-level scroll constrains the panel to the workspace viewport.
+	inspector.custom_minimum_size.y = inspector.tabs.get_combined_minimum_size().y + UITheme.SPACE_3 * 2
 	inspector.command_requested.connect(func(command: Dictionary) -> void:
 		session.submit(command)
 		refresh())
-	_build_construction(body)
-	var financial_bar: HBoxContainer = HBoxContainer.new()
-	column.add_child(financial_bar)
-	financial_bar.add_child(finance_label)
-	finance_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	profit_chart = ProfitChart.new()
-	financial_bar.add_child(profit_chart)
-	toolbar.remove_child(date_label)
-	financial_bar.add_child(date_label)
-	for speed: int in speed_buttons:
-		var button: Button = speed_buttons[speed]
-		toolbar.remove_child(button)
-		financial_bar.add_child(button)
-	status = Label.new()
-	status.theme_type_variation = "MetaLabel"
-	status.clip_text = true
-	column.add_child(status)
+	_build_construction(management_host)
+	_build_bottom_hud(column)
 	minimap = CityMinimap.new()
-	minimap.position = Vector2(22, 96)
+	minimap.position = Vector2(22, 145)
 	add_child(minimap)
 	minimap.city = city
 	minimap.map = session.sim.city
@@ -137,6 +119,110 @@ func _ready() -> void:
 	select_facility(selected_id)
 	inspector.hide()
 	refresh()
+
+func _build_top_shell(parent: VBoxContainer) -> void:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "TopApplicationBar"
+	panel.theme_type_variation = "AppBarPanel"
+	parent.add_child(panel)
+	var row: HBoxContainer = HBoxContainer.new()
+	panel.add_child(row)
+	var identity: VBoxContainer = VBoxContainer.new()
+	identity.custom_minimum_size.x = 190
+	row.add_child(identity)
+	var game_name: Label = Label.new()
+	game_name.text = "ModernCapitalism"
+	game_name.theme_type_variation = "MetaLabel"
+	identity.add_child(game_name)
+	company_name_label = Label.new()
+	company_name_label.theme_type_variation = "SectionLabel"
+	identity.add_child(company_name_label)
+	for item: Array in [["Company", _show_company], ["Build", _show_construction]]:
+		var navigation: Button = _button(row, str(item[0]), item[1])
+		navigation.theme_type_variation = "NavigationButton"
+	var spacer: Control = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(spacer)
+	slot = SpinBox.new()
+	slot.min_value = 1
+	slot.max_value = 3
+	slot.prefix = "Slot "
+	slot.custom_minimum_size.x = 88
+	row.add_child(slot)
+	_button(row, "Save", _save)
+	_button(row, "Load", _load)
+	_button(row, "Settings", _show_settings)
+
+func _build_context_bar(parent: VBoxContainer) -> void:
+	var row: HBoxContainer = HBoxContainer.new()
+	row.name = "FacilityContextBar"
+	parent.add_child(row)
+	var label: Label = Label.new()
+	label.text = "FACILITY"
+	label.theme_type_variation = "MetricLabel"
+	label.custom_minimum_size.x = 70
+	row.add_child(label)
+	facility_list = OptionButton.new()
+	facility_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(facility_list)
+	facility_list.item_selected.connect(func(index: int) -> void: select_facility(str(facility_list.get_item_metadata(index))))
+	_refresh_facility_list()
+
+func _metric(parent: HBoxContainer, label_text: String) -> Label:
+	var block: VBoxContainer = VBoxContainer.new()
+	block.custom_minimum_size.x = 155
+	parent.add_child(block)
+	var label: Label = Label.new()
+	label.text = label_text
+	label.theme_type_variation = "MetricLabel"
+	block.add_child(label)
+	var value: Label = Label.new()
+	value.theme_type_variation = "MetricValue"
+	block.add_child(value)
+	return value
+
+func _build_bottom_hud(parent: VBoxContainer) -> void:
+	var panel: PanelContainer = PanelContainer.new()
+	panel.name = "BottomHudBar"
+	panel.theme_type_variation = "HudPanel"
+	parent.add_child(panel)
+	var column: VBoxContainer = VBoxContainer.new()
+	panel.add_child(column)
+	var row: HBoxContainer = HBoxContainer.new()
+	column.add_child(row)
+	cash_value = _metric(row, "CASH")
+	profit_value = _metric(row, "TTM PROFIT")
+	profit_value.tooltip_text = "Trailing 12 calendar months, updated daily. Uses available history before 12 months."
+	finance_label = profit_value
+	profit_chart = ProfitChart.new()
+	profit_chart.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(profit_chart)
+	var time_block: VBoxContainer = VBoxContainer.new()
+	time_block.custom_minimum_size.x = 355
+	row.add_child(time_block)
+	var date_row: HBoxContainer = HBoxContainer.new()
+	time_block.add_child(date_row)
+	date_label = Label.new()
+	date_label.theme_type_variation = "ValueLabel"
+	date_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	date_row.add_child(date_label)
+	sim_state_label = Label.new()
+	sim_state_label.theme_type_variation = "MetricLabel"
+	date_row.add_child(sim_state_label)
+	var controls: HBoxContainer = HBoxContainer.new()
+	time_block.add_child(controls)
+	for speed: int in GameTime.SPEEDS:
+		var text_value: String = "Pause" if speed == 0 else ("Max" if speed == 16 else str(speed) + "x")
+		var button: Button = _button(controls, text_value, func() -> void:
+			session.time.set_speed(speed)
+			refresh())
+		button.toggle_mode = true
+		button.tooltip_text = "Space" if speed == 0 else "Shortcut %d" % ([1, 2, 4, 16].find(speed) + 1)
+		speed_buttons[speed] = button
+	status = Label.new()
+	status.theme_type_variation = "StatusLabel"
+	status.clip_text = true
+	column.add_child(status)
 
 func _button(parent: Node, text_value: String, action: Callable) -> Button:
 	var button: Button = Button.new()
@@ -218,11 +304,16 @@ func refresh() -> void:
 		_refresh_facility_list()
 		select_facility(selected_id)
 	var owner: SimCompany = session.sim.companies[session.player_company]
-	date_label.text = "%s | %s" % [session.sim.clock.date_string(), "PAUSED" if session.time.speed == 0 else "%dx" % session.time.speed]
-	finance_label.text = "Cash  %s\nTTM Profit  %s" % [CompanyReports.money(owner.cash), CompanyReports.money(owner.ttm_profit(session.sim.clock))]
+	company_name_label.text = owner.display_name
+	date_label.text = session.sim.clock.date_string()
+	sim_state_label.text = "PAUSED" if session.time.speed == 0 else ("MAX" if session.time.speed == 16 else "%d×" % session.time.speed)
+	cash_value.text = CompanyReports.money(owner.cash)
+	var ttm_profit: int = owner.ttm_profit(session.sim.clock)
+	profit_value.text = CompanyReports.money(ttm_profit)
+	profit_value.theme_type_variation = "PositiveLabel" if ttm_profit > 0 else ("NegativeLabel" if ttm_profit < 0 else "MetricValue")
 	profit_chart.update_history(owner.monthly_history)
 	for speed: int in speed_buttons:
-		speed_buttons[speed].modulate = Color("ffe190") if session.time.speed == speed else Color.WHITE
+		speed_buttons[speed].button_pressed = session.time.speed == speed
 	inspector.refresh()
 	status.text = "%s | Pending commands: %d" % [session.message, session.sim.pending_commands.size()]
 	if not city.build_type.is_empty():
@@ -373,7 +464,9 @@ func world_input_blocked() -> bool:
 func _refresh_facility_list() -> void:
 	facility_list.clear()
 	for f: SimFacility in session.sim.facilities:
-		facility_list.add_item(f.id + " / " + str(session.sim.companies[f.company_id].display_name))
+		var definition: Dictionary = session.sim.catalog.facility_types.get(f.type_id, {})
+		var type_name: String = str(definition.get("name", f.type_id))
+		facility_list.add_item("%s • %s • %s" % [f.id, type_name, session.sim.companies[f.company_id].display_name])
 		facility_list.set_item_metadata(facility_list.item_count - 1, f.id)
 
 func _build_construction(parent: Node) -> void:
