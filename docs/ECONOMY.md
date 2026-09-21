@@ -1,6 +1,47 @@
 # Economic model
 
-## Milestone 8B2 staffing, hiring and payroll
+## Milestone 8B3 funded staff management effects
+
+Management effects are active only when a company has at least one staff member,
+the most recently processed complete daily payroll was funded, and its live
+headquarters is configured as operating. Payroll runs before ordinary facility
+activation, so this gate deliberately reads persistent `operating`, not transient
+facility `active`. `staff_payroll_funded` resets false at begin-day, remains false
+for no staff or unaffordable payroll, becomes true only after the full payroll is
+paid, and is persisted for exact completed-day validation. A suspended HQ continues
+to owe and pay payroll but disables all effects; resumption can reactivate them only
+after the next successfully funded payroll.
+
+Catalog role definitions provide an effect kind, positive integer percentage per
+staff member and cap. The provisional settings are Operations +10% each, capped
+at +30% production/retail capacity; Marketing +10%, capped at +30% advertising
+progress; R&D +10%, capped at +30% research rate; and Finance -5%, capped at -15%
+ordinary facility overhead. For active effects, `bonus = min(count × per_staff,
+cap)` in integer percentage points.
+
+Operations uses `floor(base_capacity × (100 + bonus) / 100)` for daily production
+and retail checkout limits, production finished-stock/input targets, retail
+replenishment targets and consumer-offer availability. Base `SimFacility.capacity`
+is never mutated. Warehouse physical storage, HQ staffing capacity, footprint,
+inventory, shipments and recipe quantities remain unchanged.
+
+Funded advertising still pays and expenses exactly its configured budget, while
+retained progress receives `floor(budget × (100 + bonus) / 100)`. Thresholds,
+budgets, brand cap/decay, Local and the AI budget policy are unchanged. Each funded
+R&D center still pays the same project daily cost and adds `floor(base_rate ×
+(100 + bonus) / 100)` work to technology, quality or process-efficiency projects.
+Required work, eligibility, ordering and retained-progress rules are unchanged.
+
+Finance changes only actual ordinary overhead paid by production, retail, warehouse,
+R&D and operating HQ facilities: `floor(base_overhead × (100 - reduction) / 100)`,
+with positive overhead retaining a one-cent minimum. It does not discount payroll,
+advertising, research projects, production conversion, inventory, freight,
+construction, depreciation or demolition. Reduced overhead naturally lowers cash
+and operating expense; no benefit income/category is invented. Schema 15 / catalog
+9 / save format 2 persist the payroll-funded flag and validate completed-day counters
+against the applicable effective capacity. Schema 14 has no migration.
+
+## Milestone 8B2 staffing, hiring and payroll (implemented historical checkpoint)
 
 `SimCompany.staff_counts` stores one nonnegative integer count for each catalog role:
 operations manager (5,000 cents/day), marketing manager (5,000), R&D manager (6,000)
@@ -25,9 +66,9 @@ limitation until a debt/payables system exists.
 Suspending headquarters prevents hiring and avoids its ordinary 2,500-cent building
 overhead, but does not dismiss staff or stop payroll; depreciation also continues.
 A headquarters with any staff cannot be demolished until every role count is zero.
-Schema 14 / catalog 8 / save format 2 persist and validate exact counts, capacity and
-the required live HQ. Staff have no production, capacity, logistics, research,
-advertising, brand, quality, price, demand or AI effects until Milestone 8B3.
+At the 8B2 checkpoint schema 14 / catalog 8 / save format 2 persisted and validated
+exact counts, capacity and the required live HQ. Its former no-effects rule is
+superseded by the bounded 8B3 behavior above.
 
 ## Milestone 8B1 corporate headquarters foundation (historical checkpoint)
 

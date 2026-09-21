@@ -116,7 +116,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 14 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 15 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -140,6 +140,9 @@ func restore(state: Dictionary) -> Economy:
 			if not item.id.begins_with("built_") or not item.id.trim_prefix("built_").is_valid_int() or int(item.id.trim_prefix("built_")) < 1 or item.id != "built_%06d" % int(item.id.trim_prefix("built_")) or not sim.catalog.supports_product(item.type, item.product) or item.capacity != int(definition.capacity) or item.quality != 50:
 				return null
 		var created: SimFacility = SimFacility.new(item)
+		# Make the saved HQ operating state available before daily-counter validation;
+		# effective capacity depends on it, but never on transient `active`.
+		created.operating = item.operating
 		if str(sim.catalog.facility_types[item.type].behavior) == "headquarters":
 			if headquarters_owners.has(item.company): return null
 			headquarters_owners[item.company] = true
@@ -178,6 +181,8 @@ func restore(state: Dictionary) -> Economy:
 		for role: String in item.staff_counts:
 			if not sim.catalog.staff_roles.has(role) or not item.staff_counts[role] is int or item.staff_counts[role] < 0: return null
 		owner.staff_counts = item.staff_counts.duplicate(true)
+		if not item.staff_payroll_funded is bool or (item.staff_payroll_funded and owner.total_staff() == 0): return null
+		owner.staff_payroll_funded = item.staff_payroll_funded
 		if item.product_brands.size() != owner.product_brands.size(): return null
 		for product: String in item.product_brands:
 			if not owner.product_brands.has(product) or not item.product_brands[product] is int or item.product_brands[product] < 0 or item.product_brands[product] > 100: return null
@@ -268,7 +273,7 @@ func restore(state: Dictionary) -> Economy:
 		if item.company != f.company_id or item.city != f.city_id or item.type != f.type_id or item.product != f.product_id or item.capacity != f.capacity or item.quality != f.quality or (item.price <= 0 and not productless) or item.price > 100000000 or item.stock_days < 1 or item.stock_days > 7:
 			return null
 		for field: String in ["sold_today", "produced_today"]:
-			if not nonnegative(item[field]) or item[field] > f.capacity:
+			if not nonnegative(item[field]) or item[field] > sim.effective_capacity(f):
 				return null
 			f.set(field, item[field])
 		f.price = item.price

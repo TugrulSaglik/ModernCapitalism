@@ -52,14 +52,17 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 8B2
+## Milestone 8B3
 
-Companies with an operating **Corporate headquarters** can hire aggregate operations,
-marketing, R&D and finance managers up to its catalog-defined capacity of eight.
-Daily payroll is paid company-wide before advertising, in full or not at all when
-cash is insufficient; suspension stops HQ overhead but not payroll, and staffed HQs
-cannot be demolished. Staff have no management effects until 8B3. Current saves:
-**economy schema 14 / catalog 8 / format 2**.
+Milestones **8B1, 8B2 and 8B3 are implemented**. Companies can construct one
+Corporate headquarters and hire aggregate operations, marketing, R&D and finance
+managers up to its capacity of eight. Complete daily payroll is processed before
+advertising. Only a staffed company whose payroll was fully funded and whose HQ is
+configured as operating receives the bounded management effects: operations raises
+production/retail daily throughput, marketing raises funded advertising progress,
+R&D raises funded research work, and finance lowers ordinary facility overhead.
+Suspension still leaves payroll due but disables every effect. Current saves:
+**economy schema 15 / catalog 9 / format 2**.
 
 ## Milestone 8A2B
 

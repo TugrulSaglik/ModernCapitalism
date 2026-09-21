@@ -86,7 +86,7 @@ static func clear(sim: Economy) -> void:
 				for product: String in f.line_ids():
 					var p: Dictionary = sim.catalog.products[product]
 					if p.category != category_id or not sim.product_public(product) or not sim.catalog.consumer_product(product): continue
-					offers.append({"facility": f.id, "product": product, "price": f.line_price(product), "reference_price": int(p.reference_price), "quality": f.inventory.quality(product), "brand": sim.companies[f.company_id].brand(product), "stock": mini(f.capacity - f.sold_today, f.inventory.quantity(product)), "price_sensitivity": float(segment.price_sensitivity), "quality_sensitivity": float(segment.quality_sensitivity)})
+					offers.append({"facility": f.id, "product": product, "price": f.line_price(product), "reference_price": int(p.reference_price), "quality": f.inventory.quality(product), "brand": sim.companies[f.company_id].brand(product), "stock": mini(sim.effective_capacity(f) - f.sold_today, f.inventory.quantity(product)), "price_sensitivity": float(segment.price_sensitivity), "quality_sensitivity": float(segment.quality_sensitivity)})
 			# Stable corporate-ID order followed by sorted Local product IDs.
 			for product: String in products:
 				if sim.catalog.products[product].category != category_id: continue

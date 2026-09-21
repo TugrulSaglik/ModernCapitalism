@@ -141,4 +141,8 @@ Local offers obey public availability (including existing Debug overrides), but
 never grant company knowledge. Corporate product brands are static seller state,
 independent of research and goods quality. 7B3A product-quality and 7B3B
 conversion-cost process-efficiency R&D are implemented. Patents, licensing,
-throughput research, staff, HQ and strategic AI remain deferred.
+Throughput research remains deferred. Headquarters staffing is implemented through
+8B3: only funded R&D managers at an operating HQ multiply each funded center's base
+rate by the capped catalog percentage (flooring to integer work). Project work,
+daily cash cost, eligibility, ordering and completion semantics do not change.
+Strategic AI remains deferred.

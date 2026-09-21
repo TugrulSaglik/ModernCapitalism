@@ -80,7 +80,8 @@ func _construction() -> void:
 	for kind: String in session.sim.catalog.facility_types:
 		var separate: GameSession = fresh()
 		var definition: Dictionary = separate.sim.catalog.facility_types[kind]
-		check(separate.submit(build_command(kind, 24, 6 - int(definition.depth), "" if definition.behavior == "research" else definition.products[0])), "Archetype constructible: " + kind)
+		var product: String = "" if separate.sim.catalog.productless_behavior(str(definition.behavior)) else str(definition.products[0])
+		check(separate.submit(build_command(kind, 24, 6 - int(definition.depth), product)), "Archetype constructible: " + kind)
 		var built: SimFacility = separate.sim.facility("built_000001")
 		check(built.type_id == kind and built.capacity == int(definition.capacity) and separate.sim.city.plots[built.id].width == int(definition.width), "Archetype role/capacity/footprint: " + kind)
 	var old: GameSession = fresh(2012)

@@ -2,11 +2,12 @@
 
 ## Current milestone
 
-Milestone 8B2 keeps aggregate `staff_counts` by catalog role on `SimCompany`; no
+Milestone 8B3 closes the headquarters/staffing block. Aggregate `staff_counts` and
+the persisted most-recent-day `staff_payroll_funded` result live on `SimCompany`; no
 employee entities or personnel state live on `SimFacility`. The one live headquarters
 derived from facilities supplies a dedicated catalog `staff_capacity` of eight and
-the inspector surface. Catalog 8 defines operations, marketing, R&D and finance
-manager roles with positive integer daily salaries.
+the inspector surface. Catalog 9 defines salaries plus bounded effect kind/per-staff/
+cap data for operations, marketing, R&D and finance managers.
 
 Authorized `hire_staff` and `dismiss_staff` commands apply at a between-day command
 boundary. Hiring requires the owned live HQ to be operating and capacity to remain;
@@ -17,10 +18,17 @@ company payroll or zero, creates no payable, retains employees on failure and re
 ordinary overhead; payroll and depreciation continue. Demolition is rejected until
 all staff are dismissed.
 
-Schema 14 / catalog 8 / save format 2 persist exact counts and payroll histories and
-validate role-map completeness, integer nonnegative counts, capacity and the live-HQ
-invariant. Staff have no production, research, advertising, logistics, market, AI or
-other management effect in 8B2; those bounded effects belong to 8B3.
+One Economy activation helper requires staff, fully funded payroll and an operating
+live HQ. It intentionally does not require transient `active`, because payroll runs
+before facility overhead activation. Catalog-driven integer helpers derive effective
+production/retail capacity, advertising progress, research rate and ordinary
+facility overhead without mutating base facility/catalog data. Shared AI facilities
+naturally receive effects when fixtures provide funded staff, but AI policy does not
+construct HQs, hire, or reason about management ROI.
+
+Schema 15 / catalog 9 / save format 2 persist exact counts, payroll histories and the
+funded flag; restore validates the boolean, staff/HQ invariants and production/retail
+daily counters against the applicable persisted effective capacity.
 
 Milestone 8A2B adds a derived weekly advertising policy beside the existing AI price
 policy. In stable company order it finds public consumer products with an owned retail
@@ -83,7 +91,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Catalog | Read and validate JSON products, technologies, facility types and scenario; resolve public era availability and validate research data |
 | SimClock | Gregorian calendar and explicit daily ticks |
 | Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
-| Company | Accounts, aggregate staff counts, technology knowledge/progress, company-product quality and process-efficiency levels/progress, brand, and advertising state |
+| Company | Accounts, aggregate staff counts and funded-payroll state, technology knowledge/progress, company-product quality and process-efficiency levels/progress, brand, and advertising state |
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment; productless R&D/HQ types retain empty goods state |
 | Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
@@ -133,12 +141,11 @@ add migration aliases rather than renaming persisted IDs.
 ## Extension seams (planned, not implemented)
 - Logistics: extend current road-routed shipments with traffic, vehicle fleets,
   route capacity and multiple cities when needed.
-- R&D: future extensions may add separately typed staffed management effects;
-  conversion-cost efficiency is implemented and remains distinct from quality,
-  input quantities and capacity. Aggregate staff currently provide payroll only.
-- Headquarters: the one-per-company physical facility, aggregate company staffing,
-  capacity and payroll are implemented. Bounded management services remain future
-  work. Do not turn the headquarters Node into the company model.
+- R&D: funded R&D managers raise daily work only; conversion-cost efficiency remains
+  distinct from physical quality, recipe quantities and operational capacity.
+- Headquarters: the one-per-company physical facility, aggregate staffing, payroll
+  and four bounded management services are implemented. Do not turn the headquarters
+  Node into the company model.
 - Finance: replace aggregate accounts with journal entries and balance-sheet
   accounts; add debt and taxes. Aggregate fixed assets and depreciation now exist.
   A share registry and

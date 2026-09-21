@@ -56,7 +56,7 @@ func _initialize() -> void:
 func _staff_data_and_commands() -> void:
 	var session: GameSession = fresh()
 	var sim: Economy = session.sim
-	check(sim.catalog.version == 8 and sim.snapshot().schema_version == 14 and SaveStore.FORMAT_VERSION == 2, "Catalog 8 / schema 14 / save format 2")
+	check(sim.catalog.version == 9 and sim.snapshot().schema_version == 15 and SaveStore.FORMAT_VERSION == 2, "Catalog 9 / schema 15 / save format 2")
 	var expected: Dictionary = {"operations_manager": ["Operations manager", 5000], "marketing_manager": ["Marketing manager", 5000], "research_manager": ["R&D manager", 6000], "finance_manager": ["Finance manager", 5500]}
 	check(sim.catalog.staff_roles.size() == 4, "Four staff roles load")
 	for role: String in expected:
@@ -91,16 +91,16 @@ func _payroll_and_accounting() -> void:
 	var owner: SimCompany = session.sim.companies.player
 	var cash: int = owner.cash
 	session.sim.step()
-	check(cash - owner.cash == 6000 + 2 * 5500 + 2500, "Combined payroll and separate HQ overhead paid exactly")
-	check(owner.payroll_expense == 17000 and owner.cash_expenses >= 19500 and owner.expenses >= 19500, "Payroll increases payroll, cash and operating expenses")
+	check(cash - owner.cash == 6000 + 2 * 5500 + 2250, "Combined payroll and finance-adjusted HQ overhead paid exactly")
+	check(owner.payroll_expense == 17000 and owner.cash_expenses >= 19250 and owner.expenses >= 19250, "Payroll increases payroll, cash and operating expenses")
 	var period: Dictionary = FinancialReports.period(owner, session.sim.clock)
-	check(period.payroll_expense == 17000 and period.other_expenses == 2500, "Income statement separates payroll from headquarters overhead")
+	check(period.payroll_expense == 17000 and period.other_expenses == 2250, "Income statement separates payroll from headquarters overhead")
 	check(period.operating_cash == period.revenue - period.purchases - period.production_cash - period.cash_expenses, "Operating cash flow includes payroll")
 	check(period.profit == period.revenue - period.cogs - period.expenses and owner.ttm_profit(session.sim.clock) == period.profit, "Profit and TTM include payroll")
 	check(FinancialReports.balance(session.sim, "player").retained_earnings == owner.profit() and session.sim.invariant_errors().is_empty(), "Retained earnings and balance identity reconcile")
 	var first_cash: int = owner.cash
 	session.sim.step()
-	check(first_cash - owner.cash == 19500 and owner.payroll_expense == 34000, "Payroll repeats every day")
+	check(first_cash - owner.cash == 19250 and owner.payroll_expense == 34000, "Payroll repeats every day")
 	check(not owner.monthly_history.is_empty() and int(owner.monthly_history.back().payroll_expense) == 34000, "Monthly history carries payroll")
 	hq.operating = false
 	var overhead_before: int = int(FinancialReports.period(owner, session.sim.clock).other_expenses)
@@ -199,8 +199,8 @@ func _persistence() -> void:
 	orphan.sim._demolish(orphan_hq)
 	check(SaveStore.new().restore(orphan.sim.snapshot()) == null, "Staff without headquarters rejected")
 	var old_schema: Dictionary = state.duplicate(true)
-	old_schema.schema_version = 13
-	check(SaveStore.new().restore(old_schema) == null, "Schema 13 rejected under schema 14")
+	old_schema.schema_version = 14
+	check(SaveStore.new().restore(old_schema) == null, "Schema 14 rejected under schema 15")
 
 func _ui() -> void:
 	var screen: Control = preload("res://src/ui/game_screen.gd").new()

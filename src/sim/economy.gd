@@ -219,7 +219,7 @@ func _research() -> void:
 		var cost: int = project_cost(project)
 		if not owner.pay_expense(cost): continue
 		owner.research_expense += cost
-		var progress: int = project_progress(owner, project) + int(catalog.facility_types[f.type_id].research_rate)
+		var progress: int = project_progress(owner, project) + effective_research_rate(f)
 		if progress >= project_work(project):
 			if project.kind == "technology":
 				owner.known_technologies[str(project.technology)] = clock.tick
@@ -540,6 +540,56 @@ func staff_capacity(company_id: String) -> int:
 	var hq: SimFacility = headquarters(company_id)
 	return int(catalog.facility_types[hq.type_id].staff_capacity) if hq != null else 0
 
+func staff_effects_active(company_id: String) -> bool:
+	# Payroll precedes ordinary facility activation, so the authoritative gate is
+	# the live HQ's configured operating state, never its transient `active` flag.
+	if not companies.has(company_id): return false
+	var owner: SimCompany = companies[company_id]
+	var hq: SimFacility = headquarters(company_id)
+	return owner.total_staff() > 0 and owner.staff_payroll_funded and hq != null and hq.operating
+
+func staff_effect_percent(company_id: String, role_or_effect: String) -> int:
+	if not staff_effects_active(company_id): return 0
+	var role_id: String = role_or_effect if catalog.staff_roles.has(role_or_effect) else ""
+	if role_id.is_empty():
+		for candidate: String in catalog.staff_roles:
+			if str(catalog.staff_roles[candidate].effect) == role_or_effect:
+				role_id = candidate
+				break
+	if role_id.is_empty(): return 0
+	var role: Dictionary = catalog.staff_roles[role_id]
+	return mini(staff_count(company_id, role_id) * int(role.effect_per_staff), int(role.effect_cap_percent))
+
+func effective_capacity(f: SimFacility) -> int:
+	if f == null or _behavior(f) not in ["production", "retail"]: return f.capacity if f != null else 0
+	var bonus: int = staff_effect_percent(f.company_id, "operations_capacity_percent")
+	@warning_ignore("integer_division")
+	return maxi(f.capacity, f.capacity * (100 + bonus) / 100)
+
+func effective_research_rate(f: SimFacility) -> int:
+	if f == null or _behavior(f) != "research": return 0
+	var base: int = int(catalog.facility_types[f.type_id].research_rate)
+	var bonus: int = staff_effect_percent(f.company_id, "research_rate_percent")
+	@warning_ignore("integer_division")
+	return maxi(base, base * (100 + bonus) / 100)
+
+func effective_overhead(f: SimFacility) -> int:
+	if f == null: return 0
+	var base: int = int(catalog.facility_types[f.type_id].overhead)
+	if base == 0: return 0
+	var reduction: int = staff_effect_percent(f.company_id, "facility_overhead_reduction_percent")
+	@warning_ignore("integer_division")
+	return maxi(1, base * (100 - reduction) / 100)
+
+func production_input_target(f: SimFacility, input: String) -> int:
+	if f == null or _behavior(f) != "production": return 0
+	return effective_capacity(f) * f.stock_days * int(catalog.products[f.product_id].inputs.get(input, 0))
+
+func retail_replenishment_target(f: SimFacility) -> int:
+	if f == null or _behavior(f) != "retail" or f.assortment.is_empty(): return 0
+	@warning_ignore("integer_division")
+	return maxi(1, effective_capacity(f) * f.stock_days / f.assortment.size())
+
 func daily_payroll(company_id: String) -> int:
 	if not companies.has(company_id): return 0
 	var total: int = 0
@@ -553,7 +603,10 @@ func _payroll() -> void:
 	for company_id: String in company_ids:
 		var owner: SimCompany = companies[company_id]
 		var amount: int = daily_payroll(company_id)
-		if amount > 0 and owner.pay_expense(amount): owner.payroll_expense += amount
+		owner.staff_payroll_funded = false
+		if amount > 0 and owner.pay_expense(amount):
+			owner.payroll_expense += amount
+			owner.staff_payroll_funded = true
 
 func trade(seller: SimFacility, buyer: SimFacility, product: String, requested: int) -> int:
 	return logistics.dispatch(self, seller, buyer, product, requested)
@@ -582,7 +635,8 @@ func produce(f: SimFacility) -> int:
 	var definition: Dictionary = catalog.products[f.product_id]
 	var inputs: Dictionary = definition.inputs
 	# Limit finished stock to the facility's configured stock target.
-	var units: int = mini(f.capacity - f.produced_today, maxi(0, f.capacity * f.stock_days - f.inventory.quantity(f.product_id)))
+	var daily_capacity: int = effective_capacity(f)
+	var units: int = mini(daily_capacity - f.produced_today, maxi(0, daily_capacity * f.stock_days - f.inventory.quantity(f.product_id)))
 	var owner: SimCompany = companies[f.company_id]
 	var conversion: int = effective_conversion_cost(f.company_id, f.product_id)
 	if conversion > 0:
@@ -618,7 +672,7 @@ func produce(f: SimFacility) -> int:
 func consumer_sale(f: SimFacility, requested: int, product: String = "") -> int:
 	if product.is_empty(): product = f.product_id
 	if requested <= 0 or not f.active or _behavior(f) != "retail" or not product_public(product) or not f.assortment.has(product): return 0
-	var units: int = mini(requested, mini(f.inventory.quantity(product), f.capacity - f.sold_today))
+	var units: int = mini(requested, mini(f.inventory.quantity(product), effective_capacity(f) - f.sold_today))
 	if units <= 0: return 0
 	var cost: int = f.inventory.remove(product, units)
 	var amount: int = units * f.line_price(product)
@@ -669,7 +723,7 @@ func step() -> void:
 		f.active = f.operating and (can_manufacture(f.company_id, f.product_id) if _behavior(f) == "production" else (has_available_line or _behavior(f) in ["storage", "research", "headquarters"]))
 		if f.active:
 			var owner: SimCompany = companies[f.company_id]
-			f.active = owner.pay_expense(int(catalog.facility_types[f.type_id].overhead))
+			f.active = owner.pay_expense(effective_overhead(f))
 	for f: SimFacility in facilities:
 		if not f.active or _behavior(f) != "production":
 			continue
@@ -677,12 +731,12 @@ func step() -> void:
 		var input_ids: Array = inputs.keys()
 		input_ids.sort()
 		for input: String in input_ids:
-			_source(f, input, f.capacity * f.stock_days * int(inputs[input]))
+			_source(f, input, production_input_target(f, input))
 		produce(f)
 	for f: SimFacility in facilities:
 		if f.active and _behavior(f) == "retail":
 			for product: String in f.line_ids():
-				if product_public(product): _source(f, product, maxi(1, f.capacity * f.stock_days / f.assortment.size()))
+				if product_public(product): _source(f, product, retail_replenishment_target(f))
 		elif f.active and _behavior(f) == "storage":
 			var products: Array = f.replenishment_targets.keys()
 			products.sort()
@@ -724,7 +778,10 @@ func _advertise() -> void:
 				continue
 			owner.advertising_inactive_days[product] = 0
 			owner.advertising_expense += budget
-			owner.advertising_progress[product] = int(owner.advertising_progress[product]) + budget
+			var bonus: int = staff_effect_percent(company_id, "advertising_progress_percent")
+			@warning_ignore("integer_division")
+			var effective_progress: int = budget * (100 + bonus) / 100
+			owner.advertising_progress[product] = int(owner.advertising_progress[product]) + effective_progress
 			while owner.brand(product) < 100:
 				var threshold: int = advertising_threshold(product, owner.brand(product))
 				if int(owner.advertising_progress[product]) < threshold: break
@@ -758,6 +815,7 @@ func invariant_errors() -> Array[String]:
 		for role: String in owner.staff_counts:
 			if not catalog.staff_roles.has(role) or not owner.staff_counts[role] is int or int(owner.staff_counts[role]) < 0: errors.append("Staff count: " + owner.id + "/" + role)
 		if owner.total_staff() > 0 and (headquarters(owner.id) == null or owner.total_staff() > staff_capacity(owner.id)): errors.append("Staff headquarters/capacity: " + owner.id)
+		if owner.staff_payroll_funded and owner.total_staff() == 0: errors.append("Funded payroll without staff: " + owner.id)
 		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) != owner.capital + owner.profit():
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
@@ -768,6 +826,8 @@ func invariant_errors() -> Array[String]:
 			errors.append("Productless facility state: " + f.id)
 		if _behavior(f) == "storage" and logistics.used(f) + logistics.incoming(f.id) > f.capacity:
 			errors.append("Warehouse capacity: " + f.id)
+		if f.produced_today > effective_capacity(f) or f.sold_today > effective_capacity(f):
+			errors.append("Daily facility capacity: " + f.id)
 		for product: String in f.inventory.quantities:
 			if f.inventory.points(product) < f.inventory.quantity(product) or f.inventory.points(product) > f.inventory.quantity(product) * 100 or f.inventory.quantity(product) < 0 or f.inventory.value(product) < 0 or (f.inventory.quantity(product) == 0 and f.inventory.value(product) != 0):
 				errors.append("Inventory balance: " + f.id + "/" + product)
@@ -785,7 +845,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 14, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 15, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

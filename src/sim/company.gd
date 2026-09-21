@@ -44,6 +44,9 @@ var advertising_inactive_days: Dictionary = {}
 # Aggregate personnel state belongs to the company. Facilities only provide the
 # live headquarters capacity and management surface.
 var staff_counts: Dictionary = {}
+# Result of the most recently processed daily payroll. This is persisted because
+# completed-day throughput counters may depend on funded management effects.
+var staff_payroll_funded: bool = false
 
 func brand(product: String) -> int:
 	return int(product_brands.get(product, 0))
@@ -118,6 +121,7 @@ func begin_day() -> void:
 	daily_revenue = 0
 	daily_cogs = 0
 	daily_expenses = 0
+	staff_payroll_funded = false
 
 func spend(amount: int) -> bool:
 	if amount < 0 or amount > cash:
@@ -145,7 +149,7 @@ func profit() -> int:
 	return revenue - cogs - expenses
 
 func snapshot() -> Dictionary:
-	return {"staff_counts": staff_counts.duplicate(true), "product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "advertising_inactive_days": advertising_inactive_days.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
+	return {"staff_counts": staff_counts.duplicate(true), "staff_payroll_funded": staff_payroll_funded, "product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "advertising_inactive_days": advertising_inactive_days.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
 		"freight": freight, "purchases": purchases, "depreciation": depreciation,
 		"recorded_profit": recorded_profit, "daily_history": daily_history.duplicate(true), "monthly_history": monthly_history.duplicate(true),
 		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense, "payroll_expense": payroll_expense,

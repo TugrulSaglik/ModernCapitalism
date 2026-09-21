@@ -14,6 +14,13 @@ var product_quality_research: Dictionary = {}
 var process_efficiency_research: Dictionary = {}
 var staff_roles: Dictionary = {}
 
+const STAFF_EFFECTS: Array[String] = [
+	"operations_capacity_percent",
+	"advertising_progress_percent",
+	"research_rate_percent",
+	"facility_overhead_reduction_percent",
+]
+
 func load_data(path: String = "res://data/example_economy.json") -> bool:
 	products.clear()
 	technologies.clear()
@@ -29,12 +36,21 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		errors.append("Staff roles required")
 		return false
 	_index(root.staff_roles, staff_roles)
+	var assigned_staff_effects: Dictionary = {}
 	for id: String in staff_roles:
 		var role: Dictionary = staff_roles[id]
-		if str(role.get("name", "")).is_empty() or not _positive_integer(role.get("daily_salary")):
+		var effect: String = str(role.get("effect", ""))
+		if str(role.get("name", "")).is_empty() or not _positive_integer(role.get("daily_salary")) or effect not in STAFF_EFFECTS or not _positive_integer(role.get("effect_per_staff")) or not _positive_integer(role.get("effect_cap_percent")):
 			errors.append("Invalid staff role: " + id)
+		elif assigned_staff_effects.has(effect):
+			errors.append("Duplicate staff effect: " + effect)
+		elif int(role.effect_per_staff) > 100 or int(role.effect_cap_percent) > 100 or int(role.effect_cap_percent) < int(role.effect_per_staff):
+			errors.append("Invalid staff effect bounds: " + id)
 		else:
+			assigned_staff_effects[effect] = true
 			role.daily_salary = int(role.daily_salary)
+			role.effect_per_staff = int(role.effect_per_staff)
+			role.effect_cap_percent = int(role.effect_cap_percent)
 	if not root.get("market_defaults") is Dictionary:
 		errors.append("Market defaults required")
 		return false

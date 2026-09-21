@@ -1,10 +1,10 @@
 {
-  "version": 8,
+  "version": 9,
   "staff_roles": [
-    {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000},
-    {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000},
-    {"id": "research_manager", "name": "R&D manager", "daily_salary": 6000},
-    {"id": "finance_manager", "name": "Finance manager", "daily_salary": 5500}
+    {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000, "effect": "operations_capacity_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
+    {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000, "effect": "advertising_progress_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
+    {"id": "research_manager", "name": "R&D manager", "daily_salary": 6000, "effect": "research_rate_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
+    {"id": "finance_manager", "name": "Finance manager", "daily_salary": 5500, "effect": "facility_overhead_reduction_percent", "effect_per_staff": 5, "effect_cap_percent": 15}
   ],
   "process_efficiency_research": {
     "max_level": 5,

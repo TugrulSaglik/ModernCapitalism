@@ -18,13 +18,16 @@
 | 8A2B — AI advertising policy (implemented) | Deterministic competitor advertising budgets and funding policy | 8A2A |
 | 8B1 — Corporate headquarters facility foundation (implemented) | Data-driven headquarters construction, ownership and baseline operating model | 8A2B |
 | 8B2 — Staffing and hiring (implemented) | Staff roles, hiring and payroll using the headquarters foundation | 8B1 |
-| 8B3 — Headquarters/staff management effects (next) | Bounded management effects from headquarters and staffed roles | 8B2 |
-| 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8B3 |
+| 8B3 — Headquarters/staff management effects (implemented) | Payroll-funded bounded operations, marketing, R&D and finance effects | 8B2 |
+| 8UI-A — Visual system and game shell (next) | Reusable theme/design system, typography hierarchy, spacing, buttons, panels, tabs, navigation and top-level game shell | 8B3 |
+| 8UI-B — Management interface redesign | Redesign facility management, sourcing/logistics, R&D, HQ/staffing, Markets and financial reports using the new design system | 8UI-A |
+| 8UI-C — City/build interaction polish | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation | 8UI-B |
+| 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8UI-C |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
 | 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
-| 12 — Modes and complete-game production | Tutorial campaign, full sandbox setup, catalog breadth, polished UI/art, accessibility, audio and balancing | 1–11 |
+| 12 — Modes and complete-game production | Tutorial campaign, full sandbox setup, catalog breadth, finished art/audio/accessibility/tutorial presentation and final balancing | 1–11 |
 
 Milestone 5 replaces the fixed starting board in normal games without changing the
 daily economic scheduler or logistics contracts. Save schema 5 stores generated
@@ -46,9 +49,9 @@ No branch or commit is created automatically.
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.
 Its categorized accounts and exact cash/equity reconciliations provide the foundation
-for later debt, dividends and ownership. Headquarters construction is implemented;
-staffing/management effects, mergers,
-real estate, active ports/import/export and multi-city play remain future systems.
+for later debt, dividends and ownership. Headquarters construction, aggregate
+staffing, payroll and bounded management effects are implemented; mergers, real
+estate, active ports/import/export and multi-city play remain future systems.
 Quality provenance is implemented in 7B1; Local competition and static company-product
 brand in 7B2; repeatable product-quality and conversion-cost process R&D are
 implemented in 7B3A/7B3B. Milestone 8A1 adds player advertising without changing
@@ -58,4 +61,7 @@ decay for public products after unfunded advertising inactivity. Milestone 8A2B 
 the bounded weekly AI advertising policy without strategic ROI or expansion logic.
 Milestone 8B1 adds the one-per-company productless headquarters building. Milestone
 8B2 adds aggregate company staff, HQ capacity, authorized hiring/dismissal and
-all-or-nothing daily payroll without bonuses, operational effects or AI hiring.
+all-or-nothing daily payroll. Milestone 8B3 adds the four payroll-funded bounded
+effects while leaving AI hiring and HQ construction deferred. The dedicated UI/UX
+block 8UI-A through 8UI-C now precedes strategic competitor AI in 8C; final production
+polish remains in Milestone 12.

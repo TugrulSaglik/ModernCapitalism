@@ -62,7 +62,7 @@ func _ready() -> void:
 	operations.add_child(info)
 	info.custom_minimum_size.y = 190
 	staff_info = RichTextLabel.new()
-	staff_info.custom_minimum_size = Vector2(390, 195)
+	staff_info.custom_minimum_size = Vector2(390, 340)
 	operations.add_child(staff_info)
 	staff_role = OptionButton.new()
 	operations.add_child(staff_role)
@@ -278,6 +278,8 @@ func refresh() -> void:
 	for id: String in f.inventory.quantities:
 		lines.append("  %s: %d / $%.2f / %s" % [id, f.inventory.quantity(id), f.inventory.value(id) / 100.0, f.inventory.quality_text(id)])
 	if session.sim.catalog.facility_types[f.type_id].behavior == "production":
+		var production_capacity: int = session.sim.effective_capacity(f)
+		if production_capacity != f.capacity: lines[3] = "Price $%.2f | Process Q%d | Capacity %d base / %d effective per day" % [f.price / 100.0, f.quality, f.capacity, production_capacity]
 		var quality_level: int = owner.product_quality_level(f.product_id)
 		lines.insert(4, "Product quality R&D L%d/%d | Effective process Q%d" % [quality_level, session.sim.catalog.quality_max_level(), clampi(f.quality + session.sim.catalog.quality_bonus(quality_level), 1, 100)])
 		var efficiency_level: int = owner.process_efficiency_level(f.product_id)
@@ -290,7 +292,11 @@ func refresh() -> void:
 	var weekly: int = 0
 	if session.sim._behavior(f) == "retail":
 		lines[1] = str(session.sim.catalog.facility_types[f.type_id].name) + " • %d product lines" % f.assortment.size()
-		lines[3] = "Goods quality per product | Checkout %d/day" % f.capacity
+		var retail_capacity: int = session.sim.effective_capacity(f)
+		lines[3] = "Goods quality per product | Checkout %d/day" % f.capacity if retail_capacity == f.capacity else "Goods quality per product | Checkout %d base / %d effective per day" % [f.capacity, retail_capacity]
+	var displayed_base_overhead: int = int(session.sim.catalog.facility_types[f.type_id].overhead)
+	var displayed_effective_overhead: int = session.sim.effective_overhead(f)
+	if displayed_base_overhead != displayed_effective_overhead: lines.append("Daily overhead: %s base | %s effective" % [CompanyReports.money(displayed_base_overhead), CompanyReports.money(displayed_effective_overhead)])
 	for sale: Dictionary in f.recent_sales: weekly += int(sale.units)
 	lines.append("Recent 7 days: %d consumer units" % weekly)
 	lines.append("Owner daily revenue $%.2f / costs $%.2f / profit $%.2f" % [owner.daily_revenue / 100.0, (owner.daily_cogs + owner.daily_expenses) / 100.0, (owner.daily_revenue - owner.daily_cogs - owner.daily_expenses) / 100.0])
@@ -363,7 +369,13 @@ func refresh() -> void:
 		tabs.current_tab = 0
 		for control: Control in [choices, configure, line, line_info, remove_line, price.get_parent(), stock.get_parent()]: control.hide()
 		info.custom_minimum_size.y = 155
-		info.text = "%s / %s\nR&D center | %s\nRate %d points/day | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", session.sim.catalog.facility_types[f.type_id].research_rate, CompanyReports.money(int(session.sim.catalog.facility_types[f.type_id].overhead)), session.sim.project_name(f.research_project) if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
+		var base_rate: int = int(session.sim.catalog.facility_types[f.type_id].research_rate)
+		var effective_rate: int = session.sim.effective_research_rate(f)
+		var rate_text: String = "%d points/day" % base_rate if base_rate == effective_rate else "%d base / %d effective points/day" % [base_rate, effective_rate]
+		var research_base_overhead: int = int(session.sim.catalog.facility_types[f.type_id].overhead)
+		var research_effective_overhead: int = session.sim.effective_overhead(f)
+		var research_overhead_text: String = CompanyReports.money(research_base_overhead) if research_base_overhead == research_effective_overhead else "%s base / %s effective" % [CompanyReports.money(research_base_overhead), CompanyReports.money(research_effective_overhead)]
+		info.text = "%s / %s\nR&D center | %s\nRate %s | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", rate_text, research_overhead_text, session.sim.project_name(f.research_project) if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
 		_refresh_research(f, own)
 	elif headquarters:
 		tabs.current_tab = 0
@@ -371,13 +383,30 @@ func refresh() -> void:
 		info.custom_minimum_size.y = 175
 		var facility_definition: Dictionary = session.sim.catalog.facility_types[f.type_id]
 		var book_value: int = f.asset_cost - f.accumulated_depreciation
-		info.text = "Corporate headquarters\n%s\n%s\nDaily overhead: %s\nConstruction / fixed-asset cost: %s\nAccumulated depreciation: %s\nNet book value: %s" % [owner.display_name, "Operating" if f.operating else "Suspended", CompanyReports.money(int(facility_definition.overhead)), CompanyReports.money(f.asset_cost), CompanyReports.money(f.accumulated_depreciation), CompanyReports.money(book_value)]
-		var staff_lines: PackedStringArray = ["STAFFING", "Total staff: %d / %d" % [session.sim.total_staff(owner.id), session.sim.staff_capacity(owner.id)], "Configured daily payroll: %s/day" % CompanyReports.money(session.sim.daily_payroll(owner.id)), ""]
+		var hq_base_overhead: int = int(facility_definition.overhead)
+		var hq_effective_overhead: int = session.sim.effective_overhead(f)
+		var hq_overhead_text: String = CompanyReports.money(hq_base_overhead) if hq_base_overhead == hq_effective_overhead else "%s base / %s effective" % [CompanyReports.money(hq_base_overhead), CompanyReports.money(hq_effective_overhead)]
+		info.text = "Corporate headquarters\n%s\n%s\nDaily overhead: %s\nConstruction / fixed-asset cost: %s\nAccumulated depreciation: %s\nNet book value: %s" % [owner.display_name, "Operating" if f.operating else "Suspended", hq_overhead_text, CompanyReports.money(f.asset_cost), CompanyReports.money(f.accumulated_depreciation), CompanyReports.money(book_value)]
+		var active: bool = session.sim.staff_effects_active(owner.id)
+		var effect_state: String = "ACTIVE" if active else "INACTIVE"
+		if not active:
+			if not f.operating: effect_state += " — headquarters suspended"
+			elif session.sim.total_staff(owner.id) == 0: effect_state += " — no staff"
+			else: effect_state += " — payroll not funded"
+		var staff_lines: PackedStringArray = ["STAFFING", "Total staff: %d / %d" % [session.sim.total_staff(owner.id), session.sim.staff_capacity(owner.id)], "Configured daily payroll: %s/day" % CompanyReports.money(session.sim.daily_payroll(owner.id)), "Management effects: " + effect_state, ""]
 		var role_ids: Array = session.sim.catalog.staff_roles.keys()
 		role_ids.sort()
 		for role_id: String in role_ids:
 			var role: Dictionary = session.sim.catalog.staff_roles[role_id]
-			staff_lines.append("%s | Count %d | %s/day" % [role.name, session.sim.staff_count(owner.id, role_id), CompanyReports.money(int(role.daily_salary))])
+			var configured: int = mini(session.sim.staff_count(owner.id, role_id) * int(role.effect_per_staff), int(role.effect_cap_percent))
+			var description: String = {
+				"operations_capacity_percent": "production/retail capacity",
+				"advertising_progress_percent": "advertising progress",
+				"research_rate_percent": "research rate",
+				"facility_overhead_reduction_percent": "facility overhead",
+			}.get(str(role.effect), str(role.effect))
+			var sign: String = "-" if role.effect == "facility_overhead_reduction_percent" else "+"
+			staff_lines.append("%s: %d | %s%d%% each | %s%d%% %s | %s/day" % [role.name, session.sim.staff_count(owner.id, role_id), sign, int(role.effect_per_staff), sign, configured, description, CompanyReports.money(int(role.daily_salary))])
 		staff_info.text = "\n".join(staff_lines)
 		var selected_role: String = str(staff_role.get_item_metadata(staff_role.selected)) if staff_role.selected >= 0 else ""
 		staff_role.disabled = not own
@@ -402,7 +431,7 @@ func _refresh_research(f: SimFacility, own: bool) -> void:
 	var assigned: String = "None"
 	for other: SimFacility in sim.facilities:
 		if other.company_id == owner.id and not other.research_project.is_empty() and sim.project_equal(other.research_project, project): assigned = other.id
-	var eta: int = ceili(float(work - progress) / int(sim.catalog.facility_types[f.type_id].research_rate))
+	var eta: int = ceili(float(work - progress) / sim.effective_research_rate(f))
 	if project.kind == "technology":
 		var technology: String = str(project.technology)
 		var definition: Dictionary = sim.catalog.technologies[technology]
