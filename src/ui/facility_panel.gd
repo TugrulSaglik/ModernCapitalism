@@ -62,6 +62,7 @@ func _ready() -> void:
 	operations.add_child(info)
 	info.custom_minimum_size.y = 190
 	staff_info = RichTextLabel.new()
+	staff_info.bbcode_enabled = true
 	staff_info.custom_minimum_size = Vector2(390, 340)
 	operations.add_child(staff_info)
 	staff_role = OptionButton.new()
@@ -73,6 +74,7 @@ func _ready() -> void:
 		if staff_role.selected >= 0: command_requested.emit({"type": "hire_staff", "facility": selected_id, "role": str(staff_role.get_item_metadata(staff_role.selected)), "quantity": 1}))
 	dismiss_staff = _button(staff_row, "Dismiss 1", func() -> void:
 		if staff_role.selected >= 0: command_requested.emit({"type": "dismiss_staff", "facility": selected_id, "role": str(staff_role.get_item_metadata(staff_role.selected)), "quantity": 1}))
+	dismiss_staff.theme_type_variation = "DestructiveButton"
 	choices = OptionButton.new()
 	operations.add_child(choices)
 	configure = _button(operations, "Add product line / set production", func() -> void:
@@ -96,13 +98,11 @@ func _ready() -> void:
 		price.value = session.sim.facility(selected_id).line_price(line.get_item_text(line.selected)) / 100.0
 		refresh())
 	line_info = Label.new()
-	line_info.add_theme_font_size_override("font_size", 14)
 	operations.add_child(line_info)
 	remove_line = _button(operations, "Remove selected line (stock retained)", func() -> void:
 		if line.selected >= 0: command_requested.emit({"type": "remove_line", "facility": selected_id, "product": line.get_item_text(line.selected)}))
 	logistics_info = RichTextLabel.new()
 	logistics_info.custom_minimum_size = Vector2(390, 170)
-	logistics_info.add_theme_font_size_override("normal_font_size", 14)
 	transport.add_child(logistics_info)
 	transfer_product = OptionButton.new()
 	transport.add_child(transfer_product)
@@ -134,6 +134,7 @@ func _ready() -> void:
 		var f: SimFacility = session.sim.facility(selected_id)
 		command_requested.emit({"type": "set_operating", "facility": selected_id, "operating": not f.operating}))
 	demolish = _button(operations, "Demolish facility…", func() -> void: demolition_requested.emit())
+	demolish.theme_type_variation = "DestructiveButton"
 	var stock_row: HBoxContainer = HBoxContainer.new()
 	operations.add_child(stock_row)
 	stock = SpinBox.new()
@@ -144,6 +145,7 @@ func _ready() -> void:
 	apply_stock = _button(stock_row, "Queue stock target", func() -> void: command_requested.emit({"type": "set_stock_days", "facility": selected_id, "days": int(stock.value)}))
 	var label: Label = Label.new()
 	label.text = "SOURCING / WHOLESALE OFFERS"
+	label.theme_type_variation = "SectionLabel"
 	sourcing.add_child(label)
 	product = OptionButton.new()
 	sourcing.add_child(product)
@@ -393,7 +395,7 @@ func refresh() -> void:
 			if not f.operating: effect_state += " — headquarters suspended"
 			elif session.sim.total_staff(owner.id) == 0: effect_state += " — no staff"
 			else: effect_state += " — payroll not funded"
-		var staff_lines: PackedStringArray = ["STAFFING", "Total staff: %d / %d" % [session.sim.total_staff(owner.id), session.sim.staff_capacity(owner.id)], "Configured daily payroll: %s/day" % CompanyReports.money(session.sim.daily_payroll(owner.id)), "Management effects: " + effect_state, ""]
+		var staff_lines: PackedStringArray = ["[font_size=16][color=#AAB8C1]STAFFING[/color][/font_size]", "Total staff: %d / %d" % [session.sim.total_staff(owner.id), session.sim.staff_capacity(owner.id)], "Configured daily payroll: %s/day" % CompanyReports.money(session.sim.daily_payroll(owner.id)), "Management effects: " + effect_state, ""]
 		var role_ids: Array = session.sim.catalog.staff_roles.keys()
 		role_ids.sort()
 		for role_id: String in role_ids:

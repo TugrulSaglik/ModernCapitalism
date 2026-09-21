@@ -3,6 +3,7 @@ extends Control
 const Session = preload("res://src/session/game_session.gd")
 const City = preload("res://src/ui/city_view.gd")
 const Inspector = preload("res://src/ui/facility_panel.gd")
+const UITheme = preload("res://src/ui/ui_theme.gd")
 var session: GameSession = Session.new()
 var city: CityView
 var inspector: FacilityPanel
@@ -38,8 +39,9 @@ var city_diagnostics: Label
 var minimap: CityMinimap
 
 func _ready() -> void:
+	theme = UITheme.build()
 	var backdrop: ColorRect = ColorRect.new()
-	backdrop.color = Color("182833")
+	backdrop.color = UITheme.BACKGROUND
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
@@ -50,7 +52,7 @@ func _ready() -> void:
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	for side: String in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 10)
+		margin.add_theme_constant_override("margin_" + side, UITheme.SPACE_3)
 	add_child(margin)
 	var column: VBoxContainer = VBoxContainer.new()
 	margin.add_child(column)
@@ -76,6 +78,7 @@ func _ready() -> void:
 	_button(toolbar, "Load", _load)
 	_button(toolbar, "Settings", _show_settings)
 	finance_label = Label.new()
+	finance_label.theme_type_variation = "ValueLabel"
 	finance_label.tooltip_text = "Trailing 12 calendar months, updated daily. Uses available history before 12 months."
 	var body: HBoxContainer = HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -101,7 +104,7 @@ func _ready() -> void:
 	_build_city()
 	var legend: Label = Label.new()
 	legend.text = "Middle drag: pan | Wheel: zoom | Click: inspect | Esc: cancel / close\nTeal: player • Blue: components • Tan: Orion • Purple: Nova • Coral: rival"
-	legend.add_theme_font_size_override("font_size", 13)
+	legend.theme_type_variation = "MetaLabel"
 	left.add_child(legend)
 	inspector = Inspector.new()
 	body.add_child(inspector)
@@ -122,7 +125,7 @@ func _ready() -> void:
 		toolbar.remove_child(button)
 		financial_bar.add_child(button)
 	status = Label.new()
-	status.add_theme_font_size_override("font_size", 13)
+	status.theme_type_variation = "MetaLabel"
 	status.clip_text = true
 	column.add_child(status)
 	minimap = CityMinimap.new()
@@ -379,7 +382,7 @@ func _build_construction(parent: Node) -> void:
 	parent.add_child(construction)
 	var title: Label = Label.new()
 	title.text = "CONSTRUCTION / METRO CITY"
-	title.add_theme_font_size_override("font_size", 22)
+	title.theme_type_variation = "TitleLabel"
 	construction.add_child(title)
 	build_choices = OptionButton.new()
 	construction.add_child(build_choices)
@@ -406,7 +409,8 @@ func _build_construction(parent: Node) -> void:
 	hint.text = "Green: valid • Red: invalid\nClick land to build; right-click / Esc to cancel.\nCosts apply immediately, including while paused.\nEarlier queued management commands apply first."
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	construction.add_child(hint)
-	_button(construction, "Cancel construction", func() -> void: city.cancel_placement())
+	var cancel: Button = _button(construction, "Cancel construction", func() -> void: city.cancel_placement())
+	cancel.theme_type_variation = "DestructiveButton"
 	construction.hide()
 	demolition = ConfirmationDialog.new()
 	demolition.title = "Demolish owned facility"

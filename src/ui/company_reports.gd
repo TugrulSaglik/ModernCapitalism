@@ -32,6 +32,7 @@ func _ready() -> void:
 	row.add_child(advertising_budget)
 	apply_advertising = Button.new()
 	apply_advertising.text = "Queue advertising"
+	apply_advertising.theme_type_variation = "PrimaryButton"
 	row.add_child(apply_advertising)
 	context = Label.new()
 	context.clip_text = true
@@ -68,7 +69,7 @@ func add_row(label: String, value: String, negative: bool = false) -> void:
 	row.set_text(0, label)
 	row.set_text(1, value)
 	row.set_text_alignment(1, HORIZONTAL_ALIGNMENT_RIGHT)
-	if negative: row.set_custom_color(1, Color("ff9494"))
+	if negative: row.set_custom_color(1, Color("e47777"))
 
 func amount(label: String, value: int) -> void:
 	add_row(label, money(value), value < 0)
