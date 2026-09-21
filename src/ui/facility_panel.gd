@@ -204,7 +204,7 @@ func bind(game_session: GameSession, id: String) -> void:
 		if session.sim.product_public(id_value): transfer_product.add_item(id_value)
 	transfer_destination.clear()
 	for other: SimFacility in session.sim.facilities:
-		if other.company_id == f.company_id and other != f and session.sim._behavior(other) != "research":
+		if other.company_id == f.company_id and other != f and not session.sim.catalog.productless_behavior(session.sim._behavior(other)):
 			transfer_destination.add_item("To: " + other.id + " / " + other.type_id)
 			transfer_destination.set_item_metadata(transfer_destination.item_count - 1, other.id)
 	product.clear()
@@ -329,16 +329,24 @@ func refresh() -> void:
 		details.append("Market: %d sold / %d potential\nAverage price $%.2f | owner share %.1f%%" % [market.units, market.potential, market.average_price / 100.0, float(market.market_share.get(f.company_id, 0.0)) * 100.0])
 	sourcing_info.text = "\n".join(details)
 	var research: bool = session.sim._behavior(f) == "research"
+	var headquarters: bool = session.sim._behavior(f) == "headquarters"
 	for control: Control in [research_choices, research_info, assign_research, stop_research]: control.visible = research
-	tabs.set_tab_title(0, "R&D" if research else "Products")
-	tabs.set_tab_hidden(1, research)
-	tabs.set_tab_hidden(2, research)
+	tabs.set_tab_title(0, "R&D" if research else ("Headquarters" if headquarters else "Products"))
+	tabs.set_tab_hidden(1, research or headquarters)
+	tabs.set_tab_hidden(2, research or headquarters)
 	if research:
 		tabs.current_tab = 0
 		for control: Control in [choices, configure, line, line_info, remove_line, price.get_parent(), stock.get_parent()]: control.hide()
 		info.custom_minimum_size.y = 155
 		info.text = "%s / %s\nR&D center | %s\nRate %d points/day | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", session.sim.catalog.facility_types[f.type_id].research_rate, CompanyReports.money(int(session.sim.catalog.facility_types[f.type_id].overhead)), session.sim.project_name(f.research_project) if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
 		_refresh_research(f, own)
+	elif headquarters:
+		tabs.current_tab = 0
+		for control: Control in [choices, configure, line, line_info, remove_line, price.get_parent(), stock.get_parent()]: control.hide()
+		info.custom_minimum_size.y = 245
+		var facility_definition: Dictionary = session.sim.catalog.facility_types[f.type_id]
+		var book_value: int = f.asset_cost - f.accumulated_depreciation
+		info.text = "Corporate headquarters\n%s\n%s\nDaily overhead: %s\nConstruction / fixed-asset cost: %s\nAccumulated depreciation: %s\nNet book value: %s\n\nStaffing and management functions arrive in Milestone 8B2." % [owner.display_name, "Operating" if f.operating else "Suspended", CompanyReports.money(int(facility_definition.overhead)), CompanyReports.money(f.asset_cost), CompanyReports.money(f.accumulated_depreciation), CompanyReports.money(book_value)]
 
 func _layout_key(f: SimFacility) -> String:
 	var owner: SimCompany = session.sim.companies[f.company_id]

@@ -109,7 +109,7 @@ func can_manufacture(company: String, product: String) -> bool:
 func can_configure(company: String, type_id: String, product: String) -> bool:
 	if not companies.has(company) or not catalog.supports_product(type_id, product): return false
 	var behavior: String = catalog.facility_types[type_id].behavior
-	if behavior == "research": return true
+	if catalog.productless_behavior(behavior): return true
 	return can_manufacture(company, product) if behavior == "production" else product_public(product)
 
 func technology_project(technology: String) -> Dictionary:
@@ -303,6 +303,7 @@ func command_error(command: Dictionary) -> String:
 			var destination: SimFacility = facility(str(command.get("destination", "")))
 			var product: String = str(command.get("product", ""))
 			if destination == null or destination == target or destination.company_id != target.company_id: return "Choose another owned destination."
+			if catalog.productless_behavior(_behavior(target)) or catalog.productless_behavior(_behavior(destination)): return "Productless facilities cannot send or receive inventory."
 			if not command.get("quantity") is int or command.quantity <= 0 or command.quantity > target.inventory.quantity(product): return "Quantity exceeds available stock."
 			if logistics.free_capacity(self, destination) < command.quantity: return "Destination capacity is reserved or full."
 			var quote: Dictionary = logistics.quote(self, target.id, destination.id, command.quantity)
@@ -310,7 +311,7 @@ func command_error(command: Dictionary) -> String:
 			if companies[target.company_id].cash < quote.freight: return "Insufficient freight funds."
 			if not product_public(product): return "Product unavailable."
 		"set_price":
-			if _behavior(target) == "research": return "R&D has no product price."
+			if catalog.productless_behavior(_behavior(target)): return "This facility has no product price."
 			if _behavior(target) == "retail" and not target.assortment.has(str(command.get("product", target.product_id))): return "Product is not in assortment."
 			if _behavior(target) != "retail" and str(command.get("product", target.product_id)) != target.product_id: return "Price applies to the configured product."
 			if not command.get("price") is int or int(command.price) <= 0 or int(command.price) > 100000000:
@@ -329,6 +330,7 @@ func command_error(command: Dictionary) -> String:
 			if not command.get("operating") is bool:
 				return "Operating setting must be true or false."
 		"set_stock_days":
+			if catalog.productless_behavior(_behavior(target)): return "This facility has no stock target."
 			if not command.get("days") is int or int(command.days) < 1 or int(command.days) > 7:
 				return "Stock target must be 1–7 days."
 		_:
@@ -390,6 +392,8 @@ func construction_error(command: Dictionary) -> String:
 	if not catalog.facility_types.has(type_id):
 		return "Unknown facility archetype."
 	var definition: Dictionary = catalog.facility_types[type_id]
+	if str(definition.behavior) == "headquarters" and headquarters(str(command.company)) != null:
+		return "Company already owns a corporate headquarters."
 	var product: String = str(command.get("product", ""))
 	if not can_configure(str(command.company), type_id, product):
 		return "Product is unsupported or era locked."
@@ -501,6 +505,11 @@ func _ai_advertising_decisions() -> void:
 func _behavior(f: SimFacility) -> String:
 	return str(catalog.facility_types[f.type_id].behavior)
 
+func headquarters(company_id: String) -> SimFacility:
+	for f: SimFacility in facilities:
+		if f.company_id == company_id and _behavior(f) == "headquarters": return f
+	return null
+
 func trade(seller: SimFacility, buyer: SimFacility, product: String, requested: int) -> int:
 	return logistics.dispatch(self, seller, buyer, product, requested)
 
@@ -611,7 +620,7 @@ func step() -> void:
 		f.last_sources.clear()
 		var has_available_line: bool = false
 		for product: String in f.line_ids(): has_available_line = has_available_line or product_public(product)
-		f.active = f.operating and (can_manufacture(f.company_id, f.product_id) if _behavior(f) == "production" else (has_available_line or _behavior(f) in ["storage", "research"]))
+		f.active = f.operating and (can_manufacture(f.company_id, f.product_id) if _behavior(f) == "production" else (has_available_line or _behavior(f) in ["storage", "research", "headquarters"]))
 		if f.active:
 			var owner: SimCompany = companies[f.company_id]
 			f.active = owner.pay_expense(int(catalog.facility_types[f.type_id].overhead))
@@ -688,6 +697,7 @@ func inventory_assets(company_id: String) -> int:
 
 func invariant_errors() -> Array[String]:
 	var errors: Array[String] = []
+	var headquarters_owners: Dictionary = {}
 	var previous_id: int = 0
 	for shipment: Dictionary in logistics.shipments:
 		if int(shipment.id) <= previous_id or int(shipment.id) >= logistics.next_id or int(shipment.quantity) <= 0 or int(shipment.value) < 0 or int(shipment.transport_cost) < 0:
@@ -701,6 +711,11 @@ func invariant_errors() -> Array[String]:
 		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) != owner.capital + owner.profit():
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
+		if _behavior(f) == "headquarters":
+			if headquarters_owners.has(f.company_id): errors.append("Duplicate headquarters: " + f.company_id)
+			headquarters_owners[f.company_id] = true
+		if catalog.productless_behavior(_behavior(f)) and (not f.product_id.is_empty() or not f.assortment.is_empty() or not f.inventory.quantities.is_empty() or not f.suppliers.is_empty() or not f.replenishment_targets.is_empty()):
+			errors.append("Productless facility state: " + f.id)
 		if _behavior(f) == "storage" and logistics.used(f) + logistics.incoming(f.id) > f.capacity:
 			errors.append("Warehouse capacity: " + f.id)
 		for product: String in f.inventory.quantities:

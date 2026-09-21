@@ -115,19 +115,21 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	_index(scenario.get("facilities", []), facilities)
 	for id: String in facilities:
 		var f: Dictionary = facilities[id]
-		if not companies.has(str(f.get("company", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))) or not facility_types.has(str(f.get("type", ""))) or int(f.get("capacity", 0)) <= 0 or (facility_types.get(str(f.get("type", "")), {}).get("behavior") != "research" and int(f.get("price", 0)) <= 0) or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or str(f.get("city", "")).is_empty():
+		var behavior: String = str(facility_types.get(str(f.get("type", "")), {}).get("behavior", ""))
+		if not companies.has(str(f.get("company", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))) or not facility_types.has(str(f.get("type", ""))) or int(f.get("capacity", 0)) <= 0 or (not productless_behavior(behavior) and int(f.get("price", 0)) <= 0) or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or str(f.get("city", "")).is_empty():
 			errors.append("Invalid facility: " + id)
 	for id: String in facility_types:
 		var f: Dictionary = facility_types[id]
 		if f.get("behavior") == "research" and (not _positive_integer(f.get("research_rate")) or not f.get("products", []).is_empty()): errors.append("Invalid research facility: " + id)
+		if f.get("behavior") == "headquarters" and not f.get("products", []).is_empty(): errors.append("Invalid headquarters facility: " + id)
 		if f.get("behavior") == "retail":
 			if int(f.get("slots", 0)) < 1 or not f.get("categories") is Array: errors.append("Retail slots/categories required: " + id)
 			else:
 				for product: String in f.get("products", []):
 					if products.has(product) and products[product].category not in f.categories: errors.append("Disallowed retail category: " + id)
-		if str(f.get("behavior", "")) not in ["production", "retail", "storage", "research"] or int(f.get("overhead", -1)) < 0 or int(f.get("width", 0)) < 1 or int(f.get("depth", 0)) < 1 or int(f.get("cost", 0)) <= 0 or int(f.get("capacity", 0)) <= 0:
+		if str(f.get("behavior", "")) not in ["production", "retail", "storage", "research", "headquarters"] or int(f.get("overhead", -1)) < 0 or int(f.get("width", 0)) < 1 or int(f.get("depth", 0)) < 1 or int(f.get("cost", 0)) <= 0 or int(f.get("capacity", 0)) <= 0:
 			errors.append("Invalid facility type: " + id)
-		if not f.get("products") is Array or (f.get("products", []).is_empty() and f.get("behavior") != "research"):
+		if not f.get("products") is Array or (f.get("products", []).is_empty() and not productless_behavior(str(f.get("behavior", "")))):
 			errors.append("Facility type requires supported products: " + id)
 		else:
 			for product: Variant in f.products:
@@ -152,7 +154,7 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		var f: Dictionary = expanded[id]
 		if not companies.has(str(f.get("company", ""))) or not facility_types.has(str(f.get("type", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))):
 			errors.append("Invalid expanded facility: " + id)
-		elif not supports_product(str(f.type), str(f.get("product", ""))) or int(f.get("capacity", 0)) <= 0 or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or (facility_types.get(str(f.get("type", "")), {}).get("behavior") != "research" and int(f.get("price", 0)) <= 0):
+		elif not supports_product(str(f.type), str(f.get("product", ""))) or int(f.get("capacity", 0)) <= 0 or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or (not productless_behavior(str(facility_types.get(str(f.get("type", "")), {}).get("behavior", ""))) and int(f.get("price", 0)) <= 0):
 			errors.append("Invalid expanded facility operation: " + id)
 	return errors.is_empty()
 
@@ -204,7 +206,10 @@ static func _positive_integer(value: Variant) -> bool:
 func supports_product(type_id: String, product: String) -> bool:
 	if not facility_types.has(type_id): return false
 	var definition: Dictionary = facility_types[type_id]
-	return product.is_empty() if definition.behavior == "research" else product in definition.get("products", []) and products.has(product)
+	return product.is_empty() if productless_behavior(str(definition.behavior)) else product in definition.get("products", []) and products.has(product)
+
+static func productless_behavior(behavior: String) -> bool:
+	return behavior in ["research", "headquarters"]
 
 func manufacturable_product(product: String) -> bool:
 	if not products.has(product): return false

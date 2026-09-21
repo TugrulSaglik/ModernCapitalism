@@ -52,6 +52,15 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
+## Milestone 8B1
+
+Companies can construct one **Corporate headquarters** globally in either starting
+era. Headquarters is a productless Corporate facility with a 4 × 3 footprint,
+$50,000 construction cost and $25 daily overhead. It uses ordinary construction,
+fixed-asset depreciation, suspension, demolition/write-off and persistence paths;
+it cannot hold or source goods or perform research. Staffing and management effects
+remain deferred to 8B2/8B3. Current saves: **economy schema 13 / catalog 7 / format 2**.
+
 ## Milestone 8A2B
 
 Players can set a daily advertising budget for each public consumer product from

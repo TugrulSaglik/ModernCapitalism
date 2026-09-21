@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 7,
   "process_efficiency_research": {
     "max_level": 5,
     "base_work": 300,
@@ -635,6 +635,20 @@
       "research_rate": 10,
       "products": [],
       "description": "Research one public technology at a time. Progress is retained when stopped. No product or stock required."
+    },
+    {
+      "id": "corporate_headquarters",
+      "name": "Corporate headquarters",
+      "behavior": "headquarters",
+      "category": "Corporate",
+      "style": "office",
+      "overhead": 2500,
+      "width": 4,
+      "depth": 3,
+      "cost": 5000000,
+      "capacity": 1,
+      "products": [],
+      "description": "Company headquarters foundation. Staffing and management functions arrive in Milestone 8B2."
     }
   ],
   "scenario": {

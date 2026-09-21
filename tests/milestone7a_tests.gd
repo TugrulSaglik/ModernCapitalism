@@ -46,6 +46,9 @@ func _initialize() -> void:
 
 func _catalog() -> void:
 	var raw: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(SaveStore.DATA_PATH))
+	var research_index: int = -1
+	for index: int in range(raw.facility_types.size()):
+		if raw.facility_types[index].id == "research_center": research_index = index
 	for corruption: String in ["work", "cost", "fraction", "missing", "duplicate", "cycle", "rate", "product", "prerequisite_type"]:
 		var data: Dictionary = raw.duplicate(true)
 		match corruption:
@@ -56,8 +59,8 @@ func _catalog() -> void:
 			"duplicate": data.technologies[1].prerequisites = ["electronics", "electronics"]
 			"cycle": data.technologies[0].prerequisites = ["mobile_computing"]
 			"prerequisite_type": data.technologies[1].prerequisites = 3
-			"rate": data.facility_types.back().research_rate = 0
-			"product": data.facility_types.back().products = ["smartphone"]
+			"rate": data.facility_types[research_index].research_rate = 0
+			"product": data.facility_types[research_index].products = ["smartphone"]
 		var path: String = "res://.godot/m7a-invalid.json"
 		var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 		file.store_string(JSON.stringify(data))

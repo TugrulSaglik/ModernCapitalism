@@ -2,6 +2,23 @@
 
 ## Current milestone
 
+Milestone 8B1 adds the catalog-defined `corporate_headquarters` facility with the
+distinct `headquarters` behavior. Catalog validation generalizes the existing
+productless contract shared with R&D: an empty product is required, while product,
+assortment, inventory, sourcing, replenishment and shipments remain invalid. Economy
+derives `headquarters(company_id)` from live facilities and rejects a second global
+headquarters for the same company; no redundant company field stores the relation.
+
+Headquarters construction uses the ordinary command, city occupancy and fixed-asset
+paths. Its catalog cost is 5,000,000 cents, footprint 4 × 3 and daily overhead 2,500
+cents. Operating headquarters pay that overhead through the shared expense path;
+suspended headquarters pay none but continue 3,650-day depreciation. Ordinary
+demolition writes off remaining book value, frees the plot and permits replacement.
+Schema 13 and save format 2 are unchanged; catalog 7 and restore validation enforce
+the productless and one-per-company invariants. The inspector exposes only status,
+cost/book value, Suspend/Resume and Demolish. There are no employees, management
+effects or AI headquarters construction yet.
+
 Milestone 8A2B adds a derived weekly advertising policy beside the existing AI price
 policy. In stable company order it finds public consumer products with an owned retail
 line and stock, incoming stock or recent per-product sales. Eligible brands below
@@ -64,7 +81,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | SimClock | Gregorian calendar and explicit daily ticks |
 | Inventory | Quantity, carrying cost and integer quality points by product ID; atomic removals |
 | Company | Accounts, technology knowledge/progress, company-product quality and process-efficiency levels/progress, brand, and advertising state |
-| Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment |
+| Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment; productless R&D/HQ types retain empty goods state |
 | Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
 | SupplierMarket | Produce deterministic eligible offers ranked by price per quality point |
@@ -116,8 +133,9 @@ add migration aliases rather than renaming persisted IDs.
 - R&D: future extensions may add throughput, staffing or other separately typed
   effects; conversion-cost efficiency is implemented and remains distinct from
   quality, input quantities and capacity. Personnel is not implemented.
-- Headquarters: facilities enabling management services, budgets and overhead;
-  do not turn the headquarters Node into the company model.
+- Headquarters: the one-per-company physical facility and overhead are implemented;
+  staffing and bounded management services remain future work. Do not turn the
+  headquarters Node into the company model.
 - Finance: replace aggregate accounts with journal entries and balance-sheet
   accounts; add debt and taxes. Aggregate fixed assets and depreciation now exist.
   A share registry and

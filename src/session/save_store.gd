@@ -124,6 +124,7 @@ func restore(state: Dictionary) -> Economy:
 	facility_template.assortment = {}
 	var restored: Array[SimFacility] = []
 	var restored_ids: Dictionary = {}
+	var headquarters_owners: Dictionary = {}
 	for item: Variant in state.facilities:
 		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.supports_product(item.type, item.product) or item.city != sim.city.id:
 			return null
@@ -139,6 +140,9 @@ func restore(state: Dictionary) -> Economy:
 			if not item.id.begins_with("built_") or not item.id.trim_prefix("built_").is_valid_int() or int(item.id.trim_prefix("built_")) < 1 or item.id != "built_%06d" % int(item.id.trim_prefix("built_")) or not sim.catalog.supports_product(item.type, item.product) or item.capacity != int(definition.capacity) or item.quality != 50:
 				return null
 		var created: SimFacility = SimFacility.new(item)
+		if str(sim.catalog.facility_types[item.type].behavior) == "headquarters":
+			if headquarters_owners.has(item.company): return null
+			headquarters_owners[item.company] = true
 		restored.append(created)
 		restored_ids[item.id] = true
 	# Deleted scenario facilities are valid. All live IDs must exist before supplier validation.
@@ -256,7 +260,8 @@ func restore(state: Dictionary) -> Economy:
 		if f == null or seen.has(f.id) or not shape(item, f.snapshot()):
 			return null
 		seen[f.id] = true
-		if item.company != f.company_id or item.city != f.city_id or item.type != f.type_id or item.product != f.product_id or item.capacity != f.capacity or item.quality != f.quality or (item.price <= 0 and sim._behavior(f) != "research") or item.price > 100000000 or item.stock_days < 1 or item.stock_days > 7:
+		var productless: bool = sim.catalog.productless_behavior(sim._behavior(f))
+		if item.company != f.company_id or item.city != f.city_id or item.type != f.type_id or item.product != f.product_id or item.capacity != f.capacity or item.quality != f.quality or (item.price <= 0 and not productless) or item.price > 100000000 or item.stock_days < 1 or item.stock_days > 7:
 			return null
 		for field: String in ["sold_today", "produced_today"]:
 			if not nonnegative(item[field]) or item[field] > f.capacity:
@@ -264,13 +269,14 @@ func restore(state: Dictionary) -> Economy:
 			f.set(field, item[field])
 		f.price = item.price
 		f.assortment.clear()
-		if item.assortment.is_empty() and sim._behavior(f) != "research": return null
+		if item.assortment.is_empty() and not productless: return null
 		if sim._behavior(f) == "retail" and item.assortment.size() > int(sim.catalog.facility_types[f.type_id].slots): return null
 		for product: String in item.assortment:
 			if product not in sim.catalog.facility_types[f.type_id].products or not item.assortment[product] is int or item.assortment[product] <= 0 or item.assortment[product] > 100000000: return null
 			f.assortment[product] = item.assortment[product]
-		if not f.assortment.has(f.product_id) and sim._behavior(f) != "research": return null
-		if sim._behavior(f) == "research" and (not item.assortment.is_empty() or item.price != 0 or not item.inventory.quantities.is_empty() or not item.suppliers.is_empty() or not item.line_sales.is_empty() or not item.line_today.is_empty() or item.sold_today != 0 or item.produced_today != 0): return null
+		if not f.assortment.has(f.product_id) and not productless: return null
+		if productless and (not item.assortment.is_empty() or item.price != 0 or not item.inventory.quantities.is_empty() or not item.suppliers.is_empty() or not item.replenishment_targets.is_empty() or not item.line_sales.is_empty() or not item.line_today.is_empty() or item.sold_today != 0 or item.produced_today != 0): return null
+		if sim._behavior(f) == "headquarters" and not item.research_project.is_empty(): return null
 		for product: String in item.line_sales:
 			if not sim.catalog.products.has(product) or not shape(item.line_sales[product], {"units": 0, "revenue": 0, "cogs": 0}): return null
 			for value: Variant in item.line_sales[product].values():
@@ -455,9 +461,13 @@ func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
 			if not nonnegative(s[field]): return false
 		if not nonnegative(s.quality_points) or s.quality_points < s.quantity or s.quality_points > s.quantity * 100: return false
 		if s.quantity < 1 or s.arrival <= s.departure or s.departure > sim.clock.tick: return false
+		var live_source: SimFacility = sim.facility(s.source)
+		var live_destination: SimFacility = sim.facility(s.destination)
+		if live_source != null and sim.catalog.productless_behavior(sim._behavior(live_source)): return false
+		if live_destination != null and sim.catalog.productless_behavior(sim._behavior(live_destination)): return false
 		if s.status == "in_transit":
-			var source: SimFacility = sim.facility(s.source)
-			var destination: SimFacility = sim.facility(s.destination)
+			var source: SimFacility = live_source
+			var destination: SimFacility = live_destination
 			if source == null or destination == null or source == destination or destination.company_id != s.company or s.arrival < sim.clock.tick: return false
 			var quote: Dictionary = sim.logistics.quote(sim, s.source, s.destination, s.quantity)
 			if s.distance != quote.distance or s.transport_cost != quote.freight or s.arrival != s.departure + quote.lead_days: return false

@@ -1,5 +1,28 @@
 # Economic model
 
+## Milestone 8B1 corporate headquarters foundation
+
+`corporate_headquarters` is a catalog-defined Corporate facility available in both
+starting eras. It has a 4 × 3 footprint, costs 5,000,000 cents to construct and has
+2,500 cents of daily overhead. Each company may own at most one live headquarters
+globally; the relationship is derived from facilities, and demolition permits a
+replacement. AI companies do not construct headquarters in this milestone.
+
+Headquarters shares the explicit productless facility contract with R&D but has its
+own `headquarters` behavior. It has no product, assortment, price, inventory,
+supplier, replenishment target, shipment, production, consumer sale or research
+assignment. Construction is ordinary investing cash/capex/fixed asset activity.
+While operating, affordable overhead is ordinary other operating/cash expense.
+Suspension removes only overhead: ownership and footprint remain, and fixed-asset
+depreciation continues over 3,650 days. Demolition pays no refund and writes off the
+remaining book value through the existing disposal-loss path; inventory loss is zero.
+
+Economy schema 13 and save format 2 remain unchanged. Catalog version 7 identifies
+the added type. Restore requires empty product/logistics/research state and rejects
+more than one headquarters per company. Headquarters has no advertising, brand,
+research, quality, efficiency, capacity, supplier, pricing, AI or demand effect.
+Staffing and management functions begin in Milestone 8B2.
+
 ## Milestone 8A2B advertising, brand growth, decay and AI policy
 
 Each company has an integer-cent daily advertising budget and retained advertising

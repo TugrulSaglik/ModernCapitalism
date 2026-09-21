@@ -432,15 +432,16 @@ func _choose_build() -> void:
 		if session.sim.can_configure(session.player_company, id, product):
 			build_products.add_item(str(session.sim.catalog.products[product].name))
 			build_products.set_item_metadata(build_products.item_count - 1, product)
-	build_products.visible = definition.behavior != "research"
+	var productless: bool = session.sim.catalog.productless_behavior(str(definition.behavior))
+	build_products.visible = not productless
 	build_details.text = "$%.2f • %d × %d cells\nCapacity: %d/day • Overhead: $%.2f/day\n\n%s" % [definition.cost / 100.0, definition.width, definition.depth, definition.capacity, definition.overhead / 100.0, definition.description]
-	if definition.behavior == "storage":
+	if definition.behavior == "storage" or productless:
 		build_details.text = "$%.2f • %d × %d cells\nOverhead: $%.2f/day\n\n%s" % [definition.cost / 100.0, definition.width, definition.depth, definition.overhead / 100.0, definition.description]
 	_begin_preview()
 
 func _begin_preview() -> void:
 	var type_id: String = str(build_choices.get_item_metadata(build_choices.selected))
-	if session.sim.catalog.facility_types[type_id].behavior == "research":
+	if session.sim.catalog.productless_behavior(str(session.sim.catalog.facility_types[type_id].behavior)):
 		city.begin_placement(type_id, "")
 	elif build_products.selected >= 0:
 		city.begin_placement(str(build_choices.get_item_metadata(build_choices.selected)), str(build_products.get_item_metadata(build_products.selected)))
