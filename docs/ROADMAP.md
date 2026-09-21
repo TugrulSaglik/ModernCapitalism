@@ -15,9 +15,11 @@
 | 7B3B — Production/process-efficiency R&D (implemented) | Repeatable conversion-cost improvements without changing product-quality provenance | 7B3A |
 | 8A1 — Player advertising and brand growth (implemented) | Daily company-product budgets, operating expense and deterministic brand growth | 7B2–7B3B |
 | 8A2A — Brand decay dynamics (implemented) | Actual-spend inactivity tracking and deterministic company-product brand decay | 8A1 |
-| 8A2B — AI advertising policy (next) | Deterministic competitor advertising budgets and funding policy | 8A2A |
-| 8B — Headquarters and staffing | Corporate headquarters, staff and hiring | 8A2 |
-| 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8B |
+| 8A2B — AI advertising policy (implemented) | Deterministic competitor advertising budgets and funding policy | 8A2A |
+| 8B1 — Corporate headquarters facility foundation | Data-driven headquarters construction, ownership and baseline operating model | 8A2B |
+| 8B2 — Staffing and hiring | Staff roles, hiring and payroll using the headquarters foundation | 8B1 |
+| 8B3 — Headquarters/staff management effects | Bounded management effects from headquarters and staffed roles | 8B2 |
+| 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8B3 |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
@@ -44,12 +46,12 @@ No branch or commit is created automatically.
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.
 Its categorized accounts and exact cash/equity reconciliations provide the foundation
-for later debt, dividends and ownership. Headquarters, advertising/branding, mergers,
+for later debt, dividends and ownership. Headquarters, mergers,
 real estate, active ports/import/export and multi-city play remain future systems.
 Quality provenance is implemented in 7B1; Local competition and static company-product
 brand in 7B2; repeatable product-quality and conversion-cost process R&D are
 implemented in 7B3A/7B3B. Milestone 8A1 adds player advertising without changing
 brand provenance: brand remains company-product market-presence state, not
 manufacturer provenance carried through inventory. Milestone 8A2A adds deterministic
-decay for public products after unfunded advertising inactivity; 8A2B is the next
-increment and supplies AI advertising policy.
+decay for public products after unfunded advertising inactivity. Milestone 8A2B adds
+the bounded weekly AI advertising policy without strategic ROI or expansion logic.

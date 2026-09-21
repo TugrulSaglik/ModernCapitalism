@@ -1,6 +1,6 @@
 # Economic model
 
-## Milestone 8A2A advertising, brand growth and decay
+## Milestone 8A2B advertising, brand growth, decay and AI policy
 
 Each company has an integer-cent daily advertising budget and retained advertising
 progress for every consumer product; both default to zero. At the start of each
@@ -22,6 +22,23 @@ point on inactive days 60, 90, 120 and every following 30-day boundary, bounded 
 zero. Retained advertising progress is never reduced by inactivity. Products locked
 by public technology/era gates remain at zero inactive days until they become public.
 Decay has no cash, expense, inventory, asset or liability entry.
+
+On the existing seven-day AI decision cadence, each AI company derives advertising
+budgets for public consumer products that are configured in an owned retail facility
+and have current stock, incoming stock or a positive sale in that facility's retained
+seven-day product history. All other public consumer-product budgets are set to zero.
+For each eligible product below its catalog-derived Local brand, the desired daily
+budget in integer cents is `ceil(advertising_threshold(product, current_brand) / 30)`.
+Products at or above Local receive zero.
+
+Aggregate configured AI daily advertising is capped at
+`floor(current_company_cash / 1000)`. Allocation considers the largest Local-brand
+deficit first and uses ascending product ID for ties; each product receives the
+minimum of its desired budget and the remaining cap. The configured budget stays in
+force until the next weekly decision. The normal daily funding path still requires
+the full payment: unaffordable advertising spends nothing, advances inactivity and
+may decay brand. This policy contains no ROI forecast, profitability scoring,
+price coordination, sourcing, expansion or market-entry logic.
 
 Advertising changes only the existing company-product seller/market-presence brand.
 It does not alter inventory quality, either continuous R&D capability, production
@@ -94,7 +111,7 @@ Do not sum intercompany revenue to measure final consumer spending.
 
 ## Tick order
 1. Record prior between-day profit and clear daily accounts.
-2. AI submits bounded weekly price decisions; apply queued commands in order.
+2. AI submits bounded weekly price and advertising decisions; apply queued commands in order.
 3. Assign eligible projects to idle operating AI R&D centers, then deliver due shipments and charge fixed-asset depreciation.
 4. Charge affordable overhead and mark active facilities.
 5. Source manufacturing inputs and produce in stable facility order.

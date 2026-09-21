@@ -2,15 +2,19 @@
 
 ## Current milestone
 
-Milestone 8A2A extends company-owned consumer-product advertising with consecutive
-inactive-day state. Economy advances funded growth or deterministic decay in stable
-company/product order before consumer clearing, gated by public product availability.
+Milestone 8A2B adds a derived weekly advertising policy beside the existing AI price
+policy. In stable company order it finds public consumer products with an owned retail
+line and stock, incoming stock or recent per-product sales. Eligible brands below
+Local request one next-point threshold over 30 funded days; a company cap of
+`floor(cash / 1000)` is allocated by descending brand deficit and ascending product
+ID. The policy queues the same advertising-budget commands as player management and
+clears stale public-product budgets. Economy then advances funded growth or
+deterministic decay through the unchanged daily path before consumer clearing.
 Actual paid advertising resets inactivity; skipped or unaffordable spending advances
 it. SimCompany retains advertising progress independently and records only funded
 spending as a cash operating expense. Schema 13 persists and validates budget,
 progress, inactivity, brand and accounts. Brand remains seller company-product market
-presence; inventory has no manufacturer-brand provenance. Local remains static and AI
-budgets remain zero until 8A2B.
+presence; inventory has no manufacturer-brand provenance and Local remains static.
 
 Milestone 7B3B extends the shared R&D scheduler with a third structured kind,
 `process_efficiency`. SimCompany owns bounded company/product efficiency levels and
@@ -120,8 +124,9 @@ add migration aliases rather than renaming persisted IDs.
   exchange operate on company IDs and settle through the same cash ledger.
   Ownership/control is separate from operational decision policy.
 - AI: policy modules consume the same read models and produce the same commands
-  as players. Current AI uses bounded weekly price commands and deterministic project selection
-  for existing R&D centers.
+  as players. Current AI uses bounded weekly price and advertising commands plus
+  deterministic project selection for existing R&D centers. Advertising uses only
+  retail activity and the Local-brand gap; strategic ROI and expansion remain deferred.
 - Multiple cities: city demand populations, local offers and transport links;
   partition market clearing by city/product, retain one explicit scheduler.
 - New sectors: recipes and facility definitions express extraction, farming,

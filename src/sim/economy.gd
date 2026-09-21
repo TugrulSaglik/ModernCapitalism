@@ -448,6 +448,55 @@ func _ai_decisions() -> void:
 			var change: int = -maxi(1, int(price * 0.02)) if f.inventory.quantity(product) > f.capacity else maxi(1, int(price * 0.01))
 			queue_command({"type": "set_price", "company": owner.id, "facility": f.id, "product": product,
 				"price": clampi(price + change, int(reference * 1.10), int(reference * 1.60))})
+	_ai_advertising_decisions()
+
+func _ai_advertising_eligible(company_id: String, product: String) -> bool:
+	if not companies.has(company_id) or not companies[company_id].ai or not product_public(product) or not catalog.consumer_product(product):
+		return false
+	for f: SimFacility in facilities:
+		if f.company_id != company_id or _behavior(f) != "retail" or not f.assortment.has(product):
+			continue
+		if f.inventory.quantity(product) > 0 or logistics.incoming(f.id, product) > 0:
+			return true
+		for record: Dictionary in f.product_history:
+			if int(record.get("products", {}).get(product, {}).get("units", 0)) > 0:
+				return true
+	return false
+
+func _ai_advertising_decisions() -> void:
+	var company_ids: Array = companies.keys()
+	company_ids.sort()
+	for company_id: String in company_ids:
+		var owner: SimCompany = companies[company_id]
+		if not owner.ai:
+			continue
+		var candidates: Array[Dictionary] = []
+		var products: Array = owner.advertising_budgets.keys()
+		products.sort()
+		for product: String in products:
+			if not product_public(product):
+				continue
+			var local_brand: int = int(catalog.local_values(product).brand)
+			var gap: int = local_brand - owner.brand(product)
+			if gap > 0 and _ai_advertising_eligible(company_id, product):
+				var threshold: int = advertising_threshold(product, owner.brand(product))
+				@warning_ignore("integer_division")
+				var desired: int = (threshold + 29) / 30
+				candidates.append({"product": product, "gap": gap, "desired": desired})
+		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+			return int(a.gap) > int(b.gap) if a.gap != b.gap else str(a.product) < str(b.product))
+		@warning_ignore("integer_division")
+		var remaining: int = owner.cash / 1000
+		var budgets: Dictionary = {}
+		for candidate: Dictionary in candidates:
+			var budget: int = mini(int(candidate.desired), remaining)
+			budgets[str(candidate.product)] = budget
+			remaining -= budget
+		for product: String in products:
+			if not product_public(product):
+				continue
+			queue_command({"type": "set_advertising_budget", "company": company_id, "product": product,
+				"budget": int(budgets.get(product, 0))})
 
 func _behavior(f: SimFacility) -> String:
 	return str(catalog.facility_types[f.type_id].behavior)

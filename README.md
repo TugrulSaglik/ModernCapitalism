@@ -52,7 +52,7 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 8A2A
+## Milestone 8A2B
 
 Players can set a daily advertising budget for each public consumer product from
 Company → Markets. Fully funded daily spending is expensed immediately and retained
@@ -60,9 +60,12 @@ progress raises the existing company-product market-presence brand with transpar
 diminishing returns. Public products now track consecutive days without actual funded
 advertising: after 30 grace days, brand loses one point at each following 30-day
 interval, down to zero. Funded spending resets inactivity without erasing retained
-progress. Brand remains seller state rather than inventory provenance; Local and
-product quality are unchanged. Current saves: **economy schema 13 / catalog
-6 / format 2**.
+progress. On the existing weekly decision tick, AI companies advertise commercially
+active products configured in their retail facilities while their brand is below
+Local. Their daily budgets target one point per 30 funded days and share a deterministic
+cash cap; there is no ROI or market-entry strategy. Brand remains seller state rather
+than inventory provenance; Local and product quality are unchanged. Current saves:
+**economy schema 13 / catalog 6 / format 2**.
 
 ## Milestone 7B3B
 
@@ -239,4 +242,4 @@ Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
 Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`. Continuous research,
-Strategic AI, AI advertising and corporate finance remain future work.
+Strategic AI and corporate finance remain future work.

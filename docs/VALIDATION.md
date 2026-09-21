@@ -816,3 +816,30 @@ yield/scrap, advertising/brand growth, dynamic Local, strategic ROI AI, patents,
 licensing or R&D staff. Milestone 7 is complete. The recommended next milestone is
 Milestone 8 — Competitive management, delivered in a separately scoped increment
 rather than adding another research feature.
+
+## Milestone 8A2B validation
+
+Validated September 21, 2026 on Windows / Godot 4.7.2. The initial tree was clean.
+The requested 8A1 and 8A2A baseline suites passed **31** and **25** checks respectively,
+with zero failures. No branch, commit, Computer Use, dependency, catalog expansion,
+strategic ROI logic or AI expansion behavior was introduced.
+
+The focused 8A2B suite passes **39 checks, zero failures**. It covers player/AI
+separation; public retail presence and commercial-activity eligibility; locked and
+absent lines; stale-budget clearing; weekly cadence; below/equal/above-Local targets;
+restart after decay; exact threshold/30 ceiling; aggregate cash cap; largest-deficit
+priority and product-ID ties; zero cash; shared funded/unfunded daily behavior;
+advertising expense, cash and balance reconciliation; unchanged research, quality,
+process and Local state; preserved price AI; same-seed choices; and exact save/load
+continuation. Economy schema **13**, catalog **6** and save format **2** are unchanged.
+
+### Final complete regression: one run
+
+`tests/run_tests.ps1` completed once against the final code and test tree with exit
+code 0: **49,294 checks, zero failures**, plus the successful legacy Debug 30-day
+flow. This includes the 8A1, 8A2A and 8A2B suites at 31, 25 and 39 checks. Every
+historical long-run, persistence, accounting, market, research and headless smoke
+suite passed. The complete output is in `.godot/m8a2b-final-regression.log`; the only
+recurring host message is the documented Windows root-certificate-store warning.
+`git diff --check` passed after this documentation-only result update, and the
+successful complete suite was not rerun.

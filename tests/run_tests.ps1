@@ -52,7 +52,10 @@ foreach ($suite in @(
     @{ Script = 'milestone7b3a_tests.gd'; Marker = 'M7B3A TEST RESULT' },
     @{ Script = 'quality_research_smoke.gd'; Marker = 'M7B3A VISUAL RESULT' },
     @{ Script = 'milestone7b3b_tests.gd'; Marker = 'M7B3B TEST RESULT' },
-    @{ Script = 'process_research_smoke.gd'; Marker = 'M7B3B VISUAL RESULT' }
+    @{ Script = 'process_research_smoke.gd'; Marker = 'M7B3B VISUAL RESULT' },
+    @{ Script = 'milestone8a1_tests.gd'; Marker = 'M8A1 TEST RESULT' },
+    @{ Script = 'milestone8a2a_tests.gd'; Marker = 'M8A2A TEST RESULT' },
+    @{ Script = 'milestone8a2b_tests.gd'; Marker = 'M8A2B TEST RESULT' }
 )) {
     $suiteOutput = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot ('.godot/' + $suite.Script + '.log')) --script ('res://tests/' + $suite.Script) 2>&1
     $suiteExit = $LASTEXITCODE
