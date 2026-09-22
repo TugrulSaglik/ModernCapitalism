@@ -32,7 +32,7 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	var panel: FacilityPanel = screen.inspector
-	check(panel.staff_info.text.contains("Total staff: 3 / 8") and panel.staff_info.text.contains("Configured daily payroll: $160.00/day"), "Staff summary is readable")
+	check((panel.staffing_metrics.capacity as Label).text == "3 / 8 employed" and (panel.staffing_metrics.payroll as Label).text == "$160.00/day", "Staff summary is readable")
 	check(panel.staff_role.visible and panel.hire_staff.visible and panel.dismiss_staff.visible and panel.size.x <= 440, "Compact staffing controls are visible")
 	if DisplayServer.get_name() != "headless":
 		await RenderingServer.frame_post_draw

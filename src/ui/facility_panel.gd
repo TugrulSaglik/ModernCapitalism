@@ -95,6 +95,34 @@ var logistics_rows_key: String = ""
 var warehouse_rows_key: String = ""
 var replenishment_rows_key: String = ""
 
+var research_overview_sections: Array[Control] = []
+var research_overview_metrics: Dictionary = {}
+var research_project_metrics: Dictionary = {}
+var research_detail_metrics: Dictionary = {}
+var research_overview_project_section: Control
+var research_overview_empty: Label
+var research_page_sections: Array[Control] = []
+var research_status: Label
+var research_prerequisites: VBoxContainer
+var research_progress: ProgressBar
+var research_progress_text: Label
+var research_attention: Label
+var research_stop_note: Label
+var research_selections: Dictionary = {}
+
+var headquarters_overview_sections: Array[Control] = []
+var headquarters_finance_metrics: Dictionary = {}
+var headquarters_staff_metrics: Dictionary = {}
+var headquarters_effect_metrics: Dictionary = {}
+var headquarters_overview_note: Label
+var staffing_sections: Array[Control] = []
+var staffing_metrics: Dictionary = {}
+var staffing_status: Label
+var staffing_roles: VBoxContainer
+var staffing_role_metrics: Dictionary = {}
+var staffing_note: Label
+var demolition_note: Label
+
 func _ready() -> void:
 	custom_minimum_size.x = 410
 	var column := VBoxContainer.new()
@@ -171,6 +199,17 @@ func _build_overview() -> void:
 	warehouse_sections.append(inventory_body.get_parent())
 	warehouse_inventory_rows = VBoxContainer.new()
 	inventory_body.add_child(warehouse_inventory_rows)
+	research_overview_sections.append(_metric_section(overview_page, "FACILITY", ["state", "overhead"], ["Operating state", "Daily overhead"], research_overview_metrics))
+	research_overview_sections.append(_metric_section(overview_page, "RESEARCH CAPACITY", ["rate", "bonus"], ["Research rate", "R&D manager bonus"], research_overview_metrics))
+	research_overview_project_section = _metric_section(overview_page, "CURRENT PROJECT", ["name", "kind", "status", "progress", "remaining", "expense"], ["Project", "Type", "Status", "Progress", "Funded days remaining", "Project expense"], research_project_metrics)
+	research_overview_sections.append(research_overview_project_section)
+	research_overview_empty = _note(research_overview_project_section.get_child(0) as VBoxContainer, "No active research project")
+	research_overview_sections.append(_metric_section(overview_page, "COMPANY KNOWLEDGE", ["known"], ["Technologies known"], research_overview_metrics))
+	headquarters_overview_sections.append(_metric_section(overview_page, "FACILITY FINANCES", ["overhead", "asset_cost", "depreciation", "book_value"], ["Daily overhead", "Construction / fixed asset", "Accumulated depreciation", "Net book value"], headquarters_finance_metrics))
+	headquarters_overview_sections.append(_metric_section(overview_page, "STAFFING SUMMARY", ["staff", "payroll", "status"], ["Total staff", "Configured payroll", "Management effects"], headquarters_staff_metrics))
+	headquarters_overview_sections.append(_metric_section(overview_page, "MANAGEMENT EFFECTS", ["operations", "marketing", "research", "finance"], ["Operations", "Marketing", "R&D", "Finance"], headquarters_effect_metrics))
+	headquarters_overview_note = _note(headquarters_overview_sections.back().get_child(0) as VBoxContainer, "Configured effects apply company-wide only while management effects are ACTIVE.")
+	demolition_note = _note(overview_page, "Dismiss all staff before demolition.")
 	legacy_content = VBoxContainer.new()
 	overview_page.add_child(legacy_content)
 	info = RichTextLabel.new()
@@ -192,7 +231,11 @@ func _build_overview() -> void:
 	dismiss_staff.theme_type_variation = "DestructiveButton"
 	research_choices = OptionButton.new()
 	legacy_content.add_child(research_choices)
-	research_choices.item_selected.connect(func(_index: int) -> void: refresh())
+	research_choices.item_selected.connect(func(_index: int) -> void:
+		if not selected_id.is_empty() and research_choices.selected >= 0:
+			var selected: Variant = research_choices.get_item_metadata(research_choices.selected)
+			if selected is Dictionary and not (selected as Dictionary).is_empty(): research_selections[selected_id] = (selected as Dictionary).duplicate(true)
+		refresh())
 	research_info = RichTextLabel.new()
 	research_info.custom_minimum_size = Vector2(390, 225)
 	legacy_content.add_child(research_info)
@@ -201,8 +244,13 @@ func _build_overview() -> void:
 			var project: Dictionary = research_choices.get_item_metadata(research_choices.selected)
 			if not project.is_empty(): command_requested.emit({"type": "assign_research", "facility": selected_id, "project": project}))
 	stop_research = _button(legacy_content, "Stop research (retain progress)", func() -> void: command_requested.emit({"type": "stop_research", "facility": selected_id}))
+	info.visible = false
+	staff_info.custom_minimum_size = Vector2.ZERO
+	research_info.custom_minimum_size = Vector2.ZERO
 
 func _build_operations() -> void:
+	_build_research_page()
+	_build_staffing_page()
 	production_line_body = _section(operations_page, "PRODUCTION LINE")
 	production_line_section = production_line_body.get_parent()
 	production_current = Label.new()
@@ -310,6 +358,64 @@ func _build_operations() -> void:
 	var summary_body := _section(operations_page, "CURRENT TARGETS")
 	replenishment_rows = VBoxContainer.new()
 	summary_body.add_child(replenishment_rows)
+
+func _build_research_page() -> void:
+	var selection_body := _section(operations_page, "PROJECT TYPE / PROJECT")
+	research_page_sections.append(selection_body.get_parent())
+	if research_choices.get_parent() != selection_body: research_choices.reparent(selection_body)
+	research_choices.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var detail_section: Control = _metric_section(operations_page, "SELECTED PROJECT", ["name", "kind", "public_year", "knowledge", "levels", "status"], ["Project", "Type", "Public year", "Company knowledge", "Levels", "Status"], research_detail_metrics)
+	research_page_sections.append(detail_section)
+	research_status = _note(detail_section.get_child(0) as VBoxContainer, "")
+	var prerequisites_body := _section(operations_page, "PREREQUISITES")
+	research_page_sections.append(prerequisites_body.get_parent())
+	research_prerequisites = VBoxContainer.new()
+	prerequisites_body.add_child(research_prerequisites)
+	var progress_body := _section(operations_page, "PROGRESS")
+	research_page_sections.append(progress_body.get_parent())
+	research_progress = ProgressBar.new()
+	research_progress.show_percentage = false
+	research_progress.custom_minimum_size.y = 14
+	progress_body.add_child(research_progress)
+	research_progress_text = _note(progress_body, "")
+	var cost_section: Control = _metric_section(operations_page, "COST / RATE", ["project_cost", "overhead", "rate", "remaining"], ["Project expense", "Facility overhead", "Research rate", "Funded days remaining"], research_detail_metrics)
+	research_page_sections.append(cost_section)
+	var assignment_section: Control = _metric_section(operations_page, "ASSIGNMENT", ["facility"], ["Assigned facility"], research_detail_metrics)
+	research_page_sections.append(assignment_section)
+	research_attention = _note(assignment_section.get_child(0) as VBoxContainer, "")
+	var actions_body := _section(operations_page, "ACTIONS")
+	research_page_sections.append(actions_body.get_parent())
+	if assign_research.get_parent() != actions_body: assign_research.reparent(actions_body)
+	if stop_research.get_parent() != actions_body: stop_research.reparent(actions_body)
+	research_stop_note = _note(actions_body, "Progress is retained; prior spending is not refunded.")
+
+func _build_staffing_page() -> void:
+	staffing_sections.append(_metric_section(operations_page, "STAFF CAPACITY / PAYROLL", ["capacity", "payroll"], ["Staff capacity", "Configured payroll"], staffing_metrics))
+	var status_body := _section(operations_page, "STATUS")
+	staffing_sections.append(status_body.get_parent())
+	staffing_status = Label.new()
+	staffing_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	status_body.add_child(staffing_status)
+	_note(status_body, "Payroll is paid in full or skipped if cash is insufficient.")
+	var roles_body := _section(operations_page, "ROLES")
+	staffing_sections.append(roles_body.get_parent())
+	staffing_roles = VBoxContainer.new()
+	roles_body.add_child(staffing_roles)
+	var selected_body := _section(operations_page, "SELECTED ROLE")
+	staffing_sections.append(selected_body.get_parent())
+	if staff_role.get_parent() != selected_body: staff_role.reparent(selected_body)
+	var role_grid := GridContainer.new()
+	role_grid.columns = 2
+	selected_body.add_child(role_grid)
+	for item: Array in [["count", "Employed"], ["salary", "Salary / employee"], ["effect", "Effect / employee"], ["configured", "Configured effect"], ["cap", "Cap"]]:
+		_metric_row(role_grid, str(item[1]), str(item[0]), staffing_role_metrics)
+	var action_row := HBoxContainer.new()
+	selected_body.add_child(action_row)
+	if hire_staff.get_parent() != action_row: hire_staff.reparent(action_row)
+	if dismiss_staff.get_parent() != action_row: dismiss_staff.reparent(action_row)
+	hire_staff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dismiss_staff.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	staffing_note = _note(selected_body, "")
 
 func _build_sourcing() -> void:
 	var body := _section(sourcing_page, "SOURCING PRODUCT / INPUT")
@@ -420,6 +526,8 @@ func _metric_row(grid: GridContainer, label_text: String, key: String, target: D
 	var value := Label.new()
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	value.custom_minimum_size.x = 155
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_child(value)
 	target[key] = value
 
@@ -476,15 +584,16 @@ func bind(game_session: GameSession, id: String) -> void:
 func _populate_staff(f: SimFacility) -> void:
 	var selected_role: String = str(staff_role.get_item_metadata(staff_role.selected)) if staff_role.selected >= 0 else ""
 	staff_role.clear()
-	var role_ids: Array = session.sim.catalog.staff_roles.keys()
-	role_ids.sort()
-	for role_id: String in role_ids:
+	for role_id: String in _staff_role_order():
+		if not session.sim.catalog.staff_roles.has(role_id): continue
 		staff_role.add_item(str(session.sim.catalog.staff_roles[role_id].name))
 		staff_role.set_item_metadata(staff_role.item_count - 1, role_id)
 		if role_id == selected_role: staff_role.select(staff_role.item_count - 1)
 
 func _populate_research(f: SimFacility) -> void:
-	var selected_project: Dictionary = research_choices.get_item_metadata(research_choices.selected) if research_choices.selected >= 0 and research_choices.get_item_metadata(research_choices.selected) is Dictionary else {}
+	var selected_project: Dictionary = research_selections.get(f.id, {}) as Dictionary
+	if selected_project.is_empty() and research_choices.selected >= 0 and research_choices.get_item_metadata(research_choices.selected) is Dictionary:
+		selected_project = research_choices.get_item_metadata(research_choices.selected)
 	research_choices.clear()
 	for group: Array in [["TECHNOLOGY PROJECTS", "technology"], ["PRODUCT QUALITY PROJECTS", "product_quality"], ["PROCESS EFFICIENCY PROJECTS", "process_efficiency"]]:
 		research_choices.add_item(str(group[0]))
@@ -493,7 +602,7 @@ func _populate_research(f: SimFacility) -> void:
 		if group[1] == "technology":
 			var tech_ids: Array = session.sim.catalog.technologies.keys()
 			tech_ids.sort()
-			for technology: String in tech_ids: _add_project("Technology — " + technology.replace("_", " "), session.sim.technology_project(technology), selected_project)
+			for technology: String in tech_ids: _add_project("Technology — " + _display_id(technology), session.sim.technology_project(technology), selected_project)
 		else:
 			var product_ids: Array = session.sim.catalog.products.keys()
 			product_ids.sort()
@@ -501,7 +610,10 @@ func _populate_research(f: SimFacility) -> void:
 				if not session.sim.catalog.manufacturable_product(product_id): continue
 				var project: Dictionary = session.sim.product_quality_project(f.company_id, product_id) if group[1] == "product_quality" else session.sim.process_efficiency_project(f.company_id, product_id)
 				_add_project(("Product quality — " if group[1] == "product_quality" else "Process efficiency — ") + _product_name(product_id), project, selected_project)
-	if research_choices.selected <= 0 and research_choices.item_count > 1: research_choices.select(1)
+	if research_choices.selected < 0 or (research_choices.get_item_metadata(research_choices.selected) as Dictionary).is_empty():
+		if research_choices.item_count > 1: research_choices.select(1)
+	if research_choices.selected >= 0:
+		research_selections[f.id] = (research_choices.get_item_metadata(research_choices.selected) as Dictionary).duplicate(true)
 
 func _add_project(label_text: String, project: Dictionary, selected_project: Dictionary) -> void:
 	research_choices.add_item(label_text)
@@ -586,6 +698,9 @@ func refresh() -> void:
 	var f: SimFacility = session.sim.facility(selected_id)
 	if f == null: return
 	if layout_key != _layout_key(f):
+		if session.sim._behavior(f) == "research" and research_choices.selected >= 0:
+			var selected_project: Variant = research_choices.get_item_metadata(research_choices.selected)
+			if selected_project is Dictionary and not (selected_project as Dictionary).is_empty(): research_selections[f.id] = (selected_project as Dictionary).duplicate(true)
 		bind(session, selected_id)
 		return
 	var owner: SimCompany = session.sim.companies[f.company_id]
@@ -597,7 +712,18 @@ func refresh() -> void:
 	for section: Control in production_sections: section.visible = behavior == "production"
 	for section: Control in retail_sections: section.visible = behavior == "retail"
 	for section: Control in warehouse_sections: section.visible = behavior == "storage"
-	legacy_content.visible = behavior in ["research", "headquarters"]
+	for section: Control in research_overview_sections: section.visible = behavior == "research"
+	for section: Control in headquarters_overview_sections: section.visible = behavior == "headquarters"
+	for section: Control in research_page_sections: section.visible = behavior == "research"
+	for section: Control in staffing_sections: section.visible = behavior == "headquarters"
+	demolition_note.visible = behavior == "headquarters" and session.sim.total_staff(owner.id) > 0
+	legacy_content.visible = false
+	research_choices.visible = behavior == "research"
+	assign_research.visible = behavior == "research"
+	stop_research.visible = behavior == "research"
+	staff_role.visible = behavior == "headquarters"
+	hire_staff.visible = behavior == "headquarters"
+	dismiss_staff.visible = behavior == "headquarters"
 	production_line_section.visible = behavior == "production"
 	retail_line_section.visible = behavior == "retail"
 	replenishment_section.visible = behavior == "storage"
@@ -624,6 +750,12 @@ func refresh() -> void:
 	elif behavior == "storage":
 		_refresh_warehouse(f, definition)
 		_refresh_replenishment(f, own)
+	elif behavior == "research":
+		_refresh_research_overview(f, owner, definition)
+		_refresh_research(f, own)
+	elif behavior == "headquarters":
+		_refresh_headquarters_overview(f, owner, definition)
+		_refresh_staff(f, owner, own)
 	else: _refresh_legacy(f, owner, definition, behavior, own)
 	_refresh_sourcing(f, own)
 	_refresh_logistics(f, own, behavior)
@@ -642,9 +774,8 @@ func _configure_tabs(behavior: String) -> void:
 	tabs.set_tab_title(0, "Overview")
 	tabs.set_tab_title(1, "Operations")
 	if behavior in ["research", "headquarters"]:
-		tabs.set_tab_title(0, "R&D" if behavior == "research" else "Headquarters")
-		for index: int in [1, 2, 3]: tabs.set_tab_hidden(index, true)
-		tabs.current_tab = 0
+		tabs.set_tab_title(1, "Research" if behavior == "research" else "Staffing")
+		for index: int in [2, 3]: tabs.set_tab_hidden(index, true)
 	elif behavior == "storage":
 		tabs.set_tab_title(0, "Overview")
 		tabs.set_tab_title(1, "Replenishment")
@@ -766,42 +897,76 @@ func _refresh_recipe(inputs: Dictionary) -> void:
 		row.add_child(quantity)
 
 func _refresh_legacy(f: SimFacility, owner: SimCompany, definition: Dictionary, behavior: String, own: bool) -> void:
-	for control: Control in [research_choices, research_info, assign_research, stop_research]: control.visible = behavior == "research"
-	for control: Control in [staff_info, staff_role, hire_staff, dismiss_staff]: control.visible = behavior == "headquarters"
-	if behavior == "research":
-		var base_rate: int = int(definition.research_rate)
-		var effective_rate: int = session.sim.effective_research_rate(f)
-		var rate_text: String = "%d points/day" % base_rate if base_rate == effective_rate else "%d base / %d effective points/day" % [base_rate, effective_rate]
-		info.text = "%s / %s\nR&D center | %s\nRate %s | Overhead %s/day\nAssigned: %s\nCompany knowledge: %d / %d technologies" % [f.id, owner.display_name, "Operating" if f.operating else "Suspended", rate_text, _base_effective_money(int(definition.overhead), session.sim.effective_overhead(f)), session.sim.project_name(f.research_project) if not f.research_project.is_empty() else "None", owner.known_technologies.size(), session.sim.catalog.technologies.size()]
-		_refresh_research(f, own)
-	elif behavior == "headquarters":
-		var book_value: int = f.asset_cost - f.accumulated_depreciation
-		info.text = "Corporate headquarters\n%s\n%s\nDaily overhead: %s\nConstruction / fixed-asset cost: %s\nAccumulated depreciation: %s\nNet book value: %s" % [owner.display_name, "Operating" if f.operating else "Suspended", _base_effective_money(int(definition.overhead), session.sim.effective_overhead(f)), CompanyReports.money(f.asset_cost), CompanyReports.money(f.accumulated_depreciation), CompanyReports.money(book_value)]
-		_refresh_staff(f, owner, own)
-	else:
-		info.text = "%s / %s\n%s | %s\nStorage: %d / %d units | free %d after reservations\nReplenishment targets: %s" % [f.id, owner.display_name, definition.name, "Operating" if f.operating else "Suspended", session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f), str(f.replenishment_targets)]
+	info.text = "%s / %s\n%s | %s\nStorage: %d / %d units | free %d after reservations\nReplenishment targets: %s" % [f.id, owner.display_name, definition.name, "Operating" if f.operating else "Suspended", session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f), str(f.replenishment_targets)]
+
+func _refresh_research_overview(f: SimFacility, owner: SimCompany, definition: Dictionary) -> void:
+	var sim: Economy = session.sim
+	var base_rate: int = int(definition.research_rate)
+	var effective_rate: int = sim.effective_research_rate(f)
+	var bonus: int = _configured_effect(owner.id, "research_manager")
+	_set_metric(research_overview_metrics, "state", "Operating" if f.operating else "Suspended")
+	_set_metric(research_overview_metrics, "overhead", _base_effective_money(int(definition.overhead), sim.effective_overhead(f)) + "/day")
+	_set_metric(research_overview_metrics, "rate", _base_effective_int(base_rate, effective_rate, " points/day"))
+	_set_metric(research_overview_metrics, "bonus", "+%d%% configured" % bonus)
+	_set_metric(research_overview_metrics, "known", "%d / %d" % [owner.known_technologies.size(), sim.catalog.technologies.size()])
+	var has_project: bool = not f.research_project.is_empty()
+	research_overview_empty.visible = not has_project
+	var grid: GridContainer = research_overview_project_section.get_child(0).get_child(1) as GridContainer
+	grid.visible = has_project
+	if not has_project: return
+	var project: Dictionary = f.research_project
+	var progress: int = sim.project_progress(owner, project)
+	var work: int = sim.project_work(project)
+	var status: String = _research_state(f, owner, project, f.id)
+	_set_metric(research_project_metrics, "name", _project_display_name(project))
+	_set_metric(research_project_metrics, "kind", _project_kind_name(project))
+	_set_metric(research_project_metrics, "status", status)
+	_set_metric(research_project_metrics, "progress", "%d / %d points · %.1f%%" % [progress, work, _percent(progress, work)])
+	_set_metric(research_project_metrics, "remaining", "%d days" % _funded_days(progress, work, effective_rate))
+	_set_metric(research_project_metrics, "expense", CompanyReports.money(sim.project_cost(project)) + "/day")
+
+func _refresh_headquarters_overview(f: SimFacility, owner: SimCompany, definition: Dictionary) -> void:
+	var sim: Economy = session.sim
+	_set_metric(headquarters_finance_metrics, "overhead", _base_effective_money(int(definition.overhead), sim.effective_overhead(f)) + "/day")
+	_set_metric(headquarters_finance_metrics, "asset_cost", CompanyReports.money(f.asset_cost))
+	_set_metric(headquarters_finance_metrics, "depreciation", CompanyReports.money(f.accumulated_depreciation))
+	_set_metric(headquarters_finance_metrics, "book_value", CompanyReports.money(f.asset_cost - f.accumulated_depreciation))
+	_set_metric(headquarters_staff_metrics, "staff", "%d / %d employed" % [sim.total_staff(owner.id), sim.staff_capacity(owner.id)])
+	_set_metric(headquarters_staff_metrics, "payroll", CompanyReports.money(sim.daily_payroll(owner.id)) + "/day")
+	_set_metric(headquarters_staff_metrics, "status", _staff_effect_state(f, owner))
+	_set_metric(headquarters_effect_metrics, "operations", "+%d%% production / retail capacity" % _configured_effect(owner.id, "operations_manager"))
+	_set_metric(headquarters_effect_metrics, "marketing", "+%d%% advertising progress" % _configured_effect(owner.id, "marketing_manager"))
+	_set_metric(headquarters_effect_metrics, "research", "+%d%% research rate" % _configured_effect(owner.id, "research_manager"))
+	_set_metric(headquarters_effect_metrics, "finance", "−%d%% facility overhead" % _configured_effect(owner.id, "finance_manager"))
 
 func _refresh_staff(f: SimFacility, owner: SimCompany, own: bool) -> void:
-	var active: bool = session.sim.staff_effects_active(owner.id)
-	var effect_state: String = "ACTIVE" if active else "INACTIVE"
-	if not active:
-		if not f.operating: effect_state += " — headquarters suspended"
-		elif session.sim.total_staff(owner.id) == 0: effect_state += " — no staff"
-		else: effect_state += " — payroll not funded"
-	var lines: PackedStringArray = ["[font_size=16][color=#AAB8C1]STAFFING[/color][/font_size]", "Total staff: %d / %d" % [session.sim.total_staff(owner.id), session.sim.staff_capacity(owner.id)], "Configured daily payroll: %s/day" % CompanyReports.money(session.sim.daily_payroll(owner.id)), "Management effects: " + effect_state, ""]
-	var role_ids: Array = session.sim.catalog.staff_roles.keys()
-	role_ids.sort()
-	for role_id: String in role_ids:
-		var role: Dictionary = session.sim.catalog.staff_roles[role_id]
-		var configured: int = mini(session.sim.staff_count(owner.id, role_id) * int(role.effect_per_staff), int(role.effect_cap_percent))
-		var description: String = {"operations_capacity_percent": "production/retail capacity", "advertising_progress_percent": "advertising progress", "research_rate_percent": "research rate", "facility_overhead_reduction_percent": "facility overhead"}.get(str(role.effect), str(role.effect))
-		var sign: String = "-" if role.effect == "facility_overhead_reduction_percent" else "+"
-		lines.append("%s: %d | %s%d%% each | %s%d%% %s | %s/day" % [role.name, session.sim.staff_count(owner.id, role_id), sign, int(role.effect_per_staff), sign, configured, description, CompanyReports.money(int(role.daily_salary))])
-	staff_info.text = "\n".join(lines)
+	var sim: Economy = session.sim
+	staff_info.text = ""
+	_set_metric(staffing_metrics, "capacity", "%d / %d employed" % [sim.total_staff(owner.id), sim.staff_capacity(owner.id)])
+	_set_metric(staffing_metrics, "payroll", CompanyReports.money(sim.daily_payroll(owner.id)) + "/day")
+	staffing_status.text = "Management effects: " + _staff_effect_state(f, owner)
+	staffing_status.theme_type_variation = "PositiveLabel" if sim.staff_effects_active(owner.id) else "WarningLabel"
+	_clear_rows(staffing_roles)
+	for role_id: String in _staff_role_order():
+		if not sim.catalog.staff_roles.has(role_id): continue
+		var role: Dictionary = sim.catalog.staff_roles[role_id]
+		var sign: String = _effect_sign(role)
+		var configured: int = _configured_effect(owner.id, role_id)
+		_add_compact_row(staffing_roles, str(role.name), "%d employed · %s/day each" % [sim.staff_count(owner.id, role_id), CompanyReports.money(int(role.daily_salary))], "%s%d%% %s each · Current %s%d%% · Cap %s%d%%" % [sign, int(role.effect_per_staff), _effect_description(role), sign, configured, sign, int(role.effect_cap_percent)])
 	var selected_role: String = str(staff_role.get_item_metadata(staff_role.selected)) if staff_role.selected >= 0 else ""
+	if not selected_role.is_empty():
+		var selected: Dictionary = sim.catalog.staff_roles[selected_role]
+		var sign: String = _effect_sign(selected)
+		_set_metric(staffing_role_metrics, "count", str(sim.staff_count(owner.id, selected_role)))
+		_set_metric(staffing_role_metrics, "salary", CompanyReports.money(int(selected.daily_salary)) + "/day")
+		_set_metric(staffing_role_metrics, "effect", "%s%d%% %s" % [sign, int(selected.effect_per_staff), _effect_description(selected)])
+		_set_metric(staffing_role_metrics, "configured", "%s%d%%" % [sign, _configured_effect(owner.id, selected_role)])
+		_set_metric(staffing_role_metrics, "cap", "%s%d%%" % [sign, int(selected.effect_cap_percent)])
 	staff_role.disabled = not own
-	hire_staff.disabled = not own or not f.operating or session.sim.total_staff(owner.id) >= session.sim.staff_capacity(owner.id)
-	dismiss_staff.disabled = not own or selected_role.is_empty() or session.sim.staff_count(owner.id, selected_role) <= 0
+	hire_staff.disabled = not own or not f.operating or sim.total_staff(owner.id) >= sim.staff_capacity(owner.id)
+	dismiss_staff.disabled = not own or selected_role.is_empty() or sim.staff_count(owner.id, selected_role) <= 0
+	staffing_note.text = "HQ suspended: hiring unavailable; dismissal remains available. Payroll remains due, management effects are inactive, building overhead is paused, and depreciation continues." if not f.operating else ""
+	staffing_note.visible = not f.operating
 
 func _refresh_sourcing(f: SimFacility, own: bool) -> void:
 	var has_product: bool = product.selected >= 0
@@ -1030,32 +1195,118 @@ func _refresh_research(f: SimFacility, own: bool) -> void:
 	var owner: SimCompany = sim.companies[f.company_id]
 	var work: int = sim.project_work(project)
 	var progress: int = sim.project_progress(owner, project)
+	if project.get("kind") == "technology" and owner.knows(str(project.get("technology", ""))): progress = work
 	var error: String = sim.research_project_error(owner.id, project, f.id)
-	var status: String = "Researchable" if error.is_empty() else error
-	var assigned: String = "None"
-	for other: SimFacility in sim.facilities:
-		if other.company_id == owner.id and not other.research_project.is_empty() and sim.project_equal(other.research_project, project): assigned = other.id
-	var eta: int = ceili(float(work - progress) / sim.effective_research_rate(f))
+	var assigned: String = _assigned_research_facility(owner.id, project)
+	var status: String = _research_state(f, owner, project, assigned)
+	var effective_rate: int = sim.effective_research_rate(f)
+	_set_metric(research_detail_metrics, "name", _project_display_name(project))
+	_set_metric(research_detail_metrics, "kind", _project_kind_name(project))
+	_set_metric(research_detail_metrics, "status", status)
+	_set_metric(research_detail_metrics, "public_year", "—")
+	_set_metric(research_detail_metrics, "knowledge", "—")
+	_set_metric(research_detail_metrics, "levels", "—")
+	_set_metric(research_detail_metrics, "project_cost", CompanyReports.money(sim.project_cost(project)) + "/day")
+	_set_metric(research_detail_metrics, "overhead", _base_effective_money(int(sim.catalog.facility_types[f.type_id].overhead), sim.effective_overhead(f)) + "/day")
+	_set_metric(research_detail_metrics, "rate", _base_effective_int(int(sim.catalog.facility_types[f.type_id].research_rate), effective_rate, " points/day"))
+	_set_metric(research_detail_metrics, "remaining", "%d days" % _funded_days(progress, work, effective_rate))
+	_set_metric(research_detail_metrics, "facility", "None" if assigned.is_empty() else _facility_label(assigned))
+	research_progress.max_value = maxi(1, work)
+	research_progress.value = clampi(progress, 0, work)
+	research_progress_text.text = "%d / %d points · %.1f%%" % [progress, work, _percent(progress, work)]
+	_clear_rows(research_prerequisites)
+	research_status.text = ""
 	if project.kind == "technology":
 		var technology: String = str(project.technology)
 		var definition: Dictionary = sim.catalog.technologies[technology]
 		if owner.knows(technology):
 			status = "Known"
 			progress = work
-		if technology in sim.unlocked_technologies: status += " (Debug public override)"
-		var prerequisites: PackedStringArray = []
-		for prerequisite: String in definition.prerequisites: prerequisites.append(prerequisite.replace("_", " ") + (" (known)" if owner.knows(prerequisite) else " (unknown)"))
-		research_info.text = "TECHNOLOGY PROJECT\n%s | Public year %d\n%s\nPrerequisites: %s\nProgress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s" % [technology.replace("_", " "), definition.year, status, ", ".join(prerequisites) if not prerequisites.is_empty() else "None", progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), assigned]
+		_set_metric(research_detail_metrics, "status", status)
+		_set_metric(research_detail_metrics, "public_year", str(int(definition.year)))
+		_set_metric(research_detail_metrics, "knowledge", "Known" if owner.knows(technology) else "Unknown")
+		research_status.text = "Public via Debug override." if technology in sim.unlocked_technologies else ""
+		if definition.prerequisites.is_empty():
+			_add_empty_row(research_prerequisites, "No prerequisites")
+		else:
+			for prerequisite: String in definition.prerequisites:
+				_add_compact_row(research_prerequisites, _display_id(prerequisite), "KNOWN" if owner.knows(prerequisite) else "UNKNOWN")
 	elif project.kind == "product_quality":
 		var product_id: String = str(project.product)
 		var current: int = owner.product_quality_level(product_id)
-		research_info.text = "PRODUCT QUALITY PROJECT\nProduct: %s\nCurrent level: %d | Target level: %d | Maximum: %d\n%s\nRetained progress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead)\nRemaining: %d funded operating days\nAssigned facility: %s" % [_product_name(product_id), current, int(project.target_level), sim.catalog.quality_max_level(), status, progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), assigned]
+		_set_metric(research_detail_metrics, "levels", "%d current · %d target · %d maximum" % [current, int(project.target_level), sim.catalog.quality_max_level()])
+		_add_empty_row(research_prerequisites, "Manufacturing knowledge — " + ("KNOWN" if owner.knows(str(sim.catalog.products[product_id].technology)) else "UNKNOWN"))
+		research_status.text = "Each completed level improves process quality for newly manufactured goods."
 	else:
 		var product_id: String = str(project.product)
 		var current: int = owner.process_efficiency_level(product_id)
 		var reduction: int = sim.catalog.conversion_cost_reduction(int(project.target_level))
-		research_info.text = "PROCESS EFFICIENCY PROJECT\nProduct: %s\nCurrent level: %d | Target level: %d | Maximum: %d\n%s\nRetained progress: %d / %d points (%.1f%%)\nProject expense: %s/day (+ overhead) | Remaining: %d funded days\nTarget reduction: %d%%\nBase conversion cost: %s | Target effective cost: %s\nAssigned facility: %s" % [_product_name(product_id), current, int(project.target_level), sim.catalog.efficiency_max_level(), status, progress, work, progress * 100.0 / work, CompanyReports.money(sim.project_cost(project)), maxi(0, eta), reduction, CompanyReports.money(int(sim.catalog.products[product_id].conversion_cost)), CompanyReports.money(sim.conversion_cost_at_level(product_id, int(project.target_level))), assigned]
-	research_info.text += "\nStopping retains progress; spending is not refunded."
-	if not f.research_project.is_empty() and sim.project_equal(f.research_project, project) and (not f.operating or not f.active or owner.cash < sim.project_cost(project) + int(sim.catalog.facility_types[f.type_id].overhead)): research_info.text += "\nStalled: suspended or insufficient operating funds."
+		_set_metric(research_detail_metrics, "levels", "%d current · %d target · %d maximum" % [current, int(project.target_level), sim.catalog.efficiency_max_level()])
+		_add_compact_row(research_prerequisites, "Target conversion-cost reduction", "%d%%" % reduction)
+		_add_compact_row(research_prerequisites, "Conversion cost", "%s base · %s target" % [CompanyReports.money(int(sim.catalog.products[product_id].conversion_cost)), CompanyReports.money(sim.conversion_cost_at_level(product_id, int(project.target_level)))])
+		research_status.text = "Applies to conversion cost of newly produced goods."
+	var assigned_here: bool = assigned == f.id
+	research_attention.text = "ATTENTION — " + status if assigned_here and status in ["Suspended", "Insufficient operating funds"] else ""
+	research_attention.visible = not research_attention.text.is_empty()
+	assign_research.text = "Resume project" if progress > 0 else "Assign project"
 	assign_research.disabled = not own or not error.is_empty() or (not f.research_project.is_empty() and sim.project_equal(f.research_project, project))
 	stop_research.disabled = not own or f.research_project.is_empty()
+	# Compatibility readback for focused pre-B3 smoke tests; primary presentation is structured above.
+	research_info.text = "%s\n%s\nProgress %.1f%%\nAssigned facility: %s" % [_project_display_name(project), status, _percent(progress, work), "None" if assigned.is_empty() else assigned]
+
+func _assigned_research_facility(company_id: String, project: Dictionary) -> String:
+	for other: SimFacility in session.sim.facilities:
+		if other.company_id == company_id and not other.research_project.is_empty() and session.sim.project_equal(other.research_project, project): return other.id
+	return ""
+
+func _research_state(f: SimFacility, owner: SimCompany, project: Dictionary, assigned: String = "") -> String:
+	var sim: Economy = session.sim
+	var facility_id: String = assigned if not assigned.is_empty() else _assigned_research_facility(owner.id, project)
+	if facility_id == f.id:
+		if not f.operating: return "Suspended"
+		if not f.active or owner.cash < sim.project_cost(project): return "Insufficient operating funds"
+		return "Assigned"
+	var error: String = sim.research_project_error(owner.id, project, f.id)
+	if error.is_empty(): return "Researchable"
+	if error == "Already known.": return "Known"
+	if error.begins_with("Requires knowledge:"): return "Prerequisite missing — " + _display_id(error.trim_prefix("Requires knowledge:" ).strip_edges())
+	if error.begins_with("Assigned to "): return "Assigned — " + error.trim_prefix("Assigned to ")
+	if error.begins_with("Maximum ") or error.begins_with("Target must be "): return "Maximum level / invalid next level"
+	return error.trim_suffix(".")
+
+func _project_display_name(project: Dictionary) -> String:
+	if project.get("kind") == "technology": return _display_id(str(project.get("technology", "")))
+	return _product_name(str(project.get("product", "")))
+
+func _project_kind_name(project: Dictionary) -> String:
+	return {"technology": "Technology", "product_quality": "Product quality", "process_efficiency": "Process efficiency"}.get(str(project.get("kind", "")), "Unknown")
+
+func _display_id(value: String) -> String:
+	return value.replace("_", " ").capitalize()
+
+func _percent(progress: int, work: int) -> float:
+	return 0.0 if work <= 0 else clampf(progress * 100.0 / work, 0.0, 100.0)
+
+func _funded_days(progress: int, work: int, rate: int) -> int:
+	if rate <= 0: return 0
+	return maxi(0, ceili(float(maxi(0, work - progress)) / rate))
+
+func _staff_effect_state(f: SimFacility, owner: SimCompany) -> String:
+	if session.sim.staff_effects_active(owner.id): return "ACTIVE"
+	if not f.operating: return "INACTIVE — headquarters suspended"
+	if session.sim.total_staff(owner.id) == 0: return "INACTIVE — no staff"
+	return "INACTIVE — payroll not funded"
+
+func _configured_effect(company_id: String, role_id: String) -> int:
+	var role: Dictionary = session.sim.catalog.staff_roles.get(role_id, {})
+	if role.is_empty(): return 0
+	return mini(session.sim.staff_count(company_id, role_id) * int(role.effect_per_staff), int(role.effect_cap_percent))
+
+func _effect_sign(role: Dictionary) -> String:
+	return "−" if role.effect == "facility_overhead_reduction_percent" else "+"
+
+func _effect_description(role: Dictionary) -> String:
+	return {"operations_capacity_percent": "production / retail capacity", "advertising_progress_percent": "advertising progress", "research_rate_percent": "research rate", "facility_overhead_reduction_percent": "facility overhead"}.get(str(role.effect), str(role.effect))
+
+func _staff_role_order() -> Array[String]:
+	return ["operations_manager", "marketing_manager", "research_manager", "finance_manager"]

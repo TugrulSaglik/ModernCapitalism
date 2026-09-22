@@ -154,9 +154,9 @@ func _test_transitions(factory: SimFacility, warehouse: SimFacility, research: S
 	screen.select_facility("20_player")
 	check(panel.retail_sections[0].visible and not panel.replenishment_section.visible, "Retail selection clears warehouse controls")
 	screen.select_facility(research.id)
-	check(panel.tabs.get_tab_title(0) == "R&D" and panel.tabs.is_tab_hidden(2), "R&D remains B1-compatible")
+	check(panel.tabs.get_tab_title(0) == "Overview" and panel.tabs.get_tab_title(1) == "Research" and panel.tabs.is_tab_hidden(2), "R&D remains compatible with the shared facility shell")
 	screen.select_facility(headquarters.id)
-	check(panel.tabs.get_tab_title(0) == "Headquarters" and panel.tabs.is_tab_hidden(3), "Headquarters remains B1-compatible")
+	check(panel.tabs.get_tab_title(0) == "Overview" and panel.tabs.get_tab_title(1) == "Staffing" and panel.tabs.is_tab_hidden(3), "Headquarters remains compatible with the shared facility shell")
 
 func _test_layout(warehouse: SimFacility) -> void:
 	screen.select_facility(warehouse.id)

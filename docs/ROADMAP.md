@@ -23,7 +23,7 @@
 | 8UI-A2 — Game shell, HUD and navigation (implemented) | Application bar, gameplay navigation, utility/save controls, facility context bar, financial HUD, profit trend, time controls and subtle status presentation | 8UI-A1 |
 | 8UI-B1 — Facility management foundation + production/retail (implemented) | Persistent facility header, Overview/Operations information architecture, structured factory controls and retail line management | 8UI-A2 |
 | 8UI-B2 — Sourcing, logistics and warehouse management (implemented) | Structured supplier policies and ranked offers, shipments, transfer quotes, warehouse overview and replenishment management | 8UI-B1 |
-| 8UI-B3 — R&D and headquarters/staffing management | Apply the management structure to research projects and headquarters staffing/effects | 8UI-B2 |
+| 8UI-B3 — R&D and headquarters/staffing management (implemented) | Structured R&D Overview and project workflow plus headquarters finance, staffing, payroll and management-effect presentation | 8UI-B2 |
 | 8UI-B4 — Company reports and Markets | Redesign company financial reports and market management | 8UI-B3 |
 | 8UI-C — City/build interaction polish (later) | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation; add a pause/application menu organizing Save, Load and Settings, a dedicated save/load browser, and remove the persistent raw slot selector | 8UI-B4 |
 | 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8UI-C |
@@ -68,8 +68,15 @@ choice, ranked offer rows and today's purchases. Logistics separates active ship
 from retained deliveries and provides a live quote for manual transfers. Warehouses now
 use structured storage, inventory, operations and activity metrics plus a dedicated
 Replenishment workflow with target summaries and a target quantity independent from
-manual transfers. R&D and headquarters remain compatible pending 8UI-B3, which is next.
-8UI-B4 owns Company reports and Markets. 8UI-C retains the planned
+manual transfers.
+
+8UI-B3 applies the same structured management language to R&D centers and Corporate
+Headquarters without changing simulation behavior. R&D uses Overview and Research
+pages with capacity, active-project and company-knowledge summaries plus structured
+technology, product-quality and process-efficiency project detail. Headquarters uses
+Overview and Staffing pages with facility finances, all four configured management
+effects, payroll/activation status and role-level hire/dismiss management. 8UI-B4 is
+next and owns Company reports and Markets. 8UI-C retains the planned
 pause/application menu, Save / Load / Settings organization, dedicated save browser
 and removal of the temporary persistent raw slot selector.
 

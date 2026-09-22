@@ -256,12 +256,18 @@ func _ui() -> void:
 	screen.city.sync(screen.session.sim.snapshot())
 	screen.select_facility(hq.id)
 	await process_frame
-	var text: String = screen.inspector.staff_info.text
-	check(text.contains("Management effects: ACTIVE") and text.contains("Operations manager: 2") and text.contains("+20% production/retail capacity"), "HQ inspector shows active operations effect")
-	check(text.contains("Marketing manager: 1") and text.contains("+10% advertising progress") and text.contains("R&D manager: 2") and text.contains("+20% research rate"), "HQ inspector shows marketing and R&D effects")
-	check(text.contains("Finance manager: 1") and text.contains("-5% facility overhead"), "HQ inspector shows finance effect")
+	var text: String = _all_text(screen.inspector.staffing_roles)
+	check(screen.inspector.staffing_status.text.contains("ACTIVE") and text.contains("Operations manager") and text.contains("Current +20%"), "HQ inspector shows active operations effect")
+	check(text.contains("Marketing manager") and text.contains("Current +10%") and text.contains("R&D manager") and text.contains("Current +20%"), "HQ inspector shows marketing and R&D effects")
+	check(text.contains("Finance manager") and text.contains("Current −5%"), "HQ inspector shows finance effect")
 	hq.operating = false
 	screen.inspector.refresh()
-	check(screen.inspector.staff_info.text.contains("Management effects: INACTIVE") and screen.inspector.staff_info.text.contains("headquarters suspended"), "HQ suspension reason is readable")
-	check(screen.inspector.staff_info.custom_minimum_size.y >= 340, "HQ effect rows have adequate compact height")
+	check(screen.inspector.staffing_status.text.contains("INACTIVE") and screen.inspector.staffing_status.text.contains("headquarters suspended"), "HQ suspension reason is readable")
+	check(screen.inspector.staffing_roles.get_child_count() == 4, "HQ effect rows have adequate compact structure")
 	screen.queue_free()
+
+func _all_text(node: Node) -> String:
+	var result: PackedStringArray = []
+	if node is Label: result.append((node as Label).text)
+	for child: Node in node.get_children(): result.append(_all_text(child))
+	return " ".join(result)

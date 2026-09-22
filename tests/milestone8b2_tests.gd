@@ -213,9 +213,9 @@ func _ui() -> void:
 	screen.select_facility(hq.id)
 	await process_frame
 	var panel: FacilityPanel = screen.inspector
-	check(panel.staff_info.visible and panel.staff_info.text.contains("Total staff: 1 / 8") and panel.staff_info.text.contains("Configured daily payroll: $50.00/day"), "HQ inspector shows staff capacity and payroll")
+	check((panel.staffing_metrics.capacity as Label).text == "1 / 8 employed" and (panel.staffing_metrics.payroll as Label).text == "$50.00/day", "HQ inspector shows staff capacity and payroll")
 	for name: String in ["Operations manager", "Marketing manager", "R&D manager", "Finance manager"]:
-		check(panel.staff_info.text.contains(name), "HQ inspector shows " + name)
+		check(_all_text(panel.staffing_roles).contains(name), "HQ inspector shows " + name)
 	check(panel.staff_role.item_count == 4 and panel.hire_staff.visible and panel.dismiss_staff.visible, "Four roles selectable with Hire/Dismiss controls")
 	var chosen: int = -1
 	for index: int in range(panel.staff_role.item_count):
@@ -238,3 +238,9 @@ func _ui() -> void:
 	panel.refresh()
 	check(panel.hire_staff.disabled and not panel.dismiss_staff.disabled, "Suspension disables Hire but leaves Dismiss available")
 	screen.queue_free()
+
+func _all_text(node: Node) -> String:
+	var result: PackedStringArray = []
+	if node is Label: result.append((node as Label).text)
+	for child: Node in node.get_children(): result.append(_all_text(child))
+	return " ".join(result)
