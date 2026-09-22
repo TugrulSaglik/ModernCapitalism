@@ -77,6 +77,8 @@ static func _theme_surfaces(theme: Theme) -> void:
 	theme.set_stylebox("panel", "AppBarPanel", _box(SURFACE_RAISED, BORDER, 1, 4, SPACE_3))
 	theme.set_type_variation("HudPanel", "PanelContainer")
 	theme.set_stylebox("panel", "HudPanel", _box(SURFACE_RAISED, BORDER, 1, 4, SPACE_3))
+	theme.set_type_variation("ManagementSection", "PanelContainer")
+	theme.set_stylebox("panel", "ManagementSection", _box(SURFACE, BORDER.darkened(0.08), 1, 3, SPACE_3))
 	theme.set_stylebox("panel", "PopupPanel", _box(SURFACE_RAISED, BORDER, 1, 4, SPACE_3))
 	theme.set_stylebox("panel", "Tree", _box(SURFACE, BORDER, 1, 3, SPACE_2))
 	theme.set_stylebox("focus", "Tree", _box(Color.TRANSPARENT, ACCENT, 1, 3, 0))

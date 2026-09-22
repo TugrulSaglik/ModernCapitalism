@@ -21,8 +21,11 @@
 | 8B3 — Headquarters/staff management effects (implemented) | Payroll-funded bounded operations, marketing, R&D and finance effects | 8B2 |
 | 8UI-A1 — Visual design system foundation (implemented) | Reusable top-level theme with a corporate palette, typography and spacing hierarchy, panels, buttons, inputs, tabs and semantic state styles | 8B3 |
 | 8UI-A2 — Game shell, HUD and navigation (implemented) | Application bar, gameplay navigation, utility/save controls, facility context bar, financial HUD, profit trend, time controls and subtle status presentation | 8UI-A1 |
-| 8UI-B — Management interface redesign (next) | Redesign facility management, sourcing/logistics, R&D, HQ/staffing, Markets and financial reports using the new design system | 8UI-A2 |
-| 8UI-C — City/build interaction polish (later) | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation | 8UI-B |
+| 8UI-B1 — Facility management foundation + production/retail (implemented) | Persistent facility header, Overview/Operations information architecture, structured factory controls and retail line management | 8UI-A2 |
+| 8UI-B2 — Sourcing, logistics and warehouse management (next) | Redesign supplier selection, shipment/transfer workflows and warehouse management | 8UI-B1 |
+| 8UI-B3 — R&D and headquarters/staffing management | Apply the management structure to research projects and headquarters staffing/effects | 8UI-B2 |
+| 8UI-B4 — Company reports and Markets | Redesign company financial reports and market management | 8UI-B3 |
+| 8UI-C — City/build interaction polish (later) | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation; add a pause/application menu organizing Save, Load and Settings, a dedicated save/load browser, and remove the persistent raw slot selector | 8UI-B4 |
 | 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8UI-C |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
@@ -51,7 +54,17 @@ No branch or commit is created automatically.
 the application bar separates company identity and primary Company/Build navigation
 from utility and save-slot controls; a facility context bar fronts the city workspace;
 and a unified bottom HUD presents cash, TTM profit, monthly trend, date, grouped time
-controls and status feedback. Management-screen redesign remains owned by 8UI-B.
+controls and status feedback.
+
+8UI-B1 establishes the reusable facility-management foundation without simulation
+changes. A persistent facility header now carries catalog identity, owner, facility ID,
+operating state and quick actions. Production and retail facilities use Overview and
+Operations pages with structured factory metrics, production controls and retail line
+management. Existing Sourcing and Logistics functionality remains available pending
+its focused 8UI-B2 redesign; warehouse, R&D and headquarters content remains compatible
+pending 8UI-B2/B3. 8UI-B4 owns Company reports and Markets. 8UI-C retains the planned
+pause/application menu, Save / Load / Settings organization, dedicated save browser
+and removal of the temporary persistent raw slot selector.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.
