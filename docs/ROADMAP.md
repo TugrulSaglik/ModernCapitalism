@@ -20,15 +20,15 @@
 | 8B2 — Staffing and hiring (implemented) | Staff roles, hiring and payroll using the headquarters foundation | 8B1 |
 | 8B3 — Headquarters/staff management effects (implemented) | Payroll-funded bounded operations, marketing, R&D and finance effects | 8B2 |
 | 8UI-A1 — Visual design system foundation (implemented) | Reusable top-level theme with a corporate palette, typography and spacing hierarchy, panels, buttons, inputs, tabs and semantic state styles | 8B3 |
-| 8UI-A2 — Game shell, HUD and navigation (implemented) | Application bar, gameplay navigation, utility/save controls, facility context bar, financial HUD, profit trend, time controls and subtle status presentation | 8UI-A1 |
+| 8UI-A2 — Game shell, HUD and navigation (implemented) | Application bar, gameplay navigation, facility context bar, financial HUD, profit trend, time controls and subtle status presentation | 8UI-A1 |
 | 8UI-B1 — Facility management foundation + production/retail (implemented) | Persistent facility header, Overview/Operations information architecture, structured factory controls and retail line management | 8UI-A2 |
 | 8UI-B2 — Sourcing, logistics and warehouse management (implemented) | Structured supplier policies and ranked offers, shipments, transfer quotes, warehouse overview and replenishment management | 8UI-B1 |
 | 8UI-B3 — R&D and headquarters/staffing management (implemented) | Structured R&D Overview and project workflow plus headquarters finance, staffing, payroll and management-effect presentation | 8UI-B2 |
 | 8UI-B4A — Financial reports, history and company comparison (implemented) | Structured financial statements with report hierarchy, monthly history and one-row-per-company comparison | 8UI-B3 |
 | 8UI-B4B — Markets and advertising management (implemented) | Structured product-market information, advertising workflow, Local/market benchmarks, corporate offers, realized shares and category demand without changing market or advertising systems | 8UI-B4A |
 | 8UI-B — Management interface redesign (complete through B1/B2/B3/B4A/B4B) | Facility operations, sourcing/logistics, R&D/headquarters, financial reports and Markets management | 8UI-A2 |
-| 8UI-C — City/build interaction polish (next) | Construction UI redesign/polish; city selection and contextual interaction; tooltips; confirmation flows; status/notification presentation; a pause/application menu organizing Save, Load and Settings; a dedicated save/load browser; and removal of the persistent Slot 1–3 selector | 8UI-B |
-| 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8UI-C |
+| 8UI-C — City/build interaction polish (implemented) | Polished construction and placement feedback; city select/deselect/context flow; tooltips and status presentation; pause/application menu; Save / Load / Settings organization; three-slot save browser; overwrite/load/new-session confirmations; and removal of the persistent raw Slot selector | 8UI-B |
+| 8C — Strategic competitor AI (next) | Strategic AI investment, sourcing and research decisions | 8UI-C |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
@@ -54,7 +54,7 @@ No branch or commit is created automatically.
 
 8UI-A2 establishes the desktop strategy-game shell without simulation changes:
 the application bar separates company identity and primary Company/Build navigation
-from utility and save-slot controls; a facility context bar fronts the city workspace;
+from application control; a facility context bar fronts the city workspace;
 and a unified bottom HUD presents cash, TTM profit, monthly trend, date, grouped time
 controls and status feedback.
 
@@ -80,11 +80,13 @@ Overview and Staffing pages with facility finances, all four configured manageme
 effects, payroll/activation status and role-level hire/dismiss management. 8UI-B4A
 structures financial statements, history and company comparison; 8UI-B4B structures
 Markets, advertising, observable offers, realized shares and segment demand. The
-entire 8UI-B management-interface block is complete. 8UI-C is next and retains
-construction UI redesign/polish, city selection/contextual interaction, tooltips,
-confirmation flows, status/notification presentation, the pause/application menu,
-Save / Load / Settings organization, a dedicated save/load browser and removal of
-the persistent Slot 1–3 selector.
+entire 8UI-B management-interface block is complete. 8UI-C completes the dedicated
+UI block with the structured construction workflow, specific placement/parcel
+feedback, city select/deselect context, concise tooltips and semantic status, a
+simulation-gating application menu, Save / Load / Settings organization, a validated
+three-slot browser, overwrite/load/new-session confirmations and removal of the
+persistent raw Slot selector. The complete 8UI-A / 8UI-B / 8UI-C block is implemented;
+8C Strategic competitor AI is next.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.

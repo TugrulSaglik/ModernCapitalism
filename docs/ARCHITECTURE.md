@@ -98,10 +98,11 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | SupplierMarket | Produce deterministic eligible offers ranked by price per quality point |
 | GameSession | Own the Economy, player authorization, mode, save/load and Debug access |
 | GameTime | Convert frame deltas and selected speed into bounded calls to `Economy.step` |
-| SaveStore | Validate, encode, atomically write and transactionally restore session state |
+| SaveStore | Validate, encode, atomically write and transactionally restore session state; expose read-only validated slot summaries |
 | CityMap | Serializable cells, road mask, ownership/footprints and monotonic facility IDs |
 | CityGenerator | Seeded terrain, streets, parcels, initial site allocation and ambient development |
 | CityMinimap | Compact derived map and camera navigation; no simulation ownership |
+| SaveBrowser | Present the fixed three slots and emit user intent; owns no save or simulation authority |
 | City / management UI | Render snapshots, select facilities and submit plain-data commands |
 | Debug screen / CLI | Construct Economy, submit commands, advance ticks, read snapshots |
 
@@ -135,6 +136,11 @@ state. SaveStore format 2 tags integers and binary floating-point values before 
 pins the Godot engine version, writes through a same-directory temporary file, and
 validates all restored state before replacing the live session. Unsupported format,
 schema, engine or catalog versions are rejected; migrations are not yet provided.
+The save browser derives date, company, era, mode and filesystem modification time
+through SaveStore's validation path without changing the envelope. Application-menu
+pause is transient controller state in GameScreen: it gates GameTime advancement but
+does not change or persist the selected speed. A loaded GameTime therefore remains
+authoritative until the player explicitly resumes.
 Money is integer cents and goods integer units. Preserve stable definition IDs and
 add migration aliases rather than renaming persisted IDs.
 

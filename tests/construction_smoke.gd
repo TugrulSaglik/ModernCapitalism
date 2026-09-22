@@ -113,6 +113,7 @@ func _run() -> void:
 	screen.city.cancel_placement()
 	check(not screen.construction.visible and screen.city.build_type.is_empty(), "Placement cancellation restores inspector")
 	screen._new_session(2012)
+	screen._resume_game()
 	session.time.set_speed(0)
 	choose("electronics_store")
 	var early_products: Array[String] = []

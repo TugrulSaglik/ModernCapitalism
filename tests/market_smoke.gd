@@ -103,6 +103,7 @@ func _run() -> void:
 			expected.step()
 		check(JSON.stringify(SaveStore.encode(expected.snapshot())) == JSON.stringify(SaveStore.encode(session.sim.snapshot())), "Exact UI save/load replay")
 	screen._new_session(2012)
+	screen._resume_game()
 	session.time.set_speed(0)
 	check(not session.sim.product_public("earbuds") and not session.sim.product_public("advanced_phone"), "2012 gates")
 	for day: int in range(35): session.sim.step()

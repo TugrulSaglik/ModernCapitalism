@@ -94,6 +94,38 @@ func read_file(path: String) -> Dictionary:
 		return {}
 	return decoded.session
 
+# Read-only presentation summary for the three-slot browser. This validates with
+# the same envelope and simulation restoration paths used by a real load without
+# mutating the running GameSession.
+func inspect_file(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {"state": "empty", "reason": "Empty"}
+	var state: Dictionary = read_file(path)
+	if state.is_empty():
+		var kind: String = "incompatible" if error.begins_with("Incompatible") else "unreadable"
+		return {"state": kind, "reason": error}
+	var time_template: Dictionary = {"speed": 0, "last_speed": 0, "seconds_per_day": 0.0, "accumulator": 0.0}
+	if not shape(state, {"mode": "", "player_company": "", "time": time_template, "economy": {}}) or state.mode not in ["sandbox", "tutorial"] or state.player_company != "player":
+		return {"state": "unreadable", "reason": "Invalid session state."}
+	var timing: Dictionary = state.time
+	if timing.speed not in GameTime.SPEEDS or timing.last_speed not in [1, 2, 4, 16] or not is_finite(timing.seconds_per_day) or timing.seconds_per_day < 0.01 or timing.seconds_per_day > 60.0 or not is_finite(timing.accumulator) or timing.accumulator < 0.0 or timing.accumulator > 100000.0:
+		return {"state": "unreadable", "reason": "Invalid time controller state."}
+	var candidate: Economy = restore(state.economy)
+	if candidate == null:
+		return {"state": "unreadable", "reason": error}
+	var company_name: String = "Player company"
+	if candidate.companies.has(state.player_company): company_name = candidate.companies[state.player_company].display_name
+	var absolute: String = ProjectSettings.globalize_path(path)
+	var modified_unix: int = int(FileAccess.get_modified_time(absolute))
+	return {
+		"state": "valid",
+		"company": company_name,
+		"date": candidate.clock.date_string(),
+		"starting_year": int(state.economy.starting_year),
+		"mode": str(state.mode),
+		"modified": Time.get_datetime_string_from_unix_time(modified_unix, true) if modified_unix > 0 else "",
+	}
+
 # Require known keys/types before hydrating. Dynamic maps receive semantic checks below.
 static func shape(value: Variant, template: Variant) -> bool:
 	if typeof(value) != typeof(template):

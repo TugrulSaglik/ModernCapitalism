@@ -41,6 +41,7 @@ func _run() -> void:
 	screen.save_directory = "res://.godot/m4-ui-saves"
 	for era: int in [2022, 2012]:
 		screen._new_session(era)
+		screen._resume_game()
 		session.time.set_speed(0)
 		session.unlock_debug(DebugConfig.PASSWORD)
 		session.debug_action("cash", 20000000)

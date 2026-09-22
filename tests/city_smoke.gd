@@ -102,6 +102,7 @@ func _run() -> void:
 	screen.settings.hide()
 	screen.city_seed.get_line_edit().text = "42"
 	screen._new_session(2022)
+	screen._resume_game()
 	session.time.set_speed(0)
 	check(original == session.sim.city.snapshot(), "Same numeric seed reproduces city in real UI")
 	var event: InputEventMouseButton = InputEventMouseButton.new()
@@ -114,6 +115,7 @@ func _run() -> void:
 	screen.city_seed.get_line_edit().text = "9173"
 	screen.city_seed.get_line_edit().text_changed.emit("9173")
 	screen._new_session(2022)
+	screen._resume_game()
 	check(session.sim.city.generation.seed == "9173", "New-session click commits typed seed")
 	session.time.set_speed(0)
 	screen.inspector.hide()
@@ -121,6 +123,7 @@ func _run() -> void:
 	await capture("08-second-seed")
 	screen.city_seed.get_line_edit().text = "42"
 	screen._new_session(2012)
+	screen._resume_game()
 	session.time.set_speed(0)
 	check(original == session.sim.city.snapshot() and not session.sim.product_public("advanced_phone"), "2012 shares generated city and keeps era gates")
 	for day: int in range(30): session.sim.step()

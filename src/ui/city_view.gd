@@ -306,3 +306,5 @@ func _unhandled_input(event: InputEvent) -> void:
 			var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 			if not hit.is_empty() and hit.collider.has_meta("facility_id"):
 				facility_selected.emit(str(hit.collider.get_meta("facility_id")))
+			else:
+				facility_selected.emit("")

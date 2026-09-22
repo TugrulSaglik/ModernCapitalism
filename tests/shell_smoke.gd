@@ -22,7 +22,7 @@ func _run() -> void:
 	check(screen.get_node("ShellMargin/ShellColumn/TopApplicationBar") != null, "Application bar exists")
 	check(screen.get_node("ShellMargin/ShellColumn/BottomHudBar") != null, "Bottom HUD exists")
 	check(screen.facility_list.get_parent().name == "FacilityContextBar", "Facility selector is contextual")
-	check(screen.facility_list.get_item_text(0).contains(" • "), "Facility selector uses readable display text")
+	check(screen.facility_list.get_item_text(0) == "No facility selected" and screen.facility_list.get_item_text(1).contains(" • "), "Facility selector has neutral state and readable entries")
 	screen._show_company()
 	check(screen.overview.visible and screen.world_input_blocked(), "Company opens reports and blocks world input")
 	screen.overview.hide()
@@ -30,8 +30,9 @@ func _run() -> void:
 	check(screen.construction.visible and not screen.inspector.visible and not screen.city.build_type.is_empty(), "Build enters construction and hides inspector")
 	screen.city.cancel_placement()
 	screen._show_settings()
-	check(screen.settings.visible and screen.world_input_blocked(), "Settings blocks world input")
-	screen.settings.hide()
+	check(screen.settings.visible and screen.world_input_blocked() and screen.application_pause, "Settings blocks world input and pauses advancement")
+	screen._return_to_menu()
+	screen._resume_game()
 	for speed: int in GameTime.SPEEDS:
 		screen.speed_buttons[speed].pressed.emit()
 		check(screen.session.time.speed == speed and screen.speed_buttons[speed].button_pressed, "Speed %d is active" % speed)
@@ -46,10 +47,10 @@ func _run() -> void:
 	pause.pressed = true
 	screen._input(pause)
 	check(screen.session.time.speed == 0, "Space toggles pause")
-	screen._save()
-	check(FileAccess.file_exists(screen.slot_path()), "Selected save slot writes")
-	screen._load()
-	check(screen.session.message.contains("Loaded"), "Selected save slot loads")
+	screen._save(1)
+	check(FileAccess.file_exists(screen.slot_path(1)), "Save browser slot path writes")
+	screen._load(1)
+	check(screen.session.message.contains("Loaded"), "Dedicated slot load restores")
 	var definition: Dictionary = screen.session.sim.catalog.facility_types.corporate_headquarters
 	var site: Vector2i = screen.session.sim.city.valid_sites(definition.width, definition.depth)[0]
 	check(screen.session.submit({"type": "build_facility", "archetype": "corporate_headquarters", "product": "", "x": site.x, "y": site.y}), "Build representative headquarters")
