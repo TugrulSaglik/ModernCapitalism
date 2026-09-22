@@ -28,8 +28,8 @@
 | 8UI-B4B — Markets and advertising management (implemented) | Structured product-market information, advertising workflow, Local/market benchmarks, corporate offers, realized shares and category demand without changing market or advertising systems | 8UI-B4A |
 | 8UI-B — Management interface redesign (complete through B1/B2/B3/B4A/B4B) | Facility operations, sourcing/logistics, R&D/headquarters, financial reports and Markets management | 8UI-A2 |
 | 8UI-C — City/build interaction polish (implemented) | Polished construction and placement feedback; city select/deselect/context flow; tooltips and status presentation; pause/application menu; Save / Load / Settings organization; three-slot save browser; overwrite/load/new-session confirmations; and removal of the persistent raw Slot selector | 8UI-B |
-| 8C — Strategic competitor AI (next) | Strategic AI investment, sourcing and research decisions | 8UI-C |
-| 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
+| 8C — Strategic competitor AI (implemented) | Deterministic monthly market entry, investment, staffing, sourcing, warehouses and business-aligned research | 8UI-C |
+| 8D — Difficulty and balancing (next) | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
 | 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
@@ -86,7 +86,7 @@ feedback, city select/deselect context, concise tooltips and semantic status, a
 simulation-gating application menu, Save / Load / Settings organization, a validated
 three-slot browser, overwrite/load/new-session confirmations and removal of the
 persistent raw Slot selector. The complete 8UI-A / 8UI-B / 8UI-C block is implemented;
-8C Strategic competitor AI is next.
+8C Strategic competitor AI is implemented; 8D Difficulty and balancing is next.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.
@@ -104,6 +104,7 @@ the bounded weekly AI advertising policy without strategic ROI or expansion logi
 Milestone 8B1 adds the one-per-company productless headquarters building. Milestone
 8B2 adds aggregate company staff, HQ capacity, authorized hiring/dismissal and
 all-or-nothing daily payroll. Milestone 8B3 adds the four payroll-funded bounded
-effects while leaving AI hiring and HQ construction deferred. The dedicated UI/UX
-block 8UI-A1 through 8UI-C now precedes strategic competitor AI in 8C; final production
-polish remains in Milestone 12.
+effects. Milestone 8C adds a stateless monthly strategic planner that uses ordinary
+commands for assortment, capital, staffing, sourcing, warehouses and R&D while the
+weekly price/advertising policies remain tactical. There are no difficulty bonuses;
+8D Difficulty and balancing is next. Final production polish remains in Milestone 12.

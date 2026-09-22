@@ -195,7 +195,7 @@ func _ai_selection() -> void:
 	check(lab.research_project.is_empty(), "2022 AI center begins idle")
 	s.sim.step()
 	check(lab.research_project.get("kind") == "product_quality", "AI falls back to quality when all technology is known")
-	check(lab.research_project.get("product") == "advanced_phone" and lab.research_project.get("target_level") == 1, "AI quality selection uses stable product ordering")
+	check(lab.research_project.get("product") == "smartphone" and lab.research_project.get("target_level") == 1, "AI quality selection favors the highest-opportunity manufactured product")
 
 func _persistence() -> void:
 	var s: GameSession = session(2022, 73)

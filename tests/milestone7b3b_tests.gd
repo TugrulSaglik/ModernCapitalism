@@ -219,11 +219,11 @@ func _ai_selection() -> void:
 	var continuous: GameSession = session()
 	continuous.sim.step()
 	var lab: SimFacility = continuous.sim.facility("30_research")
-	check(lab.research_project.kind == "product_quality" and lab.research_project.product == "advanced_phone", "Continuous ordering starts with lowest level, product ID, then quality kind")
+	check(lab.research_project.kind == "product_quality" and lab.research_project.product == "smartphone", "Strategic continuous research starts with highest-opportunity manufactured product and quality tie-break")
 	lab.research_project = {}
-	continuous.sim.companies.maker_b.product_quality_levels.advanced_phone = 1
+	continuous.sim.companies.maker_b.product_quality_levels.smartphone = 1
 	continuous.sim.step()
-	check(lab.research_project.kind == "process_efficiency" and lab.research_project.product == "advanced_phone", "Balanced ordering selects process efficiency in 2022")
+	check(lab.research_project.kind == "process_efficiency" and lab.research_project.product == "smartphone", "Lower attained process level wins within the highest-opportunity manufactured product")
 
 func _persistence() -> void:
 	var s: GameSession = session(2022, 73)

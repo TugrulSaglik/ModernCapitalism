@@ -95,15 +95,18 @@ store and transfer public goods without acquiring expertise. Supported products,
 retail categories/slots, stock, funds and logistics restrictions still apply. This
 explicit resale exception prevents R&D from becoming a requirement for every shop.
 
-## Minimal AI and UI
+## Strategic AI research and UI
 
 Nova (`maker_b`) is enabled as an AI company and receives `30_research` through
-expanded scenario data. An operating idle AI center first chooses an eligible
-technology by public year then stable ID. If none exists, eligible continuous
-projects sort by lowest attained level, stable product ID, then stable kind order
-(`product_quality` before `process_efficiency`). Prerequisites are always checked.
-AI neither builds centers nor evaluates profitability, markets or portfolios.
-Thus 2022 R&D is immediately useful despite complete starting technology knowledge.
+expanded scenario data. Milestone 8C also lets commercially active AI companies
+construct one R&D center through normal capital rules. An operating idle center
+first chooses an eligible technology relevant to products the company sells,
+manufactures, depends on, or sees as a high market opportunity; ties use public
+year and stable ID. Otherwise, continuous projects are limited to products actually
+manufactured and sort by opportunity, lower attained level, product ID, then
+`product_quality` before `process_efficiency`. Prerequisites and all normal project
+rules remain authoritative. Idle labs are evaluated daily through ordinary
+`assign_research` commands, while capital planning remains monthly.
 
 Select an R&D center to use its compact R&D inspector. The selector separates
 technology, product-quality and process-efficiency projects. Continuous details show
@@ -145,4 +148,5 @@ Throughput research remains deferred. Headquarters staffing is implemented throu
 8B3: only funded R&D managers at an operating HQ multiply each funded center's base
 rate by the capped catalog percentage (flooring to integer work). Project work,
 daily cash cost, eligibility, ordering and completion semantics do not change.
-Strategic AI remains deferred.
+Strategic AI is implemented in Milestone 8C without research bonuses or knowledge
+cheating.

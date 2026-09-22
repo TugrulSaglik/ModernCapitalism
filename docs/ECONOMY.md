@@ -1,5 +1,66 @@
 # Economic model
 
+## Milestone 8C strategic competitor AI
+
+AI price and advertising decisions retain their existing seven-tick tactical cadence.
+Capital and portfolio strategy runs once on calendar day 1 before the day's command
+boundary. The cadence is derived entirely from `SimClock`; no last-run marker, plan
+queue, personality or reservation is authoritative or saved. Companies are visited
+in ascending ID order and only `company.ai == true` participates.
+
+For public consumer product `p` and AI company `c`, the integer opportunity score is:
+
+`4 × p.daily_demand + 2 × max(0, category potential − realized units)`
+`+ 3 × product Local units − floor(100 × company units / product realized units)`.
+
+The share term is zero when no units were realized. Resale candidates must be public,
+consumer-facing and supported by at least one retail archetype; retail does not require
+manufacturing knowledge. A store with a spare slot may add its best supported product
+at score 40 or above, at most one line per store per month. This happens before new
+retail construction. Retail archetypes maximize capacity per construction cost, then
+prefer lower absolute cost and stable ID. Retail networks are conservatively bounded
+to three locations by this policy.
+
+Every capital command must leave
+`reserve = max(5,000,000 cents, floor(current cash / 4))`, and each AI may construct
+at most one facility per monthly pass. Candidate priority is: structurally missing
+recipe-input producer, headquarters, first R&D center, vertical integration for a
+sold product, retail expansion, then first warehouse. All construction uses the
+ordinary validation path. Placement scans valid cells, minimizes Manhattan distance
+to an owned facility, and breaks ties by y then x. Planned footprints are reserved
+only within the current pass so different AIs do not intentionally collide. Existing
+factories do not churn products and the planner does not demolish facilities.
+
+An operating HQ targets two operations managers for any production/retail activity,
+one marketing manager for one retailer or two for multiple retailers, two R&D
+managers when a lab exists, and one finance manager for commercial operations.
+Targets are clipped to HQ capacity. Hiring requires post-investment cash to cover
+the reserve plus 60 days of the resulting catalog payroll. Roles whose applicable
+activity disappears are dismissed; small cash fluctuations do not trigger layoffs.
+Normal all-or-nothing daily payroll and all management-effect formulas are unchanged.
+
+One R&D center is built only when commercial operations and a useful project exist.
+Technology research scores manufacturing unlocks used by current retail, production,
+dependencies or high-opportunity products, then breaks ties by public year and ID.
+When no relevant technology is eligible, continuous projects consider only actually
+manufactured products, ordered by opportunity, lower attained level, product ID and
+product quality before process efficiency. Idle operating labs are evaluated daily
+and receive ordinary `assign_research` commands; research work, cost and completion
+formulas are unchanged.
+
+One warehouse becomes eligible at three owned production/retail facilities. It targets
+at most six products sold downstream or consumed as recipe inputs, ordered by daily
+requirement, opportunity and product ID. Integer proportional allocation never exceeds
+physical capacity. Downstream facilities pin a road-connected owned warehouse only
+when that product has a positive target; all other supplier policies are reset to the
+existing Automatic mode. SupplierMarket ranking and replenishment mechanics are not
+duplicated or changed.
+
+Strategic actions grant no cash, inventory, knowledge, demand, research speed or
+operating bonus. Schema 15, catalog 9 and save format 2 are unchanged; the decision
+trace and same-pass footprint reservations are transient. Save/load continuation is
+therefore derived from the same clock, market, city and company state.
+
 ## Milestone 8B3 funded staff management effects
 
 Management effects are active only when a company has at least one staff member,
@@ -204,9 +265,9 @@ Do not sum intercompany revenue to measure final consumer spending.
 
 ## Tick order
 1. Record prior between-day profit and clear daily accounts.
-2. AI submits bounded weekly price and advertising decisions; apply queued commands in order.
-3. Pay each company's complete affordable payroll, then process advertising.
-4. Assign eligible projects to idle operating AI R&D centers, then deliver due shipments and charge fixed-asset depreciation.
+2. On calendar day 1, AI submits bounded strategic commands; on the seven-tick cadence it also submits unchanged price and advertising commands.
+3. AI submits strategic project assignments for idle labs; apply all queued commands in order.
+4. Pay each company's complete affordable payroll, process advertising, deliver due shipments and charge fixed-asset depreciation.
 5. Charge affordable overhead and mark active facilities.
 6. Source manufacturing inputs and produce in stable facility order.
 7. Replenish retailers and warehouses, accounting for goods already in transit.

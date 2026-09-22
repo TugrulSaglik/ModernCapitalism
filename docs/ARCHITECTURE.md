@@ -2,6 +2,34 @@
 
 ## Current milestone
 
+Milestone 8C introduces `StrategicAI`, a stateless simulation policy module. On the
+first simulation day of each calendar month, Economy asks it for ordinary command
+dictionaries, records a transient debug trace, and remains the sole authority that
+validates and applies changes. AI companies are processed by ascending company ID;
+candidate scores, product IDs, archetype IDs and y/x cells provide stable ties. A
+temporary footprint set prevents same-pass build overlap and is never persisted.
+
+Market opportunity is integer-only:
+`4 × product daily_demand + 2 × category unmet + 3 × Local units − company realized share percent`.
+Public consumer products supported by a retailer are eligible for resale regardless
+of manufacturing knowledge. Existing stores add at most one meaningfully positive
+line per month before another store is considered. Manufacturing investment retains
+the normal company-knowledge requirement. Structural recipe supply gaps outrank HQ,
+R&D, vertical integration, retail and warehouse candidates; each company may submit
+at most one affordable build per monthly pass.
+
+Capital keeps `max(5,000,000 cents, floor(cash / 4))` after construction. HQ staffing
+is activity-derived, capacity bounded and requires that cash cover the reserve plus
+60 days of resulting payroll. One R&D center and one warehouse are sufficient for
+the current policy. Research favors relevant technology unlocks, then quality/process
+work for products actually manufactured. Idle labs are checked daily through the
+same `assign_research` command path. Warehouse targets cover at most six high-use
+downstream products within physical capacity; configured, road-connected owned
+warehouses are preferred, otherwise sourcing is Automatic. Weekly pricing and
+advertising are unchanged. There is no AI memory, persisted plan, randomness,
+difficulty bonus, borrowing, demolition or speculative market exit. Schema 15,
+catalog 9 and save format 2 remain unchanged.
+
 Milestone 8B3 closes the headquarters/staffing block. Aggregate `staff_counts` and
 the persisted most-recent-day `staff_payroll_funded` result live on `SimCompany`; no
 employee entities or personnel state live on `SimFacility`. The one live headquarters
@@ -95,6 +123,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | Facility | Owner/city/type IDs, local inventory, recipe product, capacity, offers, process quality and structured R&D assignment; productless R&D/HQ types retain empty goods state |
 | Demand | Pure price/quality/brand preference and finite consumer allocation |
 | Economy | Own state, seeded RNG, command queue, fixed phase orchestration, AI, trade, production and reports |
+| StrategicAI | Derive deterministic monthly strategic commands and responsive idle-lab assignments without owning authoritative state |
 | SupplierMarket | Produce deterministic eligible offers ranked by price per quality point |
 | GameSession | Own the Economy, player authorization, mode, save/load and Debug access |
 | GameTime | Convert frame deltas and selected speed into bounded calls to `Economy.step` |
@@ -158,9 +187,9 @@ add migration aliases rather than renaming persisted IDs.
   exchange operate on company IDs and settle through the same cash ledger.
   Ownership/control is separate from operational decision policy.
 - AI: policy modules consume the same read models and produce the same commands
-  as players. Current AI uses bounded weekly price and advertising commands plus
-  deterministic project selection for existing R&D centers. Advertising uses only
-  retail activity and the Local-brand gap; strategic ROI and expansion remain deferred.
+  as players. Weekly pricing/advertising remain tactical; the stateless monthly
+  planner handles bounded expansion, staffing, sourcing and warehouse configuration.
+  Difficulty-specific bonuses and deeper profitability/exit policy remain deferred.
 - Multiple cities: city demand populations, local offers and transport links;
   partition market clearing by city/product, retain one explicit scheduler.
 - New sectors: recipes and facility definitions express extraction, farming,

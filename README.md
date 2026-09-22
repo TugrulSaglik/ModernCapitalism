@@ -52,6 +52,17 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
+## Milestone 8C
+
+Strategic competitor AI is implemented. AI companies retain weekly tactical pricing
+and advertising, while a stateless calendar-month planner expands assortments, makes
+at most one reserve-safe capital investment per company, builds HQ/R&D/warehouse
+infrastructure, hires activity-relevant staff, selects business-aligned research and
+configures warehouse/supplier policy through the ordinary command path. Planning and
+placement are deterministic and use no difficulty bonuses. Save versions remain
+**economy schema 15 / catalog 9 / format 2**. Milestone 8D difficulty and balancing
+is next.
+
 ## Milestone 8B3
 
 Milestones **8B1, 8B2 and 8B3 are implemented**. Companies can construct one
@@ -253,5 +264,6 @@ to avoid attempts to write the default user log directory.
 Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
-Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`. Continuous research,
-Strategic AI and corporate finance remain future work.
+Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`.
+Strategic AI and continuous research are implemented; difficulty/balancing and
+corporate finance remain future work.

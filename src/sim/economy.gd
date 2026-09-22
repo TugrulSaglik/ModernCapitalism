@@ -7,6 +7,7 @@ const Company = preload("res://src/sim/company.gd")
 const Facility = preload("res://src/sim/facility.gd")
 const Demand = preload("res://src/sim/demand.gd")
 const Sourcing = preload("res://src/sim/sourcing.gd")
+const StrategicAIPlanner = preload("res://src/sim/strategic_ai.gd")
 
 var catalog: SimCatalog
 var clock: SimClock
@@ -26,6 +27,9 @@ var unlocked_technologies: Array[String] = []
 var debug_actions: Array[Dictionary] = []
 var city: CityMap = CityMap.new()
 var logistics: Logistics = Logistics.new()
+var strategic_ai: StrategicAI = StrategicAIPlanner.new()
+# Derived/debug-only trace. It is intentionally excluded from snapshots.
+var strategic_trace: Array[Dictionary] = []
 
 func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json", city_settings: Dictionary = {}) -> bool:
 	catalog = Catalog.new()
@@ -44,6 +48,8 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	clock = Clock.new(era)
 	companies.clear()
 	logistics = Logistics.new()
+	strategic_ai = StrategicAIPlanner.new()
+	strategic_trace.clear()
 	facilities.clear()
 	pending_commands.clear()
 	command_results.clear()
@@ -236,28 +242,7 @@ func _research() -> void:
 		else: owner.process_efficiency_progress[str(project.product)] = {"target_level": int(project.target_level), "progress": progress}
 
 func _ai_research() -> void:
-	var ids: Array = catalog.technologies.keys()
-	ids.sort_custom(func(a: String, b: String) -> bool:
-		return int(catalog.technologies[a].year) < int(catalog.technologies[b].year) if catalog.technologies[a].year != catalog.technologies[b].year else a < b)
-	for f: SimFacility in facilities:
-		if _behavior(f) != "research" or not companies[f.company_id].ai or not f.operating or not f.research_project.is_empty(): continue
-		for technology: String in ids:
-			if research_error(f.company_id, technology).is_empty():
-				f.research_project = technology_project(technology)
-				break
-		if not f.research_project.is_empty(): continue
-		var candidates: Array[Dictionary] = []
-		for product: String in catalog.products:
-			for project: Dictionary in [product_quality_project(f.company_id, product), process_efficiency_project(f.company_id, product)]:
-				if research_project_error(f.company_id, project).is_empty(): candidates.append(project)
-		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-			var owner: SimCompany = companies[f.company_id]
-			var level_a: int = owner.product_quality_level(a.product) if a.kind == "product_quality" else owner.process_efficiency_level(a.product)
-			var level_b: int = owner.product_quality_level(b.product) if b.kind == "product_quality" else owner.process_efficiency_level(b.product)
-			if level_a != level_b: return level_a < level_b
-			if a.product != b.product: return a.product < b.product
-			return a.kind == "product_quality" and b.kind == "process_efficiency")
-		if not candidates.is_empty(): f.research_project = candidates[0]
+	for command: Dictionary in strategic_ai.research_commands(self): queue_command(command)
 
 func command_error(command: Dictionary) -> String:
 	if str(command.get("type", "")) == "build_facility":
@@ -459,6 +444,10 @@ func _demolish(f: SimFacility) -> void:
 			other.last_sources[product] = other.last_sources[product].filter(func(source: Dictionary) -> bool: return source.supplier != f.id)
 
 func _ai_decisions() -> void:
+	if clock.day == 1:
+		var plan: Dictionary = strategic_ai.evaluate_month(self)
+		strategic_trace = plan.trace
+		for command: Dictionary in plan.commands: queue_command(command)
 	if clock.tick % 7 != 0:
 		return
 	for f: SimFacility in facilities:
@@ -696,12 +685,12 @@ func step() -> void:
 	record_history()
 	for owner: SimCompany in companies.values():
 		owner.begin_day()
-	market.clear()
 	_ai_decisions()
+	_ai_research()
 	_apply_commands()
+	market.clear()
 	_payroll()
 	_advertise()
-	_ai_research()
 	logistics.deliver(self)
 	for f: SimFacility in facilities:
 		if f.asset_cost > 0 and f.asset_days < 3650:
