@@ -28,6 +28,15 @@ var report_note: Label
 var period_label: Label
 var market_label: Label
 var report_scroll: ScrollContainer
+var report_controls: HBoxContainer
+var market_content: VBoxContainer
+var market_metadata: Label
+var market_overview: Tree
+var advertising_summary: Tree
+var market_benchmark: Tree
+var corporate_offers: Tree
+var company_shares: Tree
+var segment_potential: Tree
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(760, 510)
@@ -53,29 +62,15 @@ func _ready() -> void:
 	for title: String in TAB_TITLES:
 		tabs.add_tab(title)
 	add_child(tabs)
-	var controls: HBoxContainer = HBoxContainer.new()
-	controls.name = "ReportControls"
-	add_child(controls)
-	period_label = _control_label(controls, "REPORT PERIOD")
+	report_controls = HBoxContainer.new()
+	report_controls.name = "ReportControls"
+	add_child(report_controls)
+	period_label = _control_label(report_controls, "REPORT PERIOD")
 	periods = OptionButton.new()
 	periods.custom_minimum_size.x = 210
 	for title: String in ["Current month", "Previous month", "Trailing 12 months", "Current year"]:
 		periods.add_item(title)
-	controls.add_child(periods)
-	market_label = _control_label(controls, "PRODUCT")
-	products = OptionButton.new()
-	products.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	controls.add_child(products)
-	advertising_budget = SpinBox.new()
-	advertising_budget.min_value = 0
-	advertising_budget.max_value = 1000000
-	advertising_budget.step = 1
-	advertising_budget.suffix = " $/day"
-	controls.add_child(advertising_budget)
-	apply_advertising = Button.new()
-	apply_advertising.text = "Queue advertising"
-	apply_advertising.theme_type_variation = "PrimaryButton"
-	controls.add_child(apply_advertising)
+	report_controls.add_child(periods)
 	var report_heading: VBoxContainer = VBoxContainer.new()
 	report_heading.add_theme_constant_override("separation", 0)
 	add_child(report_heading)
@@ -97,6 +92,7 @@ func _ready() -> void:
 	table.scroll_vertical_enabled = false
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	report_scroll.add_child(table)
+	_build_market_content()
 	report_note = Label.new()
 	report_note.theme_type_variation = "MetaLabel"
 	report_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -107,6 +103,90 @@ func _ready() -> void:
 	apply_advertising.pressed.connect(func() -> void:
 		if products.selected >= 0:
 			command_requested.emit({"type": "set_advertising_budget", "product": str(products.get_item_metadata(products.selected)), "budget": int(round(advertising_budget.value * 100.0))}))
+
+func _build_market_content() -> void:
+	market_content = VBoxContainer.new()
+	market_content.name = "MarketsContent"
+	market_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	market_content.add_theme_constant_override("separation", ModernUITheme.SPACE_3)
+	report_scroll.add_child(market_content)
+	_section_label(market_content, "PRODUCT")
+	var product_row: HBoxContainer = HBoxContainer.new()
+	market_content.add_child(product_row)
+	market_label = _control_label(product_row, "PRODUCT")
+	products = OptionButton.new()
+	products.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	product_row.add_child(products)
+	market_metadata = Label.new()
+	market_metadata.name = "ProductMetadata"
+	market_metadata.theme_type_variation = "MetaLabel"
+	market_content.add_child(market_metadata)
+
+	_section_label(market_content, "MARKET OVERVIEW")
+	market_overview = _market_tree(market_content, 2, ["Metric", "Current"], [4, 2])
+
+	_section_label(market_content, "ADVERTISING / BRAND")
+	advertising_summary = _market_tree(market_content, 2, ["Metric", "Current"], [4, 2])
+	var budget_row: HBoxContainer = HBoxContainer.new()
+	market_content.add_child(budget_row)
+	_control_label(budget_row, "DAILY BUDGET")
+	advertising_budget = SpinBox.new()
+	advertising_budget.min_value = 0
+	advertising_budget.max_value = 1000000
+	advertising_budget.step = 0.01
+	advertising_budget.prefix = "$ "
+	advertising_budget.suffix = " / day"
+	advertising_budget.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	budget_row.add_child(advertising_budget)
+	apply_advertising = Button.new()
+	apply_advertising.text = "Queue budget"
+	apply_advertising.theme_type_variation = "PrimaryButton"
+	budget_row.add_child(apply_advertising)
+	var advertising_note: Label = Label.new()
+	advertising_note.theme_type_variation = "MetaLabel"
+	advertising_note.text = "Funded advertising builds retained brand progress. Extended periods without funded advertising can reduce brand."
+	advertising_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	market_content.add_child(advertising_note)
+
+	_section_label(market_content, "LOCAL / MARKET BENCHMARK")
+	market_benchmark = _market_tree(market_content, 3, ["Metric", "Local", "Market average"], [3, 2, 2])
+	var share_note: Label = Label.new()
+	share_note.theme_type_variation = "MetaLabel"
+	share_note.text = "Shares describe realized purchases; no-purchase/unfilled demand is shown separately."
+	share_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	market_content.add_child(share_note)
+
+	_section_label(market_content, "CORPORATE OFFERS")
+	corporate_offers = _market_tree(market_content, 6, ["Company / facility", "Price", "Quality", "Brand", "Sold", "Share"], [4, 2, 2, 1, 1, 2])
+
+	_section_label(market_content, "REALIZED COMPANY SHARE")
+	company_shares = _market_tree(market_content, 3, ["Seller", "Units", "Share"], [4, 2, 2])
+
+	_section_label(market_content, "SEGMENT POTENTIAL")
+	segment_potential = _market_tree(market_content, 2, ["Segment", "Potential"], [4, 2])
+	market_content.hide()
+
+func _section_label(parent: Control, text_value: String) -> Label:
+	var label: Label = Label.new()
+	label.text = text_value
+	label.theme_type_variation = "SectionLabel"
+	parent.add_child(label)
+	return label
+
+func _market_tree(parent: Control, columns: int, titles: Array[String], ratios: Array[int]) -> Tree:
+	var result: Tree = Tree.new()
+	result.hide_root = true
+	result.column_titles_visible = true
+	result.scroll_vertical_enabled = false
+	result.scroll_horizontal_enabled = false
+	result.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	result.columns = columns
+	for column: int in range(columns):
+		result.set_column_title(column, titles[column])
+		result.set_column_expand_ratio(column, ratios[column])
+		result.set_column_clip_content(column, true)
+	parent.add_child(result)
+	return result
 
 func _control_label(parent: Control, text_value: String) -> Label:
 	var label: Label = Label.new()
@@ -201,18 +281,15 @@ func refresh() -> void:
 	var market_visible: bool = report_tab == 3
 	period_label.visible = period_visible
 	periods.visible = period_visible
-	market_label.visible = market_visible
-	products.visible = market_visible
-	advertising_budget.visible = market_visible
-	apply_advertising.visible = market_visible
+	report_controls.visible = period_visible
+	table.visible = not market_visible
+	market_content.visible = market_visible
 	table.tooltip_text = ""
 	match report_tab:
 		0: _income_statement(owner, sim.clock)
 		1: _balance_sheet(sim, owner)
 		2: _cash_flow(owner, sim.clock)
-		3:
-			_setup_table(3, ["Market / offer", "Local", "Market average"], [3, 2, 2])
-			_market(sim)
+		3: _market(sim)
 		4: _history(owner, sim.clock)
 		5: _companies(sim)
 
@@ -335,11 +412,6 @@ func _companies(sim: Economy) -> void:
 		if company.profit() < 0:
 			item.set_custom_color(3, ModernUITheme.NEGATIVE)
 
-func comparison(label: String, local: String, average: String) -> void:
-	var row: TreeItem = add_row(label, local)
-	row.set_text(2, average)
-	row.set_text_alignment(2, HORIZONTAL_ALIGNMENT_RIGHT)
-
 func _market(sim: Economy) -> void:
 	if products.item_count == 0:
 		var ids: Array = sim.catalog.products.keys()
@@ -357,34 +429,109 @@ func _market(sim: Economy) -> void:
 	var market: Dictionary = sim.market.get(product, ConsumerMarket.empty_report())
 	var local: Dictionary = ConsumerMarket.local_offer(sim, product)
 	var realized: bool = int(market.units) > 0
-	_set_report("Markets", "%s • %s • %s" % [definition.name, definition.category, "Public" if sim.product_public(product) else "Era locked"], "Category potential %d / purchased %d • no purchase or unfilled %d" % [category.get("potential", 0), category.get("units", 0), int(category.get("potential", 0)) - int(category.get("units", 0))])
-	comparison("Price", money(local.price) if not local.is_empty() else "—", money(int(round(market.average_price))) if realized else "—")
-	comparison("Quality", str(local.quality) if not local.is_empty() else "—", "%.1f" % market.average_quality if realized else "—")
-	comparison("Brand", str(local.brand) if not local.is_empty() else "—", "%.1f" % market.average_brand if realized else "—")
-	comparison("Overall / 100", "%.1f" % ConsumerDemand.overall(local.price, definition.reference_price, local.quality, local.brand) if not local.is_empty() else "—", "%.1f" % market.average_overall if realized else "—")
-	comparison("Units / realized share", "%d / %.1f%%" % [market.local_units, market.local_share * 100] if not local.is_empty() else "—", "%d / 100%%" % market.units if realized else "—")
-	comparison("Your company brand", str(owner.brand(product)), "")
-	comparison("Advertising budget / day", money(int(owner.advertising_budgets[product])), "")
-	comparison("Advertising progress / next point", "%s / %s" % [money(int(owner.advertising_progress[product])), money(sim.advertising_threshold(product, owner.brand(product))) if owner.brand(product) < 100 else "MAX"], "")
-	comparison("Inactive advertising days", str(owner.advertising_inactive_days[product]), "")
-	comparison("CORPORATE OFFERS", "Price / stock quality", "Brand / sold / share")
-	if sim.product_public(product):
+	var public: bool = sim.product_public(product)
+	_set_report("Markets", "Product-market performance and advertising management")
+	market_metadata.text = "%s\nCategory: %s  •  %s\nProduct ID: %s" % [definition.name, _catalog_name(sim.catalog.categories, str(definition.category)), "PUBLIC" if public else "ERA LOCKED", product]
+	advertising_budget.set_value_no_signal(int(owner.advertising_budgets[product]) / 100.0)
+	advertising_budget.editable = public
+	apply_advertising.disabled = not public
+	apply_advertising.tooltip_text = "" if public else "Advertising is unavailable until this product becomes public."
+
+	var history_units: int = 0
+	for record: Dictionary in sim.market_history:
+		history_units += int(record.categories.get(definition.category, {}).get("units", 0))
+	_fill_tree(market_overview, [
+		["Category potential", str(int(category.get("potential", 0))), int(category.get("potential", 0))],
+		["Purchased", str(int(category.get("units", 0))), int(category.get("units", 0))],
+		["No purchase / unfilled", str(maxi(0, int(category.get("potential", 0)) - int(category.get("units", 0)))), maxi(0, int(category.get("potential", 0)) - int(category.get("units", 0)))],
+		["Product units sold", str(int(market.units)) if realized else "No realized sales today", int(market.units)],
+		["Local share", "%.1f%%" % (float(market.local_share) * 100.0) if realized else "—", float(market.local_share)],
+		["90-day category activity", "%d units • includes Local" % history_units if not sim.market_history.is_empty() else "No market history yet", history_units],
+	])
+
+	var brand: int = owner.brand(product)
+	var progress: int = int(owner.advertising_progress[product])
+	var threshold_text: String = "MAX" if brand >= 100 else money(sim.advertising_threshold(product, brand))
+	_fill_tree(advertising_summary, [
+		["Current company brand", "%d / 100" % brand, brand],
+		["Daily advertising budget", money(int(owner.advertising_budgets[product])), int(owner.advertising_budgets[product])],
+		["Progress toward next brand point", "MAX" if brand >= 100 else "%s accumulated / %s required" % [money(progress), threshold_text], progress],
+		["Next threshold", threshold_text, -1 if brand >= 100 else sim.advertising_threshold(product, brand)],
+		["Inactive advertising days", str(int(owner.advertising_inactive_days[product])), int(owner.advertising_inactive_days[product])],
+	])
+
+	_fill_tree(market_benchmark, [
+		["Price", money(int(local.price)) if not local.is_empty() else "No Local offer", money(int(round(market.average_price))) if realized else "—"],
+		["Quality", str(int(local.quality)) if not local.is_empty() else "—", "%.1f" % float(market.average_quality) if realized else "—"],
+		["Brand", str(int(local.brand)) if not local.is_empty() else "—", "%.1f" % float(market.average_brand) if realized else "—"],
+		["Overall / 100", "%.1f" % ConsumerDemand.overall(local.price, definition.reference_price, local.quality, local.brand) if not local.is_empty() else "—", "%.1f" % float(market.average_overall) if realized else "—"],
+		["Units / realized share", "%d / %.1f%%" % [int(market.local_units), float(market.local_share) * 100.0] if not local.is_empty() and realized else "—", "%d / 100.0%%" % int(market.units) if realized else "No realized sales today"],
+	])
+
+	_clear_market_tree(corporate_offers)
+	var offer_count: int = 0
+	if public:
 		for facility: SimFacility in sim.facilities:
 			if sim._behavior(facility) != "retail" or not facility.assortment.has(product):
 				continue
 			var sold: int = int(facility.line_today.get(product, {}).get("units", 0))
 			var share: float = float(sold) / int(market.units) if realized else 0.0
-			comparison(sim.companies[facility.company_id].display_name + " • " + facility.id, money(facility.line_price(product)) + " / " + facility.inventory.quality_text(product), "%d / %d / %.1f%%" % [sim.companies[facility.company_id].brand(product), sold, share * 100])
-	comparison("COMPANY PRODUCT SHARES", "All retailers combined", "")
-	for company: String in market.market_share:
-		comparison(sim.companies[company].display_name, "%.1f%%" % (float(market.market_share[company]) * 100), "")
-	var segments: Array[String] = []
-	for segment: String in category.get("segments", {}):
-		segments.append("%s %d" % [segment, category.segments[segment]])
-	for index: int in range(0, segments.size(), 3):
-		comparison("Potential: " + segments[index], segments[index + 1] if index + 1 < segments.size() else "", segments[index + 2] if index + 2 < segments.size() else "")
-	var units: int = 0
-	for record: Dictionary in sim.market_history:
-		units += int(record.categories.get(definition.category, {}).get("units", 0))
-	comparison("Category 90-day units (incl. Local)", str(units), "")
-	table.tooltip_text = "Completed-day sales include Local; outside/no-purchase has no share. Corporate prices and quality describe current stock. Averages weight completed-day sales. Overall averages three scores: price competitiveness, quality and brand."
+			var company: SimCompany = sim.companies[facility.company_id]
+			var offer: TreeItem = _tree_row(corporate_offers, [
+				"%s%s • %s • %s" % [company.display_name, " • YOU" if company.id == session.player_company else "", sim.catalog.facility_types[facility.type_id].name, facility.id],
+				money(facility.line_price(product)), facility.inventory.quality_text(product), str(company.brand(product)), str(sold), "%.1f%%" % (share * 100.0) if realized else "—"
+			], [facility.id, facility.line_price(product), facility.inventory.quality(product), company.brand(product), sold, share])
+			if company.id == session.player_company:
+				for column: int in range(corporate_offers.columns): offer.set_custom_bg_color(column, ModernUITheme.SURFACE_RAISED)
+				offer.set_custom_color(0, ModernUITheme.ACCENT)
+			offer_count += 1
+	if offer_count == 0:
+		_tree_row(corporate_offers, ["No corporate offers currently carry this product.", "", "", "", "", ""], ["empty"])
+	_size_market_tree(corporate_offers, maxi(1, offer_count))
+
+	_clear_market_tree(company_shares)
+	if realized:
+		_tree_row(company_shares, ["Local", str(int(market.local_units)), "%.1f%%" % (float(market.local_share) * 100.0)], ["local", int(market.local_units), float(market.local_share)])
+		var company_ids: Array = market.market_share.keys()
+		company_ids.sort()
+		for company_id: String in company_ids:
+			_tree_row(company_shares, [sim.companies[company_id].display_name, str(int(market.company_units.get(company_id, 0))), "%.1f%%" % (float(market.market_share[company_id]) * 100.0)], [company_id, int(market.company_units.get(company_id, 0)), float(market.market_share[company_id])])
+	else:
+		_tree_row(company_shares, ["No realized sales today.", "0", "—"], ["empty", 0, 0.0])
+	_size_market_tree(company_shares, maxi(1, company_shares.get_root().get_child_count()))
+
+	_clear_market_tree(segment_potential)
+	var segment_ids: Array = category.get("segments", {}).keys()
+	segment_ids.sort()
+	if segment_ids.is_empty():
+		_tree_row(segment_potential, ["No segment demand is available.", "—"], ["empty", 0])
+	else:
+		for segment_id: String in segment_ids:
+			_tree_row(segment_potential, [_catalog_name(sim.catalog.segments, segment_id), str(int(category.segments[segment_id]))], [segment_id, int(category.segments[segment_id])])
+	_size_market_tree(segment_potential, maxi(1, segment_ids.size()))
+
+func _catalog_name(definitions: Dictionary, id: String) -> String:
+	return str(definitions.get(id, {"name": id.replace("_", " ").capitalize()}).name)
+
+func _clear_market_tree(target: Tree) -> void:
+	target.clear()
+	target.create_item()
+
+func _tree_row(target: Tree, values: Array, metadata: Array = []) -> TreeItem:
+	var row: TreeItem = target.create_item(target.get_root())
+	for column: int in range(mini(values.size(), target.columns)):
+		row.set_text(column, str(values[column]))
+		if column > 0: row.set_text_alignment(column, HORIZONTAL_ALIGNMENT_RIGHT)
+		if column < metadata.size(): row.set_metadata(column, metadata[column])
+	return row
+
+func _fill_tree(target: Tree, rows: Array) -> void:
+	_clear_market_tree(target)
+	for values: Array in rows:
+		var row: TreeItem = _tree_row(target, values.slice(0, target.columns))
+		if target.columns == 2 and values.size() > 2:
+			row.set_metadata(1, values[2])
+	_size_market_tree(target, rows.size())
+
+func _size_market_tree(target: Tree, rows: int) -> void:
+	target.custom_minimum_size.y = 34 + rows * 27
