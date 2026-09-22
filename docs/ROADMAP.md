@@ -24,8 +24,9 @@
 | 8UI-B1 — Facility management foundation + production/retail (implemented) | Persistent facility header, Overview/Operations information architecture, structured factory controls and retail line management | 8UI-A2 |
 | 8UI-B2 — Sourcing, logistics and warehouse management (implemented) | Structured supplier policies and ranked offers, shipments, transfer quotes, warehouse overview and replenishment management | 8UI-B1 |
 | 8UI-B3 — R&D and headquarters/staffing management (implemented) | Structured R&D Overview and project workflow plus headquarters finance, staffing, payroll and management-effect presentation | 8UI-B2 |
-| 8UI-B4 — Company reports and Markets | Redesign company financial reports and market management | 8UI-B3 |
-| 8UI-C — City/build interaction polish (later) | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation; add a pause/application menu organizing Save, Load and Settings, a dedicated save/load browser, and remove the persistent raw slot selector | 8UI-B4 |
+| 8UI-B4A — Financial reports, history and company comparison (implemented) | Structured financial statements with report hierarchy, monthly history and one-row-per-company comparison | 8UI-B3 |
+| 8UI-B4B — Markets and advertising management (next) | Redesign market information and advertising controls without changing market or advertising systems | 8UI-B4A |
+| 8UI-C — City/build interaction polish (later) | Polish city selection, construction, contextual actions, tooltips, confirmations and status/notification presentation; add a pause/application menu organizing Save, Load and Settings, a dedicated save/load browser, and remove the persistent raw slot selector | 8UI-B4B |
 | 8C — Strategic competitor AI | Strategic AI investment, sourcing and research decisions | 8UI-C |
 | 8D — Difficulty and balancing | Difficulty settings and competitive/economic balancing | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |

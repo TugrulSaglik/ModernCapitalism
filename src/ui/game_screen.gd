@@ -351,6 +351,7 @@ func _load() -> void:
 func _build_dialogs() -> void:
 	overview = AcceptDialog.new()
 	overview.title = "Company overview"
+	overview.max_size = Vector2i(800, 650)
 	add_child(overview)
 	reports = CompanyReports.new()
 	overview.add_child(reports)
@@ -453,6 +454,8 @@ func _debug(action: String, amount: int = 0) -> void:
 
 func _show_company() -> void:
 	_update_company()
+	reports.size = Vector2(760, 510)
+	overview.size = Vector2i(800, 650)
 	overview.popup_centered(Vector2i(800, 650))
 
 func _update_company() -> void:
