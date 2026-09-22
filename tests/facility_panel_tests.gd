@@ -125,7 +125,7 @@ func _test_transitions(headquarters: SimFacility, research: SimFacility, warehou
 	screen.select_facility(headquarters.id)
 	check(panel.staff_info.visible and not panel.research_choices.visible and panel.tabs.get_tab_title(0) == "Headquarters", "R&D to headquarters transition clears research controls")
 	screen.select_facility(warehouse.id)
-	check(panel.tabs.get_tab_title(0) == "Warehouse" and panel.tabs.is_tab_hidden(1) and not panel.tabs.is_tab_hidden(2) and not panel.tabs.is_tab_hidden(3), "Warehouse remains functional with sourcing and logistics access")
+	check(panel.tabs.get_tab_title(0) == "Overview" and panel.tabs.get_tab_title(1) == "Replenishment" and not panel.tabs.is_tab_hidden(1) and not panel.tabs.is_tab_hidden(2) and not panel.tabs.is_tab_hidden(3), "Warehouse uses Overview, Replenishment, Sourcing and Logistics tabs")
 	check(panel.warehouse_target.visible and panel.product.item_count > 0 and panel.transfer_product.item_count > 0, "Warehouse replenishment and transfer controls remain available")
 	commands.clear()
 	panel.transfer_quantity.value = 1

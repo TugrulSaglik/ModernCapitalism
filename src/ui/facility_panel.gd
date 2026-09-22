@@ -34,6 +34,8 @@ var transfer_quantity: SpinBox
 var transfer_button: Button
 var logistics_info: RichTextLabel
 var warehouse_target: Button
+var warehouse_target_product: OptionButton
+var warehouse_target_quantity: SpinBox
 var staff_info: RichTextLabel
 var staff_role: OptionButton
 var hire_staff: Button
@@ -69,6 +71,29 @@ var price_heading: Label
 var recipe_rows: VBoxContainer
 var assortment_summary: Label
 var selected_lines: Dictionary = {}
+var sourcing_selections: Dictionary = {}
+var transfer_product_selections: Dictionary = {}
+var transfer_destination_selections: Dictionary = {}
+var replenishment_selections: Dictionary = {}
+
+var sourcing_policy: Label
+var sourcing_policy_note: Label
+var offer_rows: VBoxContainer
+var recent_sourcing: Label
+var shipment_summary: Dictionary = {}
+var active_shipment_rows: VBoxContainer
+var recent_delivery_rows: VBoxContainer
+var transfer_quote: Dictionary = {}
+var warehouse_sections: Array[Control] = []
+var warehouse_metrics: Dictionary = {}
+var warehouse_inventory_rows: VBoxContainer
+var replenishment_rows: VBoxContainer
+var replenishment_current: Label
+var replenishment_section: Control
+var sourcing_rows_key: String = ""
+var logistics_rows_key: String = ""
+var warehouse_rows_key: String = ""
+var replenishment_rows_key: String = ""
 
 func _ready() -> void:
 	custom_minimum_size.x = 410
@@ -138,6 +163,14 @@ func _build_overview() -> void:
 	retail_sections.append(_metric_section(overview_page, "RECENT", ["recent_sales"], ["Sales · 7 days"], retail_metrics))
 	retail_sections.append(_metric_section(overview_page, "INVENTORY SUMMARY", ["on_hand", "incoming", "book_value"], ["On hand", "Incoming", "Book value"], retail_metrics))
 	retail_sections.append(_metric_section(overview_page, "OPERATING COST", ["overhead"], ["Daily overhead"], retail_metrics))
+	warehouse_sections.append(_metric_section(overview_page, "STORAGE", ["used", "capacity", "incoming", "free"], ["Used units", "Physical capacity", "Incoming reserved", "Free after reservations"], warehouse_metrics))
+	warehouse_sections.append(_metric_section(overview_page, "INVENTORY", ["units", "value", "products"], ["On-hand units", "Book value", "Stocked products"], warehouse_metrics))
+	warehouse_sections.append(_metric_section(overview_page, "OPERATIONS", ["state", "overhead"], ["Facility state", "Daily overhead"], warehouse_metrics))
+	warehouse_sections.append(_metric_section(overview_page, "ACTIVITY", ["incoming_shipments", "outgoing_shipments", "recent"], ["Incoming shipments", "Outgoing shipments", "Recent deliveries"], warehouse_metrics))
+	var inventory_body := _section(overview_page, "STORED PRODUCTS")
+	warehouse_sections.append(inventory_body.get_parent())
+	warehouse_inventory_rows = VBoxContainer.new()
+	inventory_body.add_child(warehouse_inventory_rows)
 	legacy_content = VBoxContainer.new()
 	overview_page.add_child(legacy_content)
 	info = RichTextLabel.new()
@@ -249,42 +282,114 @@ func _build_operations() -> void:
 	remove_line.theme_type_variation = "DestructiveButton"
 	_note(product_lines_body, "Removing a line retains its existing stock.")
 
+	var replenishment_body := _section(operations_page, "REPLENISHMENT TARGET")
+	replenishment_section = replenishment_body.get_parent()
+	warehouse_target_product = OptionButton.new()
+	warehouse_target_product.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	replenishment_body.add_child(warehouse_target_product)
+	warehouse_target_product.item_selected.connect(func(_index: int) -> void:
+		if warehouse_target_product.selected >= 0:
+			replenishment_selections[selected_id] = str(warehouse_target_product.get_item_metadata(warehouse_target_product.selected))
+			_load_replenishment_value(session.sim.facility(selected_id))
+			_refresh_replenishment(session.sim.facility(selected_id), session.sim.facility(selected_id).company_id == session.player_company))
+	replenishment_current = _note(replenishment_body, "Current target: Off")
+	_note(replenishment_body, "New target quantity")
+	var target_row := HBoxContainer.new()
+	replenishment_body.add_child(target_row)
+	warehouse_target_quantity = SpinBox.new()
+	warehouse_target_quantity.min_value = 0
+	warehouse_target_quantity.max_value = 100000
+	warehouse_target_quantity.step = 1
+	warehouse_target_quantity.suffix = " units"
+	warehouse_target_quantity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	target_row.add_child(warehouse_target_quantity)
+	warehouse_target = _button(target_row, "Set target", func() -> void:
+		if warehouse_target_product.selected >= 0:
+			command_requested.emit({"type": "set_warehouse_target", "facility": selected_id, "product": str(warehouse_target_product.get_item_metadata(warehouse_target_product.selected)), "quantity": int(warehouse_target_quantity.value)}))
+	_note(replenishment_body, "Set 0 units to turn replenishment off.")
+	var summary_body := _section(operations_page, "CURRENT TARGETS")
+	replenishment_rows = VBoxContainer.new()
+	summary_body.add_child(replenishment_rows)
+
 func _build_sourcing() -> void:
-	var body := _section(sourcing_page, "SOURCING / WHOLESALE OFFERS")
+	var body := _section(sourcing_page, "SOURCING PRODUCT / INPUT")
 	product = OptionButton.new()
+	product.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(product)
-	product.item_selected.connect(func(_index: int) -> void: _populate_suppliers())
+	product.item_selected.connect(func(_index: int) -> void:
+		if product.selected >= 0:
+			sourcing_selections[selected_id] = str(product.get_item_metadata(product.selected))
+		_populate_suppliers()
+		_refresh_sourcing(session.sim.facility(selected_id), session.sim.facility(selected_id).company_id == session.player_company))
+	var policy_body := _section(sourcing_page, "CURRENT POLICY")
+	sourcing_policy = Label.new()
+	sourcing_policy.theme_type_variation = "ValueLabel"
+	policy_body.add_child(sourcing_policy)
+	sourcing_policy_note = _note(policy_body, "")
+	var selection_body := _section(sourcing_page, "SUPPLIER SELECTION")
 	suppliers = OptionButton.new()
-	body.add_child(suppliers)
-	apply_supplier = _button(body, "Queue supplier selection", func() -> void:
+	suppliers.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	selection_body.add_child(suppliers)
+	apply_supplier = _button(selection_body, "Queue supplier", func() -> void:
 		if product.selected >= 0 and suppliers.selected >= 0:
-			command_requested.emit({"type": "set_supplier", "facility": selected_id, "product": product.get_item_text(product.selected), "supplier": str(suppliers.get_item_metadata(suppliers.selected))}))
+			command_requested.emit({"type": "set_supplier", "facility": selected_id, "product": str(product.get_item_metadata(product.selected)), "supplier": str(suppliers.get_item_metadata(suppliers.selected))}))
+	var offers_body := _section(sourcing_page, "AVAILABLE OFFERS")
+	offer_rows = VBoxContainer.new()
+	offers_body.add_child(offer_rows)
+	var recent_body := _section(sourcing_page, "RECENT SOURCING")
+	recent_sourcing = Label.new()
+	recent_sourcing.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	recent_body.add_child(recent_sourcing)
 	sourcing_info = RichTextLabel.new()
-	sourcing_info.custom_minimum_size = Vector2(390, 220)
-	body.add_child(sourcing_info)
+	sourcing_info.visible = false
+	recent_body.add_child(sourcing_info)
 
 func _build_logistics() -> void:
-	var body := _section(logistics_page, "SHIPMENTS / TRANSFERS")
+	_metric_section(logistics_page, "SHIPMENT SUMMARY", ["incoming_units", "incoming_count", "outgoing_count"], ["Incoming units", "Active incoming", "Active outgoing"], shipment_summary)
+	var shipments_body := _section(logistics_page, "ACTIVE SHIPMENTS")
+	active_shipment_rows = VBoxContainer.new()
+	shipments_body.add_child(active_shipment_rows)
+	var body := _section(logistics_page, "MANUAL TRANSFER")
 	logistics_info = RichTextLabel.new()
-	logistics_info.custom_minimum_size = Vector2(390, 170)
+	logistics_info.visible = false
 	body.add_child(logistics_info)
+	_note(body, "Product")
 	transfer_product = OptionButton.new()
+	transfer_product.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(transfer_product)
+	transfer_product.item_selected.connect(func(_index: int) -> void:
+		if transfer_product.selected >= 0: transfer_product_selections[selected_id] = str(transfer_product.get_item_metadata(transfer_product.selected))
+		_refresh_transfer_quote())
+	_note(body, "Destination")
 	transfer_destination = OptionButton.new()
+	transfer_destination.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(transfer_destination)
+	transfer_destination.item_selected.connect(func(_index: int) -> void:
+		if transfer_destination.selected >= 0: transfer_destination_selections[selected_id] = str(transfer_destination.get_item_metadata(transfer_destination.selected))
+		_refresh_transfer_quote())
+	_note(body, "Quantity")
 	var transfer_row := HBoxContainer.new()
 	body.add_child(transfer_row)
 	transfer_quantity = SpinBox.new()
-	transfer_quantity.min_value = 0
+	transfer_quantity.min_value = 1
 	transfer_quantity.max_value = 100000
+	transfer_quantity.step = 1
 	transfer_quantity.value = 10
+	transfer_quantity.suffix = " units"
 	transfer_quantity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	transfer_row.add_child(transfer_quantity)
+	transfer_quantity.value_changed.connect(func(_value: float) -> void: _refresh_transfer_quote())
 	transfer_button = _button(transfer_row, "Send transfer", func() -> void:
 		if transfer_destination.selected >= 0 and transfer_product.selected >= 0:
-			command_requested.emit({"type": "transfer", "facility": selected_id, "product": transfer_product.get_item_text(transfer_product.selected), "destination": str(transfer_destination.get_item_metadata(transfer_destination.selected)), "quantity": int(transfer_quantity.value)}))
-	warehouse_target = _button(body, "Set warehouse replenishment target (0 = off)", func() -> void:
-		if transfer_product.selected >= 0: command_requested.emit({"type": "set_warehouse_target", "facility": selected_id, "product": transfer_product.get_item_text(transfer_product.selected), "quantity": int(transfer_quantity.value)}))
+			command_requested.emit({"type": "transfer", "facility": selected_id, "product": str(transfer_product.get_item_metadata(transfer_product.selected)), "destination": str(transfer_destination.get_item_metadata(transfer_destination.selected)), "quantity": int(transfer_quantity.value)}))
+	var quote_body := _section(logistics_page, "TRANSFER QUOTE")
+	var quote_grid := GridContainer.new()
+	quote_grid.columns = 2
+	quote_body.add_child(quote_grid)
+	for item: Array in [["distance", "Distance"], ["delivery", "Delivery"], ["freight", "Freight"]]: _metric_row(quote_grid, str(item[1]), str(item[0]), transfer_quote)
+	var delivered_body := _section(logistics_page, "RECENT DELIVERIES")
+	recent_delivery_rows = VBoxContainer.new()
+	delivered_body.add_child(recent_delivery_rows)
 
 func _section(parent: VBoxContainer, title: String) -> VBoxContainer:
 	var panel := PanelContainer.new()
@@ -337,6 +442,10 @@ func _button(parent: Node, text_value: String, action: Callable) -> Button:
 func bind(game_session: GameSession, id: String) -> void:
 	session = game_session
 	selected_id = id
+	sourcing_rows_key = ""
+	logistics_rows_key = ""
+	warehouse_rows_key = ""
+	replenishment_rows_key = ""
 	var f: SimFacility = session.sim.facility(id)
 	layout_key = _layout_key(f)
 	_populate_staff(f)
@@ -359,6 +468,8 @@ func bind(game_session: GameSession, id: String) -> void:
 	_populate_transfer_controls(f)
 	_populate_sourcing_products(f)
 	_populate_suppliers()
+	_populate_replenishment_products(f)
+	_load_replenishment_value(f)
 	tabs.current_tab = 0
 	refresh()
 
@@ -398,40 +509,75 @@ func _add_project(label_text: String, project: Dictionary, selected_project: Dic
 	if session.sim.project_equal(project, selected_project): research_choices.select(research_choices.item_count - 1)
 
 func _populate_transfer_controls(f: SimFacility) -> void:
+	var selected_product: String = str(transfer_product_selections.get(f.id, ""))
 	transfer_product.clear()
 	var ids: Array = session.sim.catalog.products.keys()
 	ids.sort()
 	for product_id: String in ids:
-		if session.sim.product_public(product_id): transfer_product.add_item(product_id)
+		if session.sim.product_public(product_id):
+			transfer_product.add_item(_product_name(product_id))
+			transfer_product.set_item_metadata(transfer_product.item_count - 1, product_id)
+			if product_id == selected_product: transfer_product.select(transfer_product.item_count - 1)
+	if transfer_product.selected < 0 and transfer_product.item_count > 0: transfer_product.select(0)
+	var selected_destination: String = str(transfer_destination_selections.get(f.id, ""))
 	transfer_destination.clear()
 	for other: SimFacility in session.sim.facilities:
 		if other.company_id == f.company_id and other != f and not session.sim.catalog.productless_behavior(session.sim._behavior(other)):
-			transfer_destination.add_item("To: " + other.id + " / " + other.type_id)
+			transfer_destination.add_item("%s • %s" % [session.sim.catalog.facility_types[other.type_id].name, other.id])
 			transfer_destination.set_item_metadata(transfer_destination.item_count - 1, other.id)
+			if other.id == selected_destination: transfer_destination.select(transfer_destination.item_count - 1)
+	if transfer_destination.selected < 0 and transfer_destination.item_count > 0: transfer_destination.select(0)
 
 func _populate_sourcing_products(f: SimFacility) -> void:
+	var selected_product: String = str(sourcing_selections.get(f.id, ""))
 	product.clear()
 	var behavior: String = session.sim._behavior(f)
 	if behavior == "retail":
-		for product_id: String in f.line_ids(): product.add_item(product_id)
+		for product_id: String in f.line_ids(): _add_product_option(product, product_id, selected_product)
 	elif behavior == "production":
 		var input_ids: Array = session.sim.catalog.products.get(f.product_id, {}).get("inputs", {}).keys()
 		input_ids.sort()
-		for input: String in input_ids: product.add_item(input)
+		for input: String in input_ids: _add_product_option(product, input, selected_product)
 	else:
 		var ids: Array = session.sim.catalog.products.keys()
 		ids.sort()
-		for product_id: String in ids: product.add_item(product_id)
+		for product_id: String in ids: _add_product_option(product, product_id, selected_product)
+	if product.selected < 0 and product.item_count > 0: product.select(0)
+
+func _add_product_option(option: OptionButton, product_id: String, selected_product: String = "") -> void:
+	option.add_item(_product_name(product_id))
+	option.set_item_metadata(option.item_count - 1, product_id)
+	if product_id == selected_product: option.select(option.item_count - 1)
+
+func _populate_replenishment_products(f: SimFacility) -> void:
+	var selected_product: String = str(replenishment_selections.get(f.id, ""))
+	warehouse_target_product.clear()
+	if session.sim._behavior(f) != "storage": return
+	var relevant: Dictionary = {}
+	for product_id: String in f.replenishment_targets: relevant[product_id] = true
+	for product_id: String in f.inventory.quantities: relevant[product_id] = true
+	for product_id: String in session.sim.catalog.products:
+		if session.sim.product_public(product_id): relevant[product_id] = true
+	var ids: Array = relevant.keys()
+	ids.sort()
+	for product_id: String in ids: _add_product_option(warehouse_target_product, product_id, selected_product)
+	if warehouse_target_product.selected < 0 and warehouse_target_product.item_count > 0: warehouse_target_product.select(0)
+
+func _load_replenishment_value(f: SimFacility) -> void:
+	if warehouse_target_product.selected < 0: return
+	var product_id: String = str(warehouse_target_product.get_item_metadata(warehouse_target_product.selected))
+	warehouse_target_quantity.value = int(f.replenishment_targets.get(product_id, 0))
 
 func _populate_suppliers() -> void:
 	suppliers.clear()
-	suppliers.add_item("Automatic: landed cost / quality + lead time")
+	suppliers.add_item("Automatic")
 	suppliers.set_item_metadata(0, "")
 	if product.selected < 0 or session == null: return
-	var product_id: String = product.get_item_text(product.selected)
+	var product_id: String = str(product.get_item_metadata(product.selected))
 	var f: SimFacility = session.sim.facility(selected_id)
 	for offer: Dictionary in session.sim.supplier_offers(selected_id, product_id):
-		suppliers.add_item(str(offer.id))
+		if not bool(offer.eligible): continue
+		suppliers.add_item(_facility_label(str(offer.id)))
 		suppliers.set_item_metadata(suppliers.item_count - 1, str(offer.id))
 		if str(f.suppliers.get(product_id, "")) == str(offer.id): suppliers.select(suppliers.item_count - 1)
 
@@ -450,9 +596,12 @@ func refresh() -> void:
 	_configure_tabs(behavior)
 	for section: Control in production_sections: section.visible = behavior == "production"
 	for section: Control in retail_sections: section.visible = behavior == "retail"
-	legacy_content.visible = behavior not in ["production", "retail"]
+	for section: Control in warehouse_sections: section.visible = behavior == "storage"
+	legacy_content.visible = behavior in ["research", "headquarters"]
 	production_line_section.visible = behavior == "production"
 	retail_line_section.visible = behavior == "retail"
+	replenishment_section.visible = behavior == "storage"
+	replenishment_rows.get_parent().get_parent().visible = behavior == "storage"
 	quality_section.visible = behavior == "production"
 	recipe_section.visible = behavior == "production"
 	product_lines_section.visible = behavior == "retail"
@@ -472,6 +621,9 @@ func refresh() -> void:
 	stock.get_parent().visible = behavior in ["production", "retail"]
 	if behavior == "production": _refresh_production(f, owner, definition)
 	elif behavior == "retail": _refresh_retail(f, definition)
+	elif behavior == "storage":
+		_refresh_warehouse(f, definition)
+		_refresh_replenishment(f, own)
 	else: _refresh_legacy(f, owner, definition, behavior, own)
 	_refresh_sourcing(f, own)
 	_refresh_logistics(f, own, behavior)
@@ -494,9 +646,8 @@ func _configure_tabs(behavior: String) -> void:
 		for index: int in [1, 2, 3]: tabs.set_tab_hidden(index, true)
 		tabs.current_tab = 0
 	elif behavior == "storage":
-		tabs.set_tab_title(0, "Warehouse")
-		tabs.set_tab_hidden(1, true)
-		if tabs.current_tab == 1: tabs.current_tab = 0
+		tabs.set_tab_title(0, "Overview")
+		tabs.set_tab_title(1, "Replenishment")
 
 func _refresh_production(f: SimFacility, owner: SimCompany, facility_definition: Dictionary) -> void:
 	var definition: Dictionary = session.sim.catalog.products[f.product_id]
@@ -653,32 +804,200 @@ func _refresh_staff(f: SimFacility, owner: SimCompany, own: bool) -> void:
 	dismiss_staff.disabled = not own or selected_role.is_empty() or session.sim.staff_count(owner.id, selected_role) <= 0
 
 func _refresh_sourcing(f: SimFacility, own: bool) -> void:
-	apply_supplier.disabled = not own or product.item_count == 0
-	var details: PackedStringArray = []
-	if product.selected >= 0:
-		var product_id: String = product.get_item_text(product.selected)
-		var policy: String = str(f.suppliers.get(product_id, ""))
-		details.append("Policy: " + ("Automatic" if policy.is_empty() else policy))
-		for offer: Dictionary in session.sim.supplier_offers(selected_id, product_id): details.append("%s: $%.2f | Q%d | stock %d\n%d cells / %dd | freight $%.2f for %d\nLanded $%.2f/unit | score %.2f%s" % [offer.id, offer.price / 100.0, offer.quality, offer.stock, offer.distance, offer.lead_days, offer.freight / 100.0, offer.quote_quantity, offer.landed / 100.0, offer.score, "" if offer.eligible else " (unavailable)"])
-		for source: Dictionary in f.last_sources.get(product_id, []): details.append("Bought %d from %s today" % [source.units, source.supplier])
-	var market: Dictionary = session.sim.market.get(f.product_id, {})
-	if not market.is_empty(): details.append("Market: %d sold / %d potential\nAverage price $%.2f | owner share %.1f%%" % [market.units, market.potential, market.average_price / 100.0, float(market.market_share.get(f.company_id, 0.0)) * 100.0])
-	sourcing_info.text = "\n".join(details)
+	var has_product: bool = product.selected >= 0
+	product.disabled = not has_product
+	suppliers.disabled = not own or not has_product
+	apply_supplier.disabled = not own or not has_product or suppliers.selected < 0
+	if not has_product:
+		sourcing_policy.text = "No sourcing products"
+		sourcing_policy_note.text = "This facility has no applicable sourcing policy."
+		recent_sourcing.text = "No purchases today"
+		if sourcing_rows_key != selected_id + ":empty":
+			sourcing_rows_key = selected_id + ":empty"
+			_clear_rows(offer_rows)
+			_add_empty_row(offer_rows, "No eligible supplier offers.")
+		return
+	var product_id: String = str(product.get_item_metadata(product.selected))
+	var policy: String = str(f.suppliers.get(product_id, ""))
+	sourcing_policy.text = "Automatic" if policy.is_empty() else "Manual — %s" % policy
+	sourcing_policy_note.text = "Ranks eligible offers using the existing landed-cost / quality / lead-time score." if policy.is_empty() else "Applies to %s." % _product_name(product_id)
+	var offers: Array[Dictionary] = session.sim.supplier_offers(selected_id, product_id)
+	var recent: Array = f.last_sources.get(product_id, [])
+	var rows_key: String = selected_id + product_id + str(offers) + str(recent)
+	if rows_key != sourcing_rows_key:
+		sourcing_rows_key = rows_key
+		_clear_rows(offer_rows)
+		if offers.is_empty():
+			_add_empty_row(offer_rows, "No eligible supplier offers.")
+		else:
+			for index: int in range(offers.size()): _add_offer_row(offer_rows, offers[index], index)
+	if recent.is_empty():
+		recent_sourcing.text = "No purchases today"
+	else:
+		var purchases: PackedStringArray = []
+		for source: Dictionary in recent:
+			purchases.append("Bought %d units • %s\n%s/unit • Q%d" % [int(source.units), _facility_label(str(source.supplier)), CompanyReports.money(int(source.price)), int(source.quality)])
+		recent_sourcing.text = "\n".join(purchases)
+	sourcing_info.text = sourcing_policy.text
 
 func _refresh_logistics(f: SimFacility, own: bool, behavior: String) -> void:
-	transfer_button.disabled = not own or transfer_destination.item_count == 0
-	warehouse_target.visible = behavior == "storage"
-	warehouse_target.disabled = not own
-	var lines: PackedStringArray = ["LOGISTICS • incoming %d units" % session.sim.logistics.incoming(f.id)]
-	var records: Array[Dictionary] = session.sim.logistics.shipments.duplicate()
-	records.reverse()
-	records.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.status == "in_transit" and b.status != "in_transit")
-	for shipment: Dictionary in records:
-		if shipment.source == f.id or shipment.destination == f.id: lines.append("#%d %s %d %s • %s\n%s | ETA %dd | freight $%.2f" % [shipment.id, "IN" if shipment.destination == f.id else "OUT", shipment.quantity, shipment.product, shipment.status, shipment.source if shipment.destination == f.id else shipment.destination, maxi(0, int(shipment.arrival) - session.sim.clock.tick), shipment.transport_cost / 100.0])
-	if transfer_destination.selected >= 0:
-		var quote: Dictionary = session.sim.logistics.quote(session.sim, f.id, str(transfer_destination.get_item_metadata(transfer_destination.selected)), int(transfer_quantity.value))
-		lines.insert(1, "Transfer quote: %d cells / %dd / $%.2f" % [quote.distance, quote.lead_days, quote.freight / 100.0])
-	logistics_info.text = "\n".join(lines)
+	transfer_product.disabled = not own
+	transfer_destination.disabled = not own
+	transfer_quantity.editable = own
+	transfer_button.disabled = not own or transfer_destination.item_count == 0 or transfer_product.item_count == 0
+	var incoming_count: int = 0
+	var outgoing_count: int = 0
+	var active_records: Array[Dictionary] = []
+	var delivered_records: Array[Dictionary] = []
+	for shipment: Dictionary in session.sim.logistics.shipments:
+		if shipment.source != f.id and shipment.destination != f.id: continue
+		if shipment.status == "in_transit":
+			active_records.append(shipment)
+			if shipment.destination == f.id: incoming_count += 1
+			else: outgoing_count += 1
+		else:
+			delivered_records.append(shipment)
+	_set_metric(shipment_summary, "incoming_units", "%d units" % session.sim.logistics.incoming(f.id))
+	_set_metric(shipment_summary, "incoming_count", str(incoming_count))
+	_set_metric(shipment_summary, "outgoing_count", str(outgoing_count))
+	var rows_key: String = selected_id + str(active_records) + str(delivered_records) + str(session.sim.clock.tick)
+	if rows_key != logistics_rows_key:
+		logistics_rows_key = rows_key
+		_clear_rows(active_shipment_rows)
+		_clear_rows(recent_delivery_rows)
+		for shipment: Dictionary in active_records: _add_shipment_row(active_shipment_rows, shipment, f.id)
+		for shipment: Dictionary in delivered_records: _add_shipment_row(recent_delivery_rows, shipment, f.id)
+		if active_records.is_empty(): _add_empty_row(active_shipment_rows, "No active shipments.")
+		if delivered_records.is_empty(): _add_empty_row(recent_delivery_rows, "No recent deliveries.")
+	_refresh_transfer_quote()
+	logistics_info.text = "%d active shipments" % active_records.size()
+
+func _refresh_warehouse(f: SimFacility, definition: Dictionary) -> void:
+	var used: int = session.sim.logistics.used(f)
+	var incoming: int = session.sim.logistics.incoming(f.id)
+	var stocked: int = 0
+	var incoming_shipments: int = 0
+	var outgoing_shipments: int = 0
+	var recent: int = 0
+	for product_id: String in f.inventory.quantities:
+		if f.inventory.quantity(product_id) > 0: stocked += 1
+	for shipment: Dictionary in session.sim.logistics.shipments:
+		if shipment.status == "in_transit" and shipment.destination == f.id: incoming_shipments += 1
+		if shipment.status == "in_transit" and shipment.source == f.id: outgoing_shipments += 1
+		if shipment.status == "delivered" and (shipment.source == f.id or shipment.destination == f.id): recent += 1
+	_set_metric(warehouse_metrics, "used", "%d units" % used)
+	_set_metric(warehouse_metrics, "capacity", "%d units" % f.capacity)
+	_set_metric(warehouse_metrics, "incoming", "%d units" % incoming)
+	_set_metric(warehouse_metrics, "free", "%d units" % session.sim.logistics.free_capacity(session.sim, f))
+	_set_metric(warehouse_metrics, "units", "%d units" % used)
+	_set_metric(warehouse_metrics, "value", CompanyReports.money(f.inventory.total_value()))
+	_set_metric(warehouse_metrics, "products", str(stocked))
+	_set_metric(warehouse_metrics, "state", "Operating" if f.operating else "Suspended")
+	_set_metric(warehouse_metrics, "overhead", _base_effective_money(int(definition.overhead), session.sim.effective_overhead(f)) + "/day")
+	_set_metric(warehouse_metrics, "incoming_shipments", str(incoming_shipments))
+	_set_metric(warehouse_metrics, "outgoing_shipments", str(outgoing_shipments))
+	_set_metric(warehouse_metrics, "recent", "%d delivered" % recent)
+	var ids: Array = f.inventory.quantities.keys()
+	ids.sort()
+	var rows_key: String = selected_id + str(f.inventory.snapshot()) + str(incoming)
+	if rows_key != warehouse_rows_key:
+		warehouse_rows_key = rows_key
+		_clear_rows(warehouse_inventory_rows)
+		for product_id: String in ids:
+			var units: int = f.inventory.quantity(product_id)
+			if units <= 0: continue
+			_add_compact_row(warehouse_inventory_rows, _product_name(product_id), "%d units • %s • %s" % [units, CompanyReports.money(f.inventory.value(product_id)), f.inventory.quality_text(product_id)], "Incoming %d units" % session.sim.logistics.incoming(f.id, product_id))
+		if stocked == 0: _add_empty_row(warehouse_inventory_rows, "Warehouse is empty.")
+
+func _refresh_replenishment(f: SimFacility, own: bool) -> void:
+	warehouse_target_product.disabled = not own
+	warehouse_target_quantity.editable = own
+	warehouse_target.disabled = not own or warehouse_target_product.selected < 0
+	warehouse_target_quantity.max_value = f.capacity
+	if warehouse_target_product.selected >= 0:
+		var product_id: String = str(warehouse_target_product.get_item_metadata(warehouse_target_product.selected))
+		var current: int = int(f.replenishment_targets.get(product_id, 0))
+		replenishment_current.text = "Current target: %s" % ("Off" if current == 0 else "%d units" % current)
+	else:
+		replenishment_current.text = "Current target: Off"
+	var ids: Array = f.replenishment_targets.keys()
+	ids.sort()
+	var rows_key: String = selected_id + str(f.replenishment_targets)
+	if rows_key != replenishment_rows_key:
+		replenishment_rows_key = rows_key
+		_clear_rows(replenishment_rows)
+		for product_id: String in ids:
+			var target: int = int(f.replenishment_targets[product_id])
+			_add_compact_row(replenishment_rows, _product_name(product_id), "Off" if target == 0 else "%d units" % target)
+		if ids.is_empty(): _add_empty_row(replenishment_rows, "No replenishment targets configured.")
+
+func _refresh_transfer_quote() -> void:
+	if session == null or selected_id.is_empty() or transfer_destination == null or transfer_destination.selected < 0:
+		_set_metric(transfer_quote, "distance", "—")
+		_set_metric(transfer_quote, "delivery", "—")
+		_set_metric(transfer_quote, "freight", "—")
+		return
+	var destination: String = str(transfer_destination.get_item_metadata(transfer_destination.selected))
+	var quote: Dictionary = session.sim.logistics.quote(session.sim, selected_id, destination, int(transfer_quantity.value))
+	_set_metric(transfer_quote, "distance", "%d cells" % int(quote.distance))
+	_set_metric(transfer_quote, "delivery", "%d day%s" % [int(quote.lead_days), "" if int(quote.lead_days) == 1 else "s"])
+	_set_metric(transfer_quote, "freight", CompanyReports.money(int(quote.freight)))
+
+func _add_offer_row(parent: VBoxContainer, offer: Dictionary, index: int) -> void:
+	var status: String = "AVAILABLE" if bool(offer.eligible) else "UNAVAILABLE"
+	var rank: String = " • Automatic rank #1" if index == 0 and bool(offer.eligible) else ""
+	var row: Control = _add_compact_row(parent, "%s%s" % [_facility_label(str(offer.id)), rank], "%s • %s/unit • Q%d • %d in stock" % [status, CompanyReports.money(int(offer.price)), int(offer.quality), int(offer.stock)], "Delivery %dd • Landed %s/unit • Score %.2f\n%d cells • Freight %s for %d" % [int(offer.lead_days), CompanyReports.money(int(offer.landed)), float(offer.score), int(offer.distance), CompanyReports.money(int(offer.freight)), int(offer.quote_quantity)])
+	row.set_meta("offer", offer.duplicate(true))
+	if not bool(offer.eligible):
+		for child: Node in row.get_children():
+			if child is Label: (child as Label).theme_type_variation = "WarningLabel"
+
+func _add_shipment_row(parent: VBoxContainer, shipment: Dictionary, facility_id: String) -> void:
+	var incoming: bool = str(shipment.destination) == facility_id
+	var counterpart: String = str(shipment.source) if incoming else str(shipment.destination)
+	var active: bool = str(shipment.status) == "in_transit"
+	var eta: int = maxi(0, int(shipment.arrival) - session.sim.clock.tick)
+	var status: String = "IN TRANSIT" if active else "DELIVERED"
+	var detail: String = "%s • ETA %d day%s • %d cells • Freight %s" % [_facility_label(counterpart), eta, "" if eta == 1 else "s", int(shipment.distance), CompanyReports.money(int(shipment.transport_cost))]
+	var row: Control = _add_compact_row(parent, "#%d • %s • %s" % [int(shipment.id), "IN" if incoming else "OUT", _product_name(str(shipment.product))], "%d units • %s" % [int(shipment.quantity), status], detail)
+	row.set_meta("shipment", shipment.duplicate(true))
+
+func _add_compact_row(parent: VBoxContainer, title: String, detail: String, secondary: String = "") -> Control:
+	var panel := PanelContainer.new()
+	panel.theme_type_variation = "ManagementSection"
+	parent.add_child(panel)
+	var body := VBoxContainer.new()
+	panel.add_child(body)
+	var title_label := Label.new()
+	title_label.text = title
+	title_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	body.add_child(title_label)
+	var detail_label := Label.new()
+	detail_label.text = detail
+	detail_label.theme_type_variation = "MetaLabel"
+	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(detail_label)
+	if not secondary.is_empty():
+		var secondary_label := Label.new()
+		secondary_label.text = secondary
+		secondary_label.theme_type_variation = "MetaLabel"
+		secondary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		body.add_child(secondary_label)
+	return panel
+
+func _add_empty_row(parent: VBoxContainer, message: String) -> void:
+	var label := _note(parent, message)
+	label.name = "EmptyState"
+
+func _clear_rows(parent: Node) -> void:
+	for child: Node in parent.get_children():
+		parent.remove_child(child)
+		child.queue_free()
+
+func _facility_label(facility_id: String) -> String:
+	var facility: SimFacility = session.sim.facility(facility_id)
+	if facility == null: return facility_id
+	return "%s • %s" % [session.sim.catalog.facility_types[facility.type_id].name, facility.id]
 
 func _availability(f: SimFacility, product_id: String) -> String:
 	if session.sim.can_configure(f.company_id, f.type_id, product_id): return "Available"
