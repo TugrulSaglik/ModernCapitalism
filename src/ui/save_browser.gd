@@ -63,7 +63,7 @@ func configure(browser_mode: String, values: Dictionary) -> void:
 		var lines: PackedStringArray = ["SLOT %d" % slot_number]
 		if state == "valid":
 			lines.append("%s" % summary.get("company", "Player company"))
-			lines.append("%s  •  %s  •  %s start" % [summary.get("date", "Unknown date"), str(summary.get("mode", "sandbox")).capitalize(), summary.get("starting_year", "?")])
+			lines.append("%s  •  %s  •  %s start  •  %s" % [summary.get("date", "Unknown date"), str(summary.get("mode", "sandbox")).capitalize(), summary.get("starting_year", "?"), summary.get("difficulty_name", "Standard")])
 			if not str(summary.get("modified", "")).is_empty(): lines.append("Saved: " + str(summary.modified))
 		elif state == "empty":
 			lines.append("Empty")

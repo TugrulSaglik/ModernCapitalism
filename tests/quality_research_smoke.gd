@@ -48,11 +48,11 @@ func _run() -> void:
 			panel.research_choices.select(index)
 			break
 	panel.refresh()
-	check(panel.research_info.text.contains("PRODUCT QUALITY PROJECT") and panel.research_info.text.contains("Maximum: 5"), "Quality project is distinct and bounded")
+	check(panel.research_detail_metrics.kind.text == "Product quality" and panel.research_detail_metrics.levels.text.contains("5 maximum"), "Quality project is distinct and bounded")
 	panel.assign_research.pressed.emit()
 	for day: int in range(12): screen.session.sim.step()
 	panel.refresh()
-	check(panel.research_info.text.contains("120 / 300") and panel.research_info.text.contains("$25.00/day"), "Quality project progress and cost readable")
+	check(panel.research_progress_text.text.contains("120 / 300") and panel.research_detail_metrics.project_cost.text.contains("$25.00/day"), "Quality project progress and cost readable")
 	await capture("01-quality-project")
 	for day: int in range(18): screen.session.sim.step()
 	check(screen.session.sim.companies.player.product_quality_level("smartphone") == 1, "Visual workflow completes quality level")
@@ -66,7 +66,7 @@ func _run() -> void:
 	check(screen.session.sim.produce(factory) == 1 and factory.inventory.quality("smartphone") == 52, "Improved factory produces quality-bearing output")
 	screen.select_facility(factory.id)
 	panel = screen.inspector
-	check(panel.info.text.contains("Product quality R&D L1/5") and panel.info.text.contains("Q52"), "Factory read model exposes level and output quality")
+	check(panel.production_metrics.quality_level.text == "Level 1 / 5" and panel.production_metrics.physical_quality.text == "Q52", "Factory read model exposes level and output quality")
 	await capture("02-factory-quality")
 	check(screen.session.sim.invariant_errors().is_empty(), "Rendered quality R&D economy reconciles")
 	print("M7B3A VISUAL RESULT: %d checks, %d failures" % [checks, failures])

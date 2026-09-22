@@ -32,10 +32,11 @@ func _run() -> void:
 		await process_frame
 		await process_frame
 		check(screen.overview.size.y <= 700 and screen.overview.size.x <= 1000, "Compact market dialog")
-		check(screen.reports.table.columns == 3 and screen.reports.table.get_column_title(1) == "Local", "Local comparison columns")
-		var rows: Array[TreeItem] = screen.reports.table.get_root().get_children()
-		check(rows[2].get_text(1) == "60" and rows[5].get_text(1) == "20", "Local and player brand read model")
-		check(not rows[0].get_text(2).is_empty(), "Market average present")
+		check(screen.reports.market_benchmark.columns == 3 and screen.reports.market_benchmark.get_column_title(1) == "Local", "Local comparison columns")
+		var benchmark_rows: Array[TreeItem] = screen.reports.market_benchmark.get_root().get_children()
+		var advertising_rows: Array[TreeItem] = screen.reports.advertising_summary.get_root().get_children()
+		check(benchmark_rows[2].get_text(1) == "60" and advertising_rows[0].get_text(1) == "20 / 100", "Local and player brand read model")
+		check(not benchmark_rows[0].get_text(2).is_empty(), "Market average present")
 		if DisplayServer.get_name() != "headless":
 			await RenderingServer.frame_post_draw
 			var dir: String = "res://.godot/7b2-screenshots"

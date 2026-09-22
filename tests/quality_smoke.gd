@@ -38,7 +38,11 @@ func _run() -> void:
 	var store: SimFacility = sim.facility("20_player")
 	check(store.inventory.quantity("smartphone") > 0 and store.inventory.quantity("laptop") > 0, "Naturally supplied retail lines stocked")
 	check(store.inventory.quality("smartphone") != store.inventory.quality("laptop"), "Different manufactured qualities at same retailer")
-	check(screen.inspector.info.text.contains(store.inventory.quality_text("smartphone")), "Inspector exposes actual goods quality")
+	for index: int in range(screen.inspector.line.item_count):
+		if screen.inspector.line.get_item_metadata(index) == "smartphone":
+			screen.inspector.line.select(index)
+			screen.inspector.line.item_selected.emit(index)
+	check(screen.inspector.retail_line_metrics.quality.text == store.inventory.quality_text("smartphone"), "Inspector exposes actual goods quality")
 	await capture("01-retail-quality")
 	screen._show_company()
 	screen.reports.tabs.current_tab = 3

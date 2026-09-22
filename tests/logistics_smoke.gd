@@ -43,6 +43,11 @@ func _run() -> void:
 		screen._new_session(era)
 		screen._resume_game()
 		session.time.set_speed(0)
+		# This Milestone 4 fixture predates strategic expansion and depends on the
+		# opening supplier network while it prepares its first shipment. Keep the
+		# AI policy paused for that setup window, then restore authoritative flags
+		# before saving so persistence still validates the real scenario contract.
+		for company_id: String in ["maker_b", "rival"]: session.sim.companies[company_id].ai = false
 		session.unlock_debug(DebugConfig.PASSWORD)
 		session.debug_action("cash", 20000000)
 		check(session.submit({"type": "build_facility", "archetype": "assembly_plant", "product": "smartphone", "x": 24, "y": 10}), "Build factory")
@@ -60,7 +65,7 @@ func _run() -> void:
 		screen.refresh()
 		screen.select_facility(factory.id)
 		var panel: FacilityPanel = screen.inspector
-		choose(panel.transfer_product, "smartphone")
+		choose(panel.transfer_product, "smartphone", true)
 		choose(panel.transfer_destination, warehouse.id, true)
 		panel.transfer_quantity.value = 20
 		if era == 2022: await capture("01-manual-transfer")
@@ -68,6 +73,7 @@ func _run() -> void:
 		panel.transfer_button.pressed.emit()
 		check(session.sim.logistics.incoming(warehouse.id) == 20 and warehouse.inventory.quantity("smartphone") == 0, "UI order remains in transit")
 		check(session.sim.companies.player.freight > freight, "Transfer charges transport")
+		for company_id: String in ["maker_b", "rival"]: session.sim.companies[company_id].ai = true
 		screen._save()
 		for day: int in range(10): session.sim.step()
 		var expected: Dictionary = session.sim.snapshot()
@@ -81,7 +87,7 @@ func _run() -> void:
 		session.submit({"type": "set_operating", "facility": "20_player", "operating": false})
 		session.submit({"type": "set_supplier", "facility": "20_player", "product": "smartphone", "supplier": warehouse.id})
 		screen.select_facility(warehouse.id)
-		choose(panel.transfer_product, "smartphone")
+		choose(panel.transfer_product, "smartphone", true)
 		choose(panel.transfer_destination, "20_player", true)
 		panel.transfer_quantity.value = 10
 		panel.transfer_button.pressed.emit()

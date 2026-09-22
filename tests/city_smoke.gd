@@ -73,16 +73,18 @@ func _run() -> void:
 	click.pressed = true
 	click.position = screen.city.camera.unproject_position(screen.city.cell_position(site.x, site.y))
 	screen.city._unhandled_input(click)
-	check(session.sim.facility("built_000001") != null and session.sim.companies.player.cash == cash - 2000000, "Click builds at documented cost")
-	check(screen.selected_id == "built_000001", "New facility selected")
-	if session.sim.facility("built_000001") == null:
+	var built_id: String = screen.selected_id
+	var built: SimFacility = session.sim.facility(built_id)
+	check(built != null and built.company_id == "player" and session.sim.companies.player.cash == cash - 2000000, "Click builds at documented cost")
+	check(built != null and built_id.begins_with("built_"), "New facility selected")
+	if built == null:
 		printerr(session.message)
 		quit(1)
 		return
 	screen.inspector.price.value = 350
 	screen.inspector.apply_price.pressed.emit()
 	session.sim.step()
-	check(session.sim.facility("built_000001").price == 35000, "Manage generated facility")
+	check(session.sim.facility(built_id).price == 35000, "Manage generated facility")
 	screen._save()
 	var saved: Dictionary = session.snapshot()
 	for day: int in range(12): session.sim.step()

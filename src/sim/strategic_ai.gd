@@ -3,14 +3,41 @@ extends RefCounted
 
 # Milestone 8C's planner is deliberately stateless. Economy remains authoritative;
 # this object only derives ordinary commands from the current completed state.
-const MIN_RESERVE: int = 5000000
-const OPPORTUNITY_THRESHOLD: int = 40
-const MAX_RETAILERS: int = 3
 const MAX_WAREHOUSE_PRODUCTS: int = 6
+const DIFFICULTY_IDS: Array[String] = ["relaxed", "standard", "competitive"]
+const DIFFICULTY_PROFILES: Dictionary = {
+	"relaxed": {
+		"display_name": "Relaxed", "minimum_cash_reserve": 7500000, "reserve_divisor": 3,
+		"opportunity_threshold": 70, "maximum_retailers": 2,
+		"warehouse_commercial_threshold": 4, "staff_payroll_runway_days": 90,
+		"description": "More conservative competitors that retain larger cash buffers and expand selectively.",
+	},
+	"standard": {
+		"display_name": "Standard", "minimum_cash_reserve": 5000000, "reserve_divisor": 4,
+		"opportunity_threshold": 40, "maximum_retailers": 3,
+		"warehouse_commercial_threshold": 3, "staff_payroll_runway_days": 60,
+		"description": "Baseline competitive behavior and capital discipline.",
+	},
+	"competitive": {
+		"display_name": "Competitive", "minimum_cash_reserve": 3500000, "reserve_divisor": 5,
+		"opportunity_threshold": 25, "maximum_retailers": 4,
+		"warehouse_commercial_threshold": 2, "staff_payroll_runway_days": 45,
+		"description": "More assertive competitors with smaller reserves and earlier expansion.",
+	},
+}
 
-func cash_reserve(cash: int) -> int:
+func valid_difficulty(difficulty: Variant) -> bool:
+	return difficulty is String and DIFFICULTY_PROFILES.has(difficulty)
+
+func difficulty_profile(difficulty: String = "standard") -> Dictionary:
+	return DIFFICULTY_PROFILES.get(difficulty, {}).duplicate(true)
+
+func difficulty_display_name(difficulty: String = "standard") -> String:
+	return str(DIFFICULTY_PROFILES.get(difficulty, {}).get("display_name", ""))
+
+func cash_reserve(cash: int, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> int:
 	@warning_ignore("integer_division")
-	return maxi(MIN_RESERVE, cash / 4)
+	return maxi(int(profile.minimum_cash_reserve), cash / int(profile.reserve_divisor))
 
 # Integer score based on currently observable demand. Category unmet demand and
 # Local-held units raise urgency; the company's realized share lowers it.
@@ -41,6 +68,7 @@ func eligible_consumer_products(sim) -> Array[String]:
 	return result
 
 func evaluate_month(sim) -> Dictionary:
+	var profile: Dictionary = difficulty_profile(sim.difficulty)
 	var commands: Array[Dictionary] = []
 	var trace: Array[Dictionary] = []
 	var reserved: Dictionary = {}
@@ -48,12 +76,12 @@ func evaluate_month(sim) -> Dictionary:
 	company_ids.sort()
 	for company_id: String in company_ids:
 		if not sim.companies[company_id].ai: continue
-		var assortment: Array[Dictionary] = _assortment_commands(sim, company_id)
+		var assortment: Array[Dictionary] = _assortment_commands(sim, company_id, profile)
 		commands.append_array(assortment)
 		for command: Dictionary in assortment:
 			trace.append(_trace(company_id, "ADD_LINE", str(command.product), market_opportunity(sim, company_id, str(command.product))))
 
-		var capital: Dictionary = _capital_command(sim, company_id, not assortment.is_empty(), reserved)
+		var capital: Dictionary = _capital_command(sim, company_id, not assortment.is_empty(), reserved, profile)
 		var post_capital_cash: int = int(sim.companies[company_id].cash)
 		if not capital.is_empty():
 			commands.append(capital)
@@ -62,7 +90,7 @@ func evaluate_month(sim) -> Dictionary:
 			trace.append(_trace(company_id, "BUILD", "%s/%s" % [capital.archetype, capital.get("product", "")], int(capital.get("strategic_score", 0))))
 			capital.erase("strategic_score")
 
-		commands.append_array(_staffing_commands(sim, company_id, post_capital_cash))
+		commands.append_array(_staffing_commands(sim, company_id, post_capital_cash, profile))
 		var warehouse: Dictionary = _owned_facility(sim, company_id, "storage")
 		if not warehouse.is_empty():
 			var targets: Dictionary = warehouse_targets(sim, company_id, str(warehouse.id))
@@ -88,6 +116,7 @@ func research_commands(sim) -> Array[Dictionary]:
 	return result
 
 func research_choice(sim, company_id: String, except_facility: String = "") -> Dictionary:
+	var profile: Dictionary = difficulty_profile(sim.difficulty)
 	var relevant_products: Dictionary = {}
 	for f in sim.facilities:
 		if f.company_id != company_id: continue
@@ -97,7 +126,7 @@ func research_choice(sim, company_id: String, except_facility: String = "") -> D
 			relevant_products[f.product_id] = true
 			for input: String in sim.catalog.products[f.product_id].inputs: relevant_products[input] = true
 	for product: String in eligible_consumer_products(sim):
-		if market_opportunity(sim, company_id, product) >= OPPORTUNITY_THRESHOLD: relevant_products[product] = true
+		if market_opportunity(sim, company_id, product) >= int(profile.opportunity_threshold): relevant_products[product] = true
 
 	var technologies: Array[Dictionary] = []
 	for technology: String in sim.catalog.technologies:
@@ -162,7 +191,7 @@ func warehouse_targets(sim, company_id: String, warehouse_id: String) -> Diction
 		remaining -= quantity
 	return targets
 
-func _assortment_commands(sim, company_id: String) -> Array[Dictionary]:
+func _assortment_commands(sim, company_id: String, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for item: Dictionary in _owned_facilities(sim, company_id, "retail"):
 		var f = sim.facility(str(item.id))
@@ -172,12 +201,12 @@ func _assortment_commands(sim, company_id: String) -> Array[Dictionary]:
 		for product: String in eligible_consumer_products(sim):
 			if f.assortment.has(product) or not sim.catalog.supports_product(f.type_id, product): continue
 			var score: int = market_opportunity(sim, company_id, product)
-			if score >= OPPORTUNITY_THRESHOLD: candidates.append({"product": product, "score": score})
+			if score >= int(profile.opportunity_threshold): candidates.append({"product": product, "score": score})
 		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.score) > int(b.score) if a.score != b.score else str(a.product) < str(b.product))
 		if not candidates.is_empty(): result.append({"type": "add_line", "company": company_id, "facility": f.id, "product": str(candidates[0].product)})
 	return result
 
-func _capital_command(sim, company_id: String, assortment_added: bool, reserved: Dictionary) -> Dictionary:
+func _capital_command(sim, company_id: String, assortment_added: bool, reserved: Dictionary, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> Dictionary:
 	var owner = sim.companies[company_id]
 	var candidates: Array[Dictionary] = []
 	var commercials: Array = _owned_commercial(sim, company_id)
@@ -201,9 +230,9 @@ func _capital_command(sim, company_id: String, assortment_added: bool, reserved:
 		if not _owns_production(sim, company_id, product) and sim.can_manufacture(company_id, product):
 			var score: int = market_opportunity(sim, company_id, product)
 			var archetype: String = _production_archetype(sim, product)
-			if score >= OPPORTUNITY_THRESHOLD and not archetype.is_empty(): candidates.append({"priority": 300, "score": score, "archetype": archetype, "product": product})
+			if score >= int(profile.opportunity_threshold) and not archetype.is_empty(): candidates.append({"priority": 300, "score": score, "archetype": archetype, "product": product})
 	var retailers: Array = _owned_facilities(sim, company_id, "retail")
-	if not assortment_added and retailers.size() < MAX_RETAILERS:
+	if not assortment_added and retailers.size() < int(profile.maximum_retailers):
 		var served: Dictionary = {}
 		for item: Dictionary in retailers:
 			for product: String in sim.facility(str(item.id)).line_ids(): served[product] = true
@@ -211,10 +240,10 @@ func _capital_command(sim, company_id: String, assortment_added: bool, reserved:
 		for product: String in eligible_consumer_products(sim):
 			if not served.has(product): opportunities.append({"product": product, "score": market_opportunity(sim, company_id, product)})
 		opportunities.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.score) > int(b.score) if a.score != b.score else str(a.product) < str(b.product))
-		if not opportunities.is_empty() and int(opportunities[0].score) >= OPPORTUNITY_THRESHOLD:
+		if not opportunities.is_empty() and int(opportunities[0].score) >= int(profile.opportunity_threshold):
 			var retail_type: String = _retail_archetype(sim, str(opportunities[0].product))
 			if not retail_type.is_empty(): candidates.append({"priority": 200, "score": int(opportunities[0].score), "archetype": retail_type, "product": str(opportunities[0].product)})
-	if commercials.size() >= 3 and _owned_facilities(sim, company_id, "storage").is_empty():
+	if commercials.size() >= int(profile.warehouse_commercial_threshold) and _owned_facilities(sim, company_id, "storage").is_empty():
 		var storage_type: String = _cheapest_type(sim, "storage")
 		if not storage_type.is_empty(): candidates.append({"priority": 100, "score": commercials.size(), "archetype": storage_type, "product": str(sim.catalog.facility_types[storage_type].products[0])})
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -222,7 +251,7 @@ func _capital_command(sim, company_id: String, assortment_added: bool, reserved:
 		if a.score != b.score: return int(a.score) > int(b.score)
 		if a.archetype != b.archetype: return str(a.archetype) < str(b.archetype)
 		return str(a.product) < str(b.product))
-	var reserve: int = cash_reserve(owner.cash)
+	var reserve: int = cash_reserve(owner.cash, profile)
 	for candidate: Dictionary in candidates:
 		var cost: int = int(sim.catalog.facility_types[str(candidate.archetype)].cost)
 		if owner.cash - cost < reserve: continue
@@ -231,7 +260,7 @@ func _capital_command(sim, company_id: String, assortment_added: bool, reserved:
 		return {"type": "build_facility", "company": company_id, "city": sim.city.id, "archetype": str(candidate.archetype), "product": str(candidate.product), "x": site.x, "y": site.y, "strategic_score": int(candidate.score)}
 	return {}
 
-func _staffing_commands(sim, company_id: String, available_cash: int) -> Array[Dictionary]:
+func _staffing_commands(sim, company_id: String, available_cash: int, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var hq = sim.headquarters(company_id)
 	if hq == null or not hq.operating: return result
@@ -253,7 +282,7 @@ func _staffing_commands(sim, company_id: String, available_cash: int) -> Array[D
 		capacity_left -= int(desired[role])
 	var resulting_payroll: int = 0
 	for role: String in roles: resulting_payroll += int(desired[role]) * int(sim.catalog.staff_roles[role].daily_salary)
-	var can_hire: bool = available_cash >= cash_reserve(sim.companies[company_id].cash) + resulting_payroll * 60
+	var can_hire: bool = available_cash >= cash_reserve(sim.companies[company_id].cash, profile) + resulting_payroll * int(profile.staff_payroll_runway_days)
 	for role: String in roles:
 		var current: int = sim.staff_count(company_id, role)
 		var target: int = int(desired[role])

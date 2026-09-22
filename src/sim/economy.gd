@@ -14,6 +14,7 @@ var clock: SimClock
 var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var initial_seed: int
 var starting_year: int
+var difficulty: String = "standard"
 var companies: Dictionary = {}
 var facilities: Array[SimFacility] = []
 var pending_commands: Array[Dictionary] = []
@@ -31,7 +32,9 @@ var strategic_ai: StrategicAI = StrategicAIPlanner.new()
 # Derived/debug-only trace. It is intentionally excluded from snapshots.
 var strategic_trace: Array[Dictionary] = []
 
-func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json", city_settings: Dictionary = {}) -> bool:
+func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json", city_settings: Dictionary = {}, difficulty_id: String = "standard") -> bool:
+	if not strategic_ai.valid_difficulty(difficulty_id):
+		return false
 	catalog = Catalog.new()
 	if not catalog.load_data(data_path):
 		push_error(str(catalog.errors))
@@ -44,6 +47,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 		return false
 	initial_seed = seed_value
 	starting_year = era
+	difficulty = difficulty_id
 	rng.seed = seed_value
 	clock = Clock.new(era)
 	companies.clear()
@@ -834,7 +838,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 15, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 16, "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

@@ -52,16 +52,17 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 8C
+## Milestone 8D
 
-Strategic competitor AI is implemented. AI companies retain weekly tactical pricing
-and advertising, while a stateless calendar-month planner expands assortments, makes
-at most one reserve-safe capital investment per company, builds HQ/R&D/warehouse
-infrastructure, hires activity-relevant staff, selects business-aligned research and
-configures warehouse/supplier policy through the ordinary command path. Planning and
-placement are deterministic and use no difficulty bonuses. Save versions remain
-**economy schema 15 / catalog 9 / format 2**. Milestone 8D difficulty and balancing
-is next.
+Milestone 8 is complete. Each session now has a fixed **Relaxed**, **Standard** or
+**Competitive** difficulty that changes only StrategicAI policy: retained reserve,
+opportunity threshold, retailer cap, warehouse timing and pre-hire payroll runway.
+Prices, costs, demand, research, staff effects, starting cash and every other economic
+rule remain identical. Standard preserves the Milestone 8C baseline. Settings shows
+the current immutable difficulty and selects the next sandbox difficulty; saves and
+slot summaries preserve it exactly. Current versions are **economy schema 16 / catalog
+9 / save format 2**. The deterministic five-case balance matrix is documented in
+[balancing](docs/BALANCING.md). Milestone 9 Corporate Finance is next.
 
 ## Milestone 8B3
 
@@ -72,8 +73,8 @@ advertising. Only a staffed company whose payroll was fully funded and whose HQ 
 configured as operating receives the bounded management effects: operations raises
 production/retail daily throughput, marketing raises funded advertising progress,
 R&D raises funded research work, and finance lowers ordinary facility overhead.
-Suspension still leaves payroll due but disables every effect. Current saves:
-**economy schema 15 / catalog 9 / format 2**.
+Suspension still leaves payroll due but disables every effect. At that checkpoint,
+saves used **economy schema 15 / catalog 9 / format 2**.
 
 ## Milestone 8A2B
 
@@ -265,5 +266,5 @@ Screenshots are written to `.godot/m3-screenshots/`,
 `.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
 The old fixed board is retained only as an explicit regression fixture.
 Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`.
-Strategic AI and continuous research are implemented; difficulty/balancing and
-corporate finance remain future work.
+Strategic AI, session difficulty and the Milestone 8 balance checkpoint are complete;
+Corporate Finance is next.

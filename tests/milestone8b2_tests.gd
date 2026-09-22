@@ -56,7 +56,7 @@ func _initialize() -> void:
 func _staff_data_and_commands() -> void:
 	var session: GameSession = fresh()
 	var sim: Economy = session.sim
-	check(sim.catalog.version == 9 and sim.snapshot().schema_version == 15 and SaveStore.FORMAT_VERSION == 2, "Catalog 9 / schema 15 / save format 2")
+	check(sim.catalog.version == 9 and sim.snapshot().schema_version == 16 and SaveStore.FORMAT_VERSION == 2, "Catalog 9 / schema 16 / save format 2")
 	var expected: Dictionary = {"operations_manager": ["Operations manager", 5000], "marketing_manager": ["Marketing manager", 5000], "research_manager": ["R&D manager", 6000], "finance_manager": ["Finance manager", 5500]}
 	check(sim.catalog.staff_roles.size() == 4, "Four staff roles load")
 	for role: String in expected:

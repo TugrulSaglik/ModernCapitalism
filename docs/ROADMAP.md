@@ -29,7 +29,7 @@
 | 8UI-B — Management interface redesign (complete through B1/B2/B3/B4A/B4B) | Facility operations, sourcing/logistics, R&D/headquarters, financial reports and Markets management | 8UI-A2 |
 | 8UI-C — City/build interaction polish (implemented) | Polished construction and placement feedback; city select/deselect/context flow; tooltips and status presentation; pause/application menu; Save / Load / Settings organization; three-slot save browser; overwrite/load/new-session confirmations; and removal of the persistent raw Slot selector | 8UI-B |
 | 8C — Strategic competitor AI (implemented) | Deterministic monthly market entry, investment, staffing, sourcing, warehouses and business-aligned research | 8UI-C |
-| 8D — Difficulty and balancing (next) | Difficulty settings and competitive/economic balancing | 8C |
+| 8D — Difficulty and balancing (implemented) | Fixed session difficulty, no-cheat StrategicAI profiles and deterministic balance matrix | 8C |
 | 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
 | 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
@@ -85,8 +85,9 @@ UI block with the structured construction workflow, specific placement/parcel
 feedback, city select/deselect context, concise tooltips and semantic status, a
 simulation-gating application menu, Save / Load / Settings organization, a validated
 three-slot browser, overwrite/load/new-session confirmations and removal of the
-persistent raw Slot selector. The complete 8UI-A / 8UI-B / 8UI-C block is implemented;
-8C Strategic competitor AI is implemented; 8D Difficulty and balancing is next.
+persistent raw Slot selector. The complete 8UI-A / 8UI-B / 8UI-C block, 8C Strategic
+competitor AI and 8D Difficulty and balancing are implemented. Milestone 8 is complete;
+Milestone 9 Corporate Finance is next.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.
@@ -106,5 +107,6 @@ Milestone 8B1 adds the one-per-company productless headquarters building. Milest
 all-or-nothing daily payroll. Milestone 8B3 adds the four payroll-funded bounded
 effects. Milestone 8C adds a stateless monthly strategic planner that uses ordinary
 commands for assortment, capital, staffing, sourcing, warehouses and R&D while the
-weekly price/advertising policies remain tactical. There are no difficulty bonuses;
-8D Difficulty and balancing is next. Final production polish remains in Milestone 12.
+weekly price/advertising policies remain tactical. Milestone 8D adds fixed no-cheat
+difficulty profiles around that policy and validates them through a deterministic
+five-case balance matrix. Final production polish remains in Milestone 12.

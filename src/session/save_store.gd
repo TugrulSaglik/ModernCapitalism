@@ -123,6 +123,8 @@ func inspect_file(path: String) -> Dictionary:
 		"date": candidate.clock.date_string(),
 		"starting_year": int(state.economy.starting_year),
 		"mode": str(state.mode),
+		"difficulty": candidate.difficulty,
+		"difficulty_name": candidate.strategic_ai.difficulty_display_name(candidate.difficulty),
 		"modified": Time.get_datetime_string_from_unix_time(modified_unix, true) if modified_unix > 0 else "",
 	}
 
@@ -142,13 +144,15 @@ static func nonnegative(value: Variant) -> bool:
 func restore(state: Dictionary) -> Economy:
 	error = "Invalid or inconsistent simulation state."
 	var sim: Economy = Simulation.new()
-	if not state.get("seed") is String or not str(state.seed).is_valid_int() or not state.get("starting_year") is int:
+	if not state.get("seed") is String or not str(state.seed).is_valid_int() or not state.get("starting_year") is int or not state.get("difficulty") is String:
+		return null
+	if not sim.strategic_ai.valid_difficulty(state.difficulty):
 		return null
 	# Initialize catalog and economic definitions with the small fixture; saved city
 	# hydration below never depends on the current procedural generator.
-	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}):
+	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 15 or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 16 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null

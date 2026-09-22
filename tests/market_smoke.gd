@@ -64,17 +64,18 @@ func _run() -> void:
 	var sites: Array[Vector2i] = session.sim.city.valid_sites(4, 3)
 	check(not sites.is_empty(), "Factory site available")
 	if not sites.is_empty():
+		var factory_id: String = "built_%06d" % session.sim.city.next_facility
 		check(session.submit({"type": "build_facility", "archetype": "assembly_plant", "product": "smartphone", "x": sites[0].x, "y": sites[0].y}), "Build factory")
 		screen.refresh()
-		screen.select_facility("built_000001")
+		screen.select_facility(factory_id)
 		for index: int in range(panel.choices.item_count):
 			if panel.choices.get_item_text(index) == "tablet": panel.choices.select(index)
 		panel.configure.pressed.emit()
 		session.sim.step()
-		check(session.sim.facility("built_000001").product_id == "tablet", "UI switches factory")
-		check(session.submit({"type": "set_supplier", "facility": "20_player", "product": "tablet", "supplier": "built_000001"}), "Retail sources owned factory")
+		check(session.sim.facility(factory_id).product_id == "tablet", "UI switches factory")
+		check(session.submit({"type": "set_supplier", "facility": "20_player", "product": "tablet", "supplier": factory_id}), "Retail sources owned factory")
 		for day: int in range(30): session.sim.step()
-		check(session.sim.facility("built_000001").inventory.quantity("tablet") > 0, "Inputs arrive and output manufactured")
+		check(session.sim.facility(factory_id).inventory.quantity("tablet") > 0, "Inputs arrive and output manufactured")
 		check(int(session.sim.facility("20_player").line_sales.get("tablet", {}).get("units", 0)) > 0, "Owned output reaches retail consumers")
 		await capture("04-factory")
 	screen._show_company()

@@ -12,11 +12,11 @@ var player_company: String = "player"
 var debug_unlocked: bool = false
 var message: String = ""
 
-func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox", city_settings: Dictionary = {}) -> bool:
+func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox", city_settings: Dictionary = {}, difficulty: String = "standard") -> bool:
 	if game_mode not in ["sandbox", "tutorial"]:
 		return false
 	var candidate: Economy = Simulation.new()
-	if not candidate.initialize(seed_value, era, SaveStore.DATA_PATH, city_settings):
+	if not candidate.strategic_ai.valid_difficulty(difficulty) or not candidate.initialize(seed_value, era, SaveStore.DATA_PATH, city_settings, difficulty):
 		return false
 	sim = candidate
 	mode = game_mode

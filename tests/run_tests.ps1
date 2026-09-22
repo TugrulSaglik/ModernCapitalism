@@ -59,7 +59,16 @@ foreach ($suite in @(
 	@{ Script = 'milestone8b1_tests.gd'; Marker = 'M8B1 TEST RESULT' },
 	@{ Script = 'milestone8b2_tests.gd'; Marker = 'M8B2 TEST RESULT' },
 	@{ Script = 'milestone8b3_tests.gd'; Marker = 'M8B3 TEST RESULT' },
-	@{ Script = 'staff_effects_smoke.gd'; Marker = 'M8B3 VISUAL RESULT' }
+	@{ Script = 'staff_effects_smoke.gd'; Marker = 'M8B3 VISUAL RESULT' },
+	@{ Script = 'shell_smoke.gd'; Marker = '8UI-A2 SHELL RESULT' },
+	@{ Script = 'facility_panel_tests.gd'; Marker = '8UI-B1 FACILITY PANEL RESULT' },
+	@{ Script = 'milestone8ui_b2_tests.gd'; Marker = '8UI-B2 FACILITY PANEL RESULT' },
+	@{ Script = 'milestone8ui_b3_tests.gd'; Marker = '8UI-B3 FACILITY PANEL RESULT' },
+	@{ Script = 'milestone8ui_b4a_tests.gd'; Marker = '8UI-B4A TEST RESULT' },
+	@{ Script = 'milestone8ui_b4b_tests.gd'; Marker = '8UI-B4B TEST RESULT' },
+	@{ Script = 'milestone8ui_c_tests.gd'; Marker = '8UI-C RESULT' },
+	@{ Script = 'milestone8c_tests.gd'; Marker = 'M8C TEST RESULT' },
+	@{ Script = 'milestone8d_tests.gd'; Marker = 'M8D TEST RESULT' }
 )) {
     $suiteOutput = & $Godot --headless --path $projectRoot --log-file (Join-Path $projectRoot ('.godot/' + $suite.Script + '.log')) --script ('res://tests/' + $suite.Script) 2>&1
     $suiteExit = $LASTEXITCODE

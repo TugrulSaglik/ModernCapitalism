@@ -82,7 +82,7 @@ func _cadence_determinism_and_cash() -> void:
 		continuous.step()
 		restored.step()
 		check(same(continuous.snapshot(), restored.snapshot()), "Save/load chooses same strategic actions")
-	check(continuous.snapshot().schema_version == 15 and continuous.catalog.version == 9 and SaveStore.FORMAT_VERSION == 2, "Schema 15 / catalog 9 / save format 2 unchanged")
+	check(continuous.snapshot().schema_version == 16 and continuous.difficulty == "standard" and continuous.catalog.version == 9 and SaveStore.FORMAT_VERSION == 2, "Standard uses schema 16 / catalog 9 / save format 2")
 
 func _market_and_assortment() -> void:
 	var sim: Economy = fresh()

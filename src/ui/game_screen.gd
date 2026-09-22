@@ -56,6 +56,10 @@ var new_session_confirmation: ConfirmationDialog
 var application_pause: bool = false
 var pending_slot: int = 0
 var pending_era: int = 0
+var pending_difficulty: String = "standard"
+var current_difficulty: Label
+var new_sandbox_difficulty: OptionButton
+var difficulty_description: Label
 var status_override: String = ""
 var status_kind: String = "normal"
 var build_category: Label
@@ -398,6 +402,35 @@ func _build_dialogs() -> void:
 	column.add_child(help)
 	city_summary = Label.new()
 	column.add_child(city_summary)
+	var current_heading: Label = Label.new()
+	current_heading.text = "CURRENT DIFFICULTY"
+	current_heading.theme_type_variation = "MetaLabel"
+	column.add_child(current_heading)
+	current_difficulty = Label.new()
+	current_difficulty.name = "CurrentDifficulty"
+	current_difficulty.theme_type_variation = "SectionTitleLabel"
+	column.add_child(current_difficulty)
+	var difficulty_heading: Label = Label.new()
+	difficulty_heading.text = "NEW SANDBOX DIFFICULTY"
+	difficulty_heading.theme_type_variation = "MetaLabel"
+	column.add_child(difficulty_heading)
+	new_sandbox_difficulty = OptionButton.new()
+	new_sandbox_difficulty.name = "NewSandboxDifficulty"
+	for difficulty_id: String in StrategicAI.DIFFICULTY_IDS:
+		new_sandbox_difficulty.add_item(session.sim.strategic_ai.difficulty_display_name(difficulty_id))
+		new_sandbox_difficulty.set_item_metadata(new_sandbox_difficulty.item_count - 1, difficulty_id)
+	column.add_child(new_sandbox_difficulty)
+	difficulty_description = Label.new()
+	difficulty_description.name = "DifficultyDescription"
+	difficulty_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(difficulty_description)
+	var difficulty_note: Label = Label.new()
+	difficulty_note.name = "DifficultyRulesNote"
+	difficulty_note.text = "Difficulty changes AI strategy, not economic rules or hidden bonuses."
+	difficulty_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	difficulty_note.theme_type_variation = "MetaLabel"
+	column.add_child(difficulty_note)
+	new_sandbox_difficulty.item_selected.connect(func(_index: int) -> void: _update_difficulty_description())
 	var seed_row: HBoxContainer = HBoxContainer.new()
 	column.add_child(seed_row)
 	city_seed = SpinBox.new()
@@ -474,7 +507,7 @@ func _build_dialogs() -> void:
 	settings.add_child(new_session_confirmation)
 	new_session_confirmation.confirmed.connect(func() -> void:
 		new_session_confirmation.hide()
-		_new_session(pending_era))
+		_new_session(pending_era, pending_difficulty))
 
 func _build_application_menu() -> void:
 	app_menu = AcceptDialog.new()
@@ -551,28 +584,32 @@ func _summary_line(summary: Dictionary) -> String:
 	if str(summary.get("state", "")) != "valid": return str(summary.get("reason", "Existing data"))
 	return "%s • %s" % [summary.get("company", "Player company"), summary.get("date", "Unknown date")]
 
-func _new_session(era: int) -> void:
+func _new_session(era: int, difficulty: String = "standard") -> void:
 	city_seed.apply()
-	if not session.start(era, int(city_seed.value), "sandbox", city_settings): return
+	if not session.start(era, int(city_seed.value), "sandbox", city_settings, difficulty): return
 	_build_city()
 	city.cancel_placement()
 	select_facility("20_player")
 	debug_entry.clear()
 	debug_panel.hide()
 	settings.hide()
-	_set_status("Started a new %d sandbox." % era, "success")
+	_set_status("Started a new %d %s sandbox." % [era, session.sim.strategic_ai.difficulty_display_name(difficulty)], "success")
 	_show_menu(false)
 	refresh()
 
 func _confirm_new_session(era: int) -> void:
 	pending_era = era
-	new_session_confirmation.dialog_text = "Start a new %d sandbox?\n\nUnsaved progress in the current session will be lost." % era
+	pending_difficulty = _selected_difficulty()
+	new_session_confirmation.dialog_text = "Start a new %d %s sandbox?\n\nUnsaved progress in the current session will be lost." % [era, session.sim.strategic_ai.difficulty_display_name(pending_difficulty)]
 	new_session_confirmation.popup_centered()
 
 func _show_settings() -> void:
 	application_pause = true
 	if app_menu != null: app_menu.hide()
 	city_seed.value = int(session.sim.city.generation.seed)
+	current_difficulty.text = session.sim.strategic_ai.difficulty_display_name(session.sim.difficulty)
+	_select_difficulty(session.sim.difficulty)
+	_update_difficulty_description()
 	debug_entry.get_parent().visible = session.mode == "sandbox"
 	debug_panel.visible = session.mode == "sandbox" and session.debug_unlocked
 	settings.popup_centered()
@@ -734,6 +771,21 @@ func _place(x: int, y: int) -> void:
 		build_reason.text = session.message
 		_set_status(session.message, "error")
 	refresh()
+
+func _selected_difficulty() -> String:
+	if new_sandbox_difficulty == null or new_sandbox_difficulty.selected < 0: return "standard"
+	return str(new_sandbox_difficulty.get_item_metadata(new_sandbox_difficulty.selected))
+
+func _select_difficulty(difficulty: String) -> void:
+	for index: int in range(new_sandbox_difficulty.item_count):
+		if str(new_sandbox_difficulty.get_item_metadata(index)) == difficulty:
+			new_sandbox_difficulty.select(index)
+			return
+
+func _update_difficulty_description() -> void:
+	if difficulty_description == null: return
+	var profile: Dictionary = session.sim.strategic_ai.difficulty_profile(_selected_difficulty())
+	difficulty_description.text = str(profile.get("description", ""))
 
 func _update_placement_feedback(reason: String) -> void:
 	if build_reason == null: return

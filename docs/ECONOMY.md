@@ -1,5 +1,31 @@
 # Economic model
 
+## Milestone 8D difficulty and balance checkpoint
+
+`Economy.difficulty` is the single authoritative session difficulty and is fixed at
+start. Valid IDs are `relaxed`, `standard` and `competitive`; Standard is the default
+and preserves 8C behavior. `StrategicAI` centralizes the exact profiles:
+
+| Policy | Relaxed | Standard | Competitive |
+| --- | ---: | ---: | ---: |
+| Minimum reserve | 7,500,000 cents | 5,000,000 cents | 3,500,000 cents |
+| Reserve fraction | cash / 3 | cash / 4 | cash / 5 |
+| Opportunity threshold | 70 | 40 | 25 |
+| Maximum retailers | 2 | 3 | 4 |
+| Warehouse commercial threshold | 4 | 3 | 2 |
+| Pre-hire payroll runway | 90 days | 60 days | 45 days |
+
+The market-opportunity formula, monthly planning cadence and one-capital-build limit
+are unchanged. Weekly pricing/advertising and all daily economic phases are unchanged.
+Difficulty grants no cash, cost, demand, production, research, staff, advertising,
+quality, brand, logistics or capacity modifier. Every action still passes through the
+ordinary command and accounting paths.
+
+Schema 16 persists and strictly validates the exact difficulty ID. Schema 15 is
+incompatible under the existing no-migration policy. Catalog 9 and save format 2 are
+unchanged because the balance matrix exposed no malformed or systemic economic value
+requiring adjustment. See [balancing methodology and results](BALANCING.md).
+
 ## Milestone 8C strategic competitor AI
 
 AI price and advertising decisions retain their existing seven-tick tactical cadence.
@@ -57,7 +83,7 @@ existing Automatic mode. SupplierMarket ranking and replenishment mechanics are 
 duplicated or changed.
 
 Strategic actions grant no cash, inventory, knowledge, demand, research speed or
-operating bonus. Schema 15, catalog 9 and save format 2 are unchanged; the decision
+operating bonus. At the 8C checkpoint, schema 15, catalog 9 and save format 2 were unchanged; the decision
 trace and same-pass footprint reservations are transient. Save/load continuation is
 therefore derived from the same clock, market, city and company state.
 

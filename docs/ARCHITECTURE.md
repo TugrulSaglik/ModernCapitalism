@@ -2,7 +2,14 @@
 
 ## Current milestone
 
-Milestone 8C introduces `StrategicAI`, a stateless simulation policy module. On the
+Milestone 8D adds one authoritative `Economy.difficulty` ID: `relaxed`, `standard`
+or `competitive`. `StrategicAI` owns the single profile table and read helpers;
+Economy persists the selected ID and supplies it to the stateless planner. Profiles
+change only reserve, opportunity threshold, retailer cap, warehouse eligibility and
+hiring payroll runway. Standard is the 8C baseline. There are no economic-rule
+modifiers, hidden bonuses or mid-session changes.
+
+Milestone 8C introduced `StrategicAI`, a stateless simulation policy module. On the
 first simulation day of each calendar month, Economy asks it for ordinary command
 dictionaries, records a transient debug trace, and remains the sole authority that
 validates and applies changes. AI companies are processed by ascending company ID;
@@ -18,16 +25,16 @@ the normal company-knowledge requirement. Structural recipe supply gaps outrank 
 R&D, vertical integration, retail and warehouse candidates; each company may submit
 at most one affordable build per monthly pass.
 
-Capital keeps `max(5,000,000 cents, floor(cash / 4))` after construction. HQ staffing
-is activity-derived, capacity bounded and requires that cash cover the reserve plus
-60 days of resulting payroll. One R&D center and one warehouse are sufficient for
+On Standard, capital keeps `max(5,000,000 cents, floor(cash / 4))` after construction.
+HQ staffing is activity-derived, capacity bounded and requires that cash cover the
+profile reserve plus its payroll-runway days. One R&D center and one warehouse are sufficient for
 the current policy. Research favors relevant technology unlocks, then quality/process
 work for products actually manufactured. Idle labs are checked daily through the
 same `assign_research` command path. Warehouse targets cover at most six high-use
 downstream products within physical capacity; configured, road-connected owned
 warehouses are preferred, otherwise sourcing is Automatic. Weekly pricing and
 advertising are unchanged. There is no AI memory, persisted plan, randomness,
-difficulty bonus, borrowing, demolition or speculative market exit. Schema 15,
+borrowing, demolition or speculative market exit. Schema 16 persists difficulty;
 catalog 9 and save format 2 remain unchanged.
 
 Milestone 8B3 closes the headquarters/staffing block. Aggregate `staff_counts` and
@@ -54,7 +61,7 @@ facility overhead without mutating base facility/catalog data. Shared AI facilit
 naturally receive effects when fixtures provide funded staff, but AI policy does not
 construct HQs, hire, or reason about management ROI.
 
-Schema 15 / catalog 9 / save format 2 persist exact counts, payroll histories and the
+At the 8B3 checkpoint, schema 15 / catalog 9 / save format 2 persisted exact counts, payroll histories and the
 funded flag; restore validates the boolean, staff/HQ invariants and production/retail
 daily counters against the applicable persisted effective capacity.
 
@@ -157,7 +164,7 @@ time, global random functions, frame deltas or unordered iteration to make decis
 Reproducibility targets the same engine version and catalog; pin both for replays.
 
 ## State and persistence
-Schema-15 economy snapshots contain city and logistics state plus catalog/scenario/era identity, clock, initial
+Schema-16 economy snapshots contain difficulty, city and logistics state plus catalog/scenario/era identity, clock, initial
 seed, RNG state as a decimal string, pending commands and results, accounts,
 facilities, inventories, sourcing state, recent activity, market reports and Debug
 effects. The session snapshot adds mode, authorized company and time-controller
@@ -165,7 +172,7 @@ state. SaveStore format 2 tags integers and binary floating-point values before 
 pins the Godot engine version, writes through a same-directory temporary file, and
 validates all restored state before replacing the live session. Unsupported format,
 schema, engine or catalog versions are rejected; migrations are not yet provided.
-The save browser derives date, company, era, mode and filesystem modification time
+The save browser derives date, company, era, mode, difficulty and filesystem modification time
 through SaveStore's validation path without changing the envelope. Application-menu
 pause is transient controller state in GameScreen: it gates GameTime advancement but
 does not change or persist the selected speed. A loaded GameTime therefore remains
@@ -189,7 +196,8 @@ add migration aliases rather than renaming persisted IDs.
 - AI: policy modules consume the same read models and produce the same commands
   as players. Weekly pricing/advertising remain tactical; the stateless monthly
   planner handles bounded expansion, staffing, sourcing and warehouse configuration.
-  Difficulty-specific bonuses and deeper profitability/exit policy remain deferred.
+  Difficulty changes only the five centralized strategic-policy parameters; deeper
+  profitability/exit policy remains deferred.
 - Multiple cities: city demand populations, local offers and transport links;
   partition market clearing by city/product, retain one explicit scheduler.
 - New sectors: recipes and facility definitions express extraction, farming,
