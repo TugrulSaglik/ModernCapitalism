@@ -4,6 +4,7 @@ extends RefCounted
 var products: Dictionary = {}
 var technologies: Dictionary = {}
 var facility_types: Dictionary = {}
+var property_types: Dictionary = {}
 var scenario: Dictionary = {}
 var version: int = 0
 var errors: Array[String] = []
@@ -25,6 +26,7 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	products.clear()
 	technologies.clear()
 	facility_types.clear()
+	property_types.clear()
 	staff_roles.clear()
 	errors.clear()
 	var parser: JSON = JSON.new()
@@ -81,6 +83,13 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	_index(root.get("products", []), products)
 	_index(root.get("technologies", []), technologies)
 	_index(root.get("facility_types", []), facility_types)
+	_index(root.get("property_types", []), property_types)
+	for id: String in property_types:
+		var p: Dictionary = property_types[id]
+		if str(p.get("name", "")).is_empty() or str(p.get("use", "")) not in ["residential", "office", "commercial"] or not _positive_integer(p.get("width")) or not _positive_integer(p.get("depth")) or not _positive_integer(p.get("cost")) or not _positive_integer(p.get("height")) or not (p.get("residential_capacity") is int or p.get("residential_capacity") is float) or not (p.get("job_capacity") is int or p.get("job_capacity") is float) or int(p.residential_capacity) < 0 or int(p.job_capacity) < 0 or float(p.residential_capacity) != floor(float(p.residential_capacity)) or float(p.job_capacity) != floor(float(p.job_capacity)) or (int(p.residential_capacity) == 0 and int(p.job_capacity) == 0) or (int(p.residential_capacity) > 0 and int(p.job_capacity) > 0):
+			errors.append("Invalid property type: " + id)
+		else:
+			for field: String in ["width", "depth", "cost", "height", "residential_capacity", "job_capacity"]: p[field] = int(p[field])
 	scenario = root.get("scenario", {})
 	for id: String in technologies:
 		if float(technologies[id].get("year", -1)) != floor(float(technologies[id].get("year", -1))) or int(technologies[id].get("year", -1)) < 1900 or int(technologies[id].get("year", 0)) > 3000: errors.append("Invalid technology year: " + id)
@@ -148,6 +157,7 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 			errors.append("Invalid facility: " + id)
 	for id: String in facility_types:
 		var f: Dictionary = facility_types[id]
+		if not _positive_integer(f.get("jobs")): errors.append("Invalid facility jobs: " + id)
 		if f.get("behavior") == "research" and (not _positive_integer(f.get("research_rate")) or not f.get("products", []).is_empty()): errors.append("Invalid research facility: " + id)
 		if f.get("behavior") == "headquarters":
 			if not f.get("products", []).is_empty() or not _positive_integer(f.get("staff_capacity")):

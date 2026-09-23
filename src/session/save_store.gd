@@ -152,7 +152,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 17 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 18 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -189,6 +189,8 @@ func restore(state: Dictionary) -> Economy:
 	sim.facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
 	if not sim.city.restore(state.city, sim.facilities, sim.catalog):
 		return null
+	sim.city.population = state.city.population.duplicate(true)
+	if not sim.real_estate.restore_state(sim, state.real_estate): return null
 	if sim.city.generation.seed != state.seed: return null
 	var saved_clock: Dictionary = state.clock
 	if not nonnegative(saved_clock.tick) or saved_clock.tick > 365000:
@@ -209,7 +211,7 @@ func restore(state: Dictionary) -> Economy:
 		template.known_technologies = {}
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex", "research_expense", "advertising_expense", "payroll_expense", "equity_purchase_cash", "equity_sale_cash", "equity_issue_cash", "investment_income", "dividend_receipts", "dividends_paid"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "property_revenue", "property_maintenance", "production_cash", "cash_expenses", "capex", "land_capex", "property_capex", "research_expense", "advertising_expense", "payroll_expense", "equity_purchase_cash", "equity_sale_cash", "equity_issue_cash", "investment_income", "dividend_receipts", "dividends_paid"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
@@ -493,8 +495,8 @@ func _valid_financial_history(owner: SimCompany) -> bool:
 		if not shape(row, owner.accounts()) or not shape(row, {"opening_cash": 0, "closing_cash": 0}) or str(row.month) <= previous_month: return false
 		if int(row.opening_cash) != previous_cash or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
 		if int(row.revenue) - int(row.cogs) - int(row.expenses) + int(row.investment_income) + int(row.realized_investment_gain) != int(row.profit): return false
-		if int(row.retail_revenue) + int(row.wholesale_revenue) != int(row.revenue): return false
-		if int(row.revenue) - int(row.purchases) - int(row.production_cash) - int(row.cash_expenses) - int(row.capex) - int(row.equity_purchase_cash) + int(row.equity_sale_cash) + int(row.dividend_receipts) + int(row.capital) - int(row.dividends_paid) != int(row.cash): return false
+		if int(row.retail_revenue) + int(row.wholesale_revenue) + int(row.property_revenue) != int(row.revenue): return false
+		if int(row.revenue) - int(row.purchases) - int(row.production_cash) - int(row.cash_expenses) - int(row.capex) - int(row.land_capex) - int(row.property_capex) - int(row.equity_purchase_cash) + int(row.equity_sale_cash) + int(row.dividend_receipts) + int(row.capital) - int(row.dividends_paid) != int(row.cash): return false
 		for field: String in totals: totals[field] += int(row[field])
 		previous_cash = int(row.closing_cash)
 		previous_month = row.month

@@ -82,12 +82,20 @@ func evaluate_month(sim) -> Dictionary:
 			trace.append(_trace(company_id, "ADD_LINE", str(command.product), market_opportunity(sim, company_id, str(command.product))))
 
 		var capital: Dictionary = _capital_command(sim, company_id, not assortment.is_empty(), reserved, profile)
+		if capital.is_empty(): capital = _property_command(sim, company_id, reserved, profile)
 		var post_capital_cash: int = int(sim.companies[company_id].cash)
 		if not capital.is_empty():
 			commands.append(capital)
-			post_capital_cash -= int(sim.catalog.facility_types[str(capital.archetype)].cost)
-			_reserve_footprint(sim, capital, reserved)
-			trace.append(_trace(company_id, "BUILD", "%s/%s" % [capital.archetype, capital.get("product", "")], int(capital.get("strategic_score", 0))))
+			if capital.type == "build_facility":
+				var definition: Dictionary = sim.catalog.facility_types[str(capital.archetype)]
+				post_capital_cash -= int(definition.cost) + (0 if sim.city.generation.preset == "legacy" else sim.real_estate.land_cost(sim, company_id, int(capital.x), int(capital.y), int(definition.width), int(definition.depth)))
+				_reserve_footprint(sim, capital, reserved)
+				trace.append(_trace(company_id, "BUILD", "%s/%s" % [capital.archetype, capital.get("product", "")], int(capital.get("strategic_score", 0))))
+			else:
+				var definition: Dictionary = sim.catalog.property_types[str(capital.property_type)]
+				post_capital_cash -= int(definition.cost) + sim.real_estate.land_cost(sim, company_id, int(capital.x), int(capital.y), int(definition.width), int(definition.depth))
+				for cell: String in sim.real_estate.cells(int(capital.x), int(capital.y), int(definition.width), int(definition.depth)): reserved[cell] = true
+				trace.append(_trace(company_id, "PROPERTY", str(capital.property_type), int(capital.get("strategic_score", 0))))
 			capital.erase("strategic_score")
 
 		commands.append_array(_staffing_commands(sim, company_id, post_capital_cash, profile))
@@ -253,11 +261,40 @@ func _capital_command(sim, company_id: String, assortment_added: bool, reserved:
 		return str(a.product) < str(b.product))
 	var reserve: int = cash_reserve(owner.cash, profile)
 	for candidate: Dictionary in candidates:
-		var cost: int = int(sim.catalog.facility_types[str(candidate.archetype)].cost)
-		if owner.cash - cost < reserve: continue
 		var site: Vector2i = _placement_for(sim, company_id, str(candidate.archetype), str(candidate.product), reserved)
 		if site.x < 0: continue
+		var definition: Dictionary = sim.catalog.facility_types[str(candidate.archetype)]
+		var cost: int = int(definition.cost) + (0 if sim.city.generation.preset == "legacy" else sim.real_estate.land_cost(sim, company_id, site.x, site.y, int(definition.width), int(definition.depth)))
+		if owner.cash - cost < reserve: continue
 		return {"type": "build_facility", "company": company_id, "city": sim.city.id, "archetype": str(candidate.archetype), "product": str(candidate.product), "x": site.x, "y": site.y, "strategic_score": int(candidate.score)}
+	return {}
+
+func _property_command(sim, company_id: String, reserved: Dictionary, profile: Dictionary) -> Dictionary:
+	if sim.city.generation.preset == "legacy": return {}
+	var population: Dictionary = sim.city.population
+	var housing: int = int(population.housing_capacity)
+	var people: int = int(population.total)
+	var workforce: int = int(population.workforce)
+	var jobs: int = int(population.jobs)
+	var type_id: String = ""
+	if housing > 0 and people * 100 > housing * 90 and jobs * 2 > people + 40:
+		type_id = "block" if people * 100 > housing * 94 else "apartments"
+	elif jobs * 2 < housing * 95 / 100 and jobs - workforce < 60:
+		type_id = "office" if housing - people > 120 else "commercial"
+	if type_id.is_empty(): return {}
+	var definition: Dictionary = sim.catalog.property_types[type_id]
+	var owner = sim.companies[company_id]
+	var reserve: int = cash_reserve(owner.cash, profile)
+	for y: int in range(sim.city.depth - int(definition.depth) + 1):
+		for x: int in range(sim.city.width - int(definition.width) + 1):
+			if _reserved_overlap(x, y, int(definition.width), int(definition.depth), reserved): continue
+			var command: Dictionary = {"type": "develop_property", "company": company_id, "property_type": type_id, "x": x, "y": y}
+			if not sim.property_command_error(command).is_empty(): continue
+			var cost: int = int(definition.cost) + sim.real_estate.land_cost(sim, company_id, x, y, int(definition.width), int(definition.depth))
+			if owner.cash - cost >= reserve:
+				command["strategic_score"] = housing - people if type_id in ["apartments", "block"] else workforce - jobs
+				return command
+	return {}
 	return {}
 
 func _staffing_commands(sim, company_id: String, available_cash: int, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> Array[Dictionary]:

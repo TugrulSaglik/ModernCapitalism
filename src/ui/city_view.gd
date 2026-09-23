@@ -2,6 +2,8 @@ class_name CityView
 extends Node3D
 
 signal facility_selected(id: String)
+signal property_selected(id: String)
+signal parcel_selected(x: int, y: int)
 signal placement_requested(x: int, y: int)
 signal placement_changed(reason: String)
 signal placement_cancelled
@@ -24,6 +26,9 @@ var map_width: int = 32
 var map_depth: int = 24
 var max_zoom: float = 65.0
 var parcel_overlay: Node3D
+var property_structures: Node3D
+var property_buildings: Dictionary = {}
+var selected_property: String = ""
 
 func build(state: Dictionary) -> void:
 	var palette: Array[Color] = [Color("699eaf"), Color("c99563"), Color("927cbb"), Color("51bda0"), Color("dc7b80")]
@@ -61,7 +66,8 @@ func build(state: Dictionary) -> void:
 				_box(self, pos + Vector3(0, 0.015, 0), Vector3(CELL, 0.03, CELL), Color("394953"))
 			if road and map.road_classes.get(CityMap.key(x, y), "") == "major" and x % 2 == 0:
 				_box(self, pos + Vector3(0, 0.045, 0), Vector3(0.5, 0.025, 0.045), Color("c9c7a7"))
-	_build_ambient(map)
+	property_structures = Node3D.new()
+	add_child(property_structures)
 	parcel_overlay = Node3D.new()
 	add_child(parcel_overlay)
 	_refresh_parcel_overlay()
@@ -82,6 +88,12 @@ func cell_position(x: float, y: float) -> Vector3:
 	return Vector3((x - (map_width - 1) / 2.0) * CELL, 0, (y - (map_depth - 1) / 2.0) * CELL)
 
 func sync(state: Dictionary) -> void:
+	if property_structures != null:
+		for child: Node in property_structures.get_children():
+			property_structures.remove_child(child)
+			child.queue_free()
+		property_buildings.clear()
+		_build_ambient(state.city)
 	for child: Node in structures.get_children():
 		structures.remove_child(child)
 		child.queue_free()
@@ -141,6 +153,7 @@ func sync(state: Dictionary) -> void:
 		body.add_child(label)
 		buildings[f.id] = {"body": body, "mesh": band, "color": colors[f.company], "label": label, "outline": outline}
 	select(selected)
+	select_property(selected_property)
 	_refresh_parcel_overlay()
 
 func _refresh_parcel_overlay() -> void:
@@ -160,14 +173,17 @@ func _refresh_parcel_overlay() -> void:
 func _build_ambient(map: Dictionary) -> void:
 	var tones: Array[Color] = [Color("c4b49b"), Color("bec0b4"), Color("b2b7bc"), Color("d2c5af"), Color("a8b6ac")]
 	for b: Dictionary in map.ambient.values():
+		var body: StaticBody3D = StaticBody3D.new()
+		body.set_meta("property_id", str(b.id))
+		property_structures.add_child(body)
 		var center: Vector3 = cell_position(b.x + (b.width - 1) / 2.0, b.y + (b.depth - 1) / 2.0)
 		var h: float = 0.65 + int(b.height) * 0.65
 		var sx: float = b.width * CELL - 0.65
 		var sz: float = b.depth * CELL - 0.65
 		var color: Color = tones[b.tone]
 		if b.kind == "office": color = Color("839ba5")
-		_box(self, center + Vector3(0, h / 2, 0), Vector3(sx, h, sz), color)
-		_box(self, center + Vector3(0, h, 0), Vector3(sx + 0.1, 0.15, sz + 0.1), Color("707a7b") if b.kind != "house" else Color("946d59"))
+		var facade: MeshInstance3D = _box(body, center + Vector3(0, h / 2, 0), Vector3(sx, h, sz), color)
+		_box(body, center + Vector3(0, h, 0), Vector3(sx + 0.1, 0.15, sz + 0.1), Color("707a7b") if b.kind != "house" else Color("946d59"))
 		if b.roof == 1 and b.kind == "house":
 			var roof: MeshInstance3D = MeshInstance3D.new()
 			var prism: PrismMesh = PrismMesh.new()
@@ -175,23 +191,30 @@ func _build_ambient(map: Dictionary) -> void:
 			roof.mesh = prism
 			roof.material_override = _material(Color("946d59").darkened(b.tone * 0.035))
 			roof.position = center + Vector3(0, h + 0.32, 0)
-			add_child(roof)
+			body.add_child(roof)
 		if b.kind == "house":
-			_box(self, center + Vector3(sx * 0.28, 0.35, sz / 2 + 0.04), Vector3(0.32, 0.7, 0.06), Color("756653"))
+			_box(body, center + Vector3(sx * 0.28, 0.35, sz / 2 + 0.04), Vector3(0.32, 0.7, 0.06), Color("756653"))
 			# Saved tone/orientation choose deterministic garden details.
 			if b.tone % 2 == 0:
 				var tree: Vector3 = center + Vector3(-sx / 2 - 0.13, 0, sz / 2 + 0.08)
-				_box(self, tree + Vector3(0, 0.3, 0), Vector3(0.12, 0.6, 0.12), Color("756653"))
-				_box(self, tree + Vector3(0, 0.85, 0), Vector3(0.58, 0.8, 0.58), Color("5c8468"))
+				_box(body, tree + Vector3(0, 0.3, 0), Vector3(0.12, 0.6, 0.12), Color("756653"))
+				_box(body, tree + Vector3(0, 0.85, 0), Vector3(0.58, 0.8, 0.58), Color("5c8468"))
 		for floor_index: int in range(int(b.height)):
 			var window_y: float = 0.55 + floor_index * 0.65
 			if b.kind in ["apartments", "block"]:
 				for window: int in range(3):
-					_box(self, center + Vector3((window - 1) * sx * 0.27, window_y, sz / 2 + 0.025), Vector3(sx * 0.16, 0.27, 0.04), Color("526975"))
+					_box(body, center + Vector3((window - 1) * sx * 0.27, window_y, sz / 2 + 0.025), Vector3(sx * 0.16, 0.27, 0.04), Color("526975"))
 			else:
-				_box(self, center + Vector3(0, window_y, sz / 2 + 0.025), Vector3(sx * 0.65, 0.22, 0.04), Color("526975"))
+				_box(body, center + Vector3(0, window_y, sz / 2 + 0.025), Vector3(sx * 0.65, 0.22, 0.04), Color("526975"))
 			if b.orientation == 1:
-				_box(self, center + Vector3(sx / 2 + 0.025, window_y, 0), Vector3(0.04, 0.22, sz * 0.65), Color("526975"))
+				_box(body, center + Vector3(sx / 2 + 0.025, window_y, 0), Vector3(0.04, 0.22, sz * 0.65), Color("526975"))
+		var collision: CollisionShape3D = CollisionShape3D.new()
+		var shape: BoxShape3D = BoxShape3D.new()
+		shape.size = Vector3(sx, h, sz)
+		collision.position = center + Vector3(0, h / 2, 0)
+		collision.shape = shape
+		body.add_child(collision)
+		property_buildings[str(b.id)] = {"facade": facade, "color": color}
 
 func focus_cell(x: float, y: float) -> void:
 	focus = cell_position(clampf(x, 0, map_width - 1), clampf(y, 0, map_depth - 1))
@@ -219,6 +242,12 @@ func select(id: String) -> void:
 		record.mesh.material_override.albedo_color = Color("ffe190") if key == selected else record.color
 		record.label.visible = key == selected
 		record.outline.visible = key == selected
+
+func select_property(id: String) -> void:
+	selected_property = id
+	for key: String in property_buildings:
+		var record: Dictionary = property_buildings[key]
+		record.facade.material_override.albedo_color = record.color.lightened(0.18) if key == id else record.color
 
 func begin_placement(type_id: String, product: String) -> void:
 	build_type = type_id
@@ -306,5 +335,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 			if not hit.is_empty() and hit.collider.has_meta("facility_id"):
 				facility_selected.emit(str(hit.collider.get_meta("facility_id")))
+			elif not hit.is_empty() and hit.collider.has_meta("property_id"):
+				property_selected.emit(str(hit.collider.get_meta("property_id")))
 			else:
-				facility_selected.emit("")
+				var ground: Variant = Plane(Vector3.UP, 0).intersects_ray(origin, camera.project_ray_normal(event.position))
+				if ground != null:
+					parcel_selected.emit(int(floor(ground.x / CELL + map_width / 2.0)), int(floor(ground.z / CELL + map_depth / 2.0)))

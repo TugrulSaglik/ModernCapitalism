@@ -121,7 +121,7 @@ func snapshot() -> Dictionary:
 func restore(state: Dictionary, facilities: Array[SimFacility], catalog: SimCatalog) -> bool:
 	if not _fields_match(state, snapshot()) or state.id != id or state.name != display_name or state.terrain != "grass" or state.next_facility < 1 or state.next_facility > 1000000 or state.plots.size() != facilities.size():
 		return false
-	if not restore_foundation(state): return false
+	if not restore_foundation(state, catalog): return false
 	plots.clear()
 	for f: SimFacility in facilities:
 		var p: Variant = state.plots.get(f.id)
@@ -203,7 +203,7 @@ func roads_connected() -> bool:
 	return seen.size() == roads.size()
 
 # Hydrate authoritative data; generation is deliberately not called on load.
-func restore_foundation(state: Dictionary) -> bool:
+func restore_foundation(state: Dictionary, catalog: SimCatalog) -> bool:
 	if not _fields_match(state.generation, {"version": 0, "seed": "", "settings": {}, "preset": ""}) or not str(state.generation.seed).is_valid_int(): return false
 	if state.generation.preset == "legacy":
 		if state.generation.version != 0 or not state.generation.settings.is_empty() or not state.road_classes.is_empty(): return false
@@ -256,13 +256,13 @@ func restore_foundation(state: Dictionary) -> bool:
 	for object_id: String in state.ambient:
 		var b: Variant = state.ambient[object_id]
 		if not _fields_match(b, {"id": "", "kind": "", "x": 0, "y": 0, "width": 0, "depth": 0, "district": "", "capacity": 0, "population": 0, "height": 0, "tone": 0, "roof": 0, "orientation": 0, "owner": ""}): return false
-		if b.id != object_id or object_id != "ambient_%03d_%03d" % [b.x, b.y] or not CityGenerator.KINDS.has(b.kind) or not b.owner.is_empty(): return false
-		var definition: Dictionary = CityGenerator.KINDS[b.kind]
-		if b.width != definition.width or b.depth != definition.depth or b.capacity != definition.capacity or b.height != definition.height or b.population < 0 or b.population > b.capacity or b.tone < 0 or b.tone > 4 or b.roof not in [0, 1] or b.orientation not in [0, 1]: return false
+		if b.id != object_id or (not object_id.begins_with("ambient_") and not object_id.begins_with("property_")) or not catalog.property_types.has(b.kind): return false
+		var definition: Dictionary = catalog.property_types[b.kind]
+		if b.width != definition.width or b.depth != definition.depth or b.capacity != definition.residential_capacity or b.height != definition.height or b.population < 0 or b.population > b.capacity or b.tone < 0 or b.tone > 4 or b.roof not in [0, 1] or b.orientation not in [0, 1]: return false
 		if not placement_error(b.x, b.y, b.width, b.depth).is_empty() or b.district != parcels[key(b.x, b.y)].district: return false
 		ambient[object_id] = b.duplicate(true)
 	recalculate_population()
-	return population == state.population and districts == state.districts
+	return population.total == state.population.get("total") and population.capacity == state.population.get("capacity") and population.purchasing_power == state.population.get("purchasing_power") and districts == state.districts
 
 static func _fields_match(value: Variant, template: Dictionary) -> bool:
 	if not value is Dictionary:

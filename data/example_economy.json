@@ -1,5 +1,5 @@
 {
-  "version": 9,
+  "version": 10,
   "staff_roles": [
     {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000, "effect": "operations_capacity_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
     {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000, "effect": "advertising_progress_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
@@ -415,10 +415,18 @@
       "base_quality": 50
     }
   ],
+  "property_types": [
+    {"id": "house", "name": "House", "use": "residential", "width": 2, "depth": 2, "cost": 2500000, "residential_capacity": 12, "job_capacity": 0, "height": 1},
+    {"id": "apartments", "name": "Apartments", "use": "residential", "width": 2, "depth": 2, "cost": 12000000, "residential_capacity": 70, "job_capacity": 0, "height": 3},
+    {"id": "block", "name": "Residential block", "use": "residential", "width": 3, "depth": 2, "cost": 30000000, "residential_capacity": 150, "job_capacity": 0, "height": 5},
+    {"id": "office", "name": "Office", "use": "office", "width": 2, "depth": 2, "cost": 18000000, "residential_capacity": 0, "job_capacity": 100, "height": 4},
+    {"id": "commercial", "name": "Commercial", "use": "commercial", "width": 2, "depth": 2, "cost": 9000000, "residential_capacity": 0, "job_capacity": 40, "height": 2}
+  ],
   "facility_types": [
     {
       "width": 4,
       "id": "component_plant",
+      "jobs": 30,
       "cost": 3500000,
       "capacity": 40,
       "behavior": "production",
@@ -443,6 +451,7 @@
     {
       "width": 4,
       "id": "assembly_plant",
+      "jobs": 30,
       "cost": 4500000,
       "capacity": 18,
       "behavior": "production",
@@ -475,6 +484,7 @@
     {
       "width": 3,
       "id": "electronics_store",
+      "jobs": 12,
       "cost": 2000000,
       "capacity": 24,
       "behavior": "retail",
@@ -507,6 +517,7 @@
     {
       "width": 2,
       "id": "convenience_store",
+      "jobs": 8,
       "cost": 1000000,
       "capacity": 10,
       "behavior": "retail",
@@ -548,6 +559,7 @@
     {
       "width": 4,
       "id": "department_store",
+      "jobs": 25,
       "cost": 3200000,
       "capacity": 35,
       "behavior": "retail",
@@ -589,6 +601,7 @@
     {
       "width": 5,
       "id": "warehouse",
+      "jobs": 12,
       "cost": 2500000,
       "capacity": 100,
       "behavior": "storage",
@@ -629,6 +642,7 @@
     },
     {
       "id": "research_center",
+      "jobs": 20,
       "name": "R&D center",
       "behavior": "research",
       "category": "Corporate",
@@ -644,6 +658,7 @@
     },
     {
       "id": "corporate_headquarters",
+      "jobs": 25,
       "name": "Corporate headquarters",
       "behavior": "headquarters",
       "category": "Corporate",

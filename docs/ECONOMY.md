@@ -1,5 +1,23 @@
 # Economic model
 
+## Milestone 10 city growth and property
+
+Procedural city population now changes through deterministic monthly migration.
+Its target is the lesser of 95% of housing capacity and twice aggregate job capacity;
+movement closes roughly one twelfth of the gap and is capped near 2% of current
+population per month. Residents are allocated across residential properties by
+capacity and then district population and purchasing power are recomputed. Existing
+`ConsumerDemand` reads those values without a property-specific demand bonus.
+
+Jobs include catalog-defined operating facility jobs, office/commercial property
+capacity and a fixed initial outside-sector baseline. Workforce is half of
+population; employed is the lesser of workforce and jobs. Property job occupancy
+is allocated deterministically after the baseline and facility jobs. Buildings earn
+gross monthly rent at 12% annual yield on current parcel value plus replacement
+construction value, multiplied by occupancy. Maintenance is 25% of collected rent.
+Owned building basis depreciates straight line over 3,650 days; land never does.
+See [real estate](REAL_ESTATE.md) for commands, accounts and persistence.
+
 ## Milestone 9 corporate finance
 
 Each company has 1,000,000 initial integer shares. Player Electronics starts

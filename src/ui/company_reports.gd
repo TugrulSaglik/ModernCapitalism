@@ -4,7 +4,7 @@ extends VBoxContainer
 signal command_requested(command: Dictionary)
 
 const PERIOD_KEYS: Array[String] = ["current_month", "previous_month", "ttm", "year"]
-const TAB_TITLES: Array[String] = ["Income Statement", "Balance Sheet", "Cash Flow", "Markets", "History", "Companies", "Finance"]
+const TAB_TITLES: Array[String] = ["Income Statement", "Balance Sheet", "Cash Flow", "Markets", "History", "Companies", "Finance", "Properties"]
 
 class ReportScroll:
 	extends ScrollContainer
@@ -373,6 +373,7 @@ func refresh() -> void:
 		4: _history(owner, sim.clock)
 		5: _companies(sim)
 		6: _finance(sim, owner)
+		7: _properties(sim, owner)
 
 func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	var period: Dictionary = FinancialReports.period(owner, clock, PERIOD_KEYS[periods.selected])
@@ -381,6 +382,7 @@ func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	_section("REVENUE")
 	amount("Retail sales", int(period.retail_revenue))
 	amount("Wholesale sales", int(period.wholesale_revenue))
+	amount("Property rent", int(period.property_revenue))
 	amount("Total revenue", int(period.revenue), "subtotal")
 	_section("COST OF GOODS SOLD")
 	amount("Cost of goods sold", int(period.cogs))
@@ -391,6 +393,7 @@ func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	amount("R&D research", int(period.research_expense))
 	amount("Advertising", int(period.advertising_expense))
 	amount("Payroll", int(period.payroll_expense))
+	amount("Property maintenance", int(period.property_maintenance))
 	amount("Other expenses / disposal losses", int(period.other_expenses))
 	amount("Total operating expenses", int(period.expenses), "subtotal")
 	amount("Operating profit", int(period.revenue) - int(period.cogs) - int(period.expenses), "subtotal")
@@ -409,6 +412,10 @@ func _balance_sheet(sim: Economy, owner: SimCompany) -> void:
 	amount("On-hand inventory", int(balance.inventory))
 	amount("Inventory in transit", int(balance.in_transit))
 	amount("Equity investments at cost", int(balance.equity_investments))
+	amount("Land at cost", int(balance.land))
+	amount("Property buildings at cost", int(balance.property_cost))
+	outflow_amount("Less property depreciation", int(balance.property_depreciation))
+	amount("Net property buildings", int(balance.net_property), "subtotal")
 	add_row("Fixed assets", "", false, "group")
 	amount("Fixed assets at cost", int(balance.fixed_cost))
 	outflow_amount("Less accumulated depreciation", int(balance.accumulated_depreciation))
@@ -437,6 +444,8 @@ func _cash_flow(owner: SimCompany, clock: SimClock) -> void:
 	amount("Net operating cash", int(period.operating_cash), "subtotal")
 	_section("INVESTING ACTIVITIES")
 	outflow_amount("Construction", int(period.capex))
+	outflow_amount("Land acquisition", int(period.land_capex))
+	outflow_amount("Property development/acquisition", int(period.property_capex))
 	outflow_amount("Share purchases", int(period.equity_purchase_cash))
 	amount("Share sale proceeds", int(period.equity_sale_cash))
 	amount("Dividend receipts", int(period.dividend_receipts))
@@ -506,6 +515,53 @@ func _companies(sim: Economy) -> void:
 				item.set_custom_bg_color(column, ModernUITheme.SURFACE_RAISED)
 		if company.profit() < 0:
 			item.set_custom_color(3, ModernUITheme.NEGATIVE)
+
+func _properties(sim: Economy, owner: SimCompany) -> void:
+	_setup_table(8, ["Property", "Type", "District", "Land basis", "Building NBV", "Occupancy", "Gross rent", "Net rent"], [3, 2, 2, 2, 2, 2, 2, 2])
+	_set_report("Properties", "Owned portfolio and city growth", "Land and buildings are carried at cost; rent estimates use current property value and occupancy.")
+	var p: Dictionary = sim.city.population
+	_section("CITY OVERVIEW")
+	add_row("Population", str(p.total))
+	add_row("Housing capacity", str(p.get("housing_capacity", p.capacity)))
+	add_row("Workforce / jobs", "%d / %d" % [int(p.get("workforce", 0)), int(p.get("jobs", 0))])
+	add_row("Employed / unemployed", "%d / %d" % [int(p.get("employed", 0)), int(p.get("unemployed", 0))])
+	add_row("Purchasing power", "%d%%" % int(p.purchasing_power))
+	_section("PORTFOLIO")
+	var ids: Array = sim.real_estate.properties.keys()
+	ids.sort()
+	var gross_total: int = 0
+	for id: String in ids:
+		var b: Dictionary = sim.real_estate.properties[id]
+		if b.owner != owner.id: continue
+		var definition: Dictionary = sim.catalog.property_types[str(b.type)]
+		var land_basis: int = 0
+		for cell: String in b.land_cells: land_basis += int(sim.real_estate.land[cell].basis)
+		var capacity: int = int(definition.residential_capacity) if definition.use == "residential" else int(definition.job_capacity)
+		var occupied: int = int(b.population) if definition.use == "residential" else int(b.occupied_jobs)
+		var gross: int = sim.real_estate.gross_rent(sim, b)
+		gross_total += gross
+		var row: TreeItem = table.create_item(table.get_root())
+		var values: Array[String] = [id, str(definition.name), str(b.district), money(land_basis), money(int(b.building_cost) - int(b.depreciation)), "%d / %d" % [occupied, capacity], money(gross), money(gross - gross * 25 / 100)]
+		for column: int in range(values.size()): row.set_text(column, values[column])
+	var vacant_cells: int = 0
+	var vacant_basis: int = 0
+	for cell: String in sim.real_estate.land:
+		var holding: Dictionary = sim.real_estate.land[cell]
+		if holding.owner != owner.id: continue
+		var occupied: bool = false
+		for b: Dictionary in sim.real_estate.properties.values():
+			if cell in b.land_cells: occupied = true
+		for plot: Dictionary in sim.city.plots.values():
+			if cell in sim.real_estate.cells(int(plot.x), int(plot.y), int(plot.width), int(plot.depth)): occupied = true
+		if not occupied:
+			vacant_cells += 1
+			vacant_basis += int(holding.basis)
+	_section("SUMMARY")
+	add_row("Vacant owned land", "%d cells • %s" % [vacant_cells, money(vacant_basis)])
+	amount("Land at cost", sim.real_estate.land_assets(owner.id))
+	amount("Property buildings net", sim.real_estate.building_assets(owner.id))
+	amount("Monthly gross rent", gross_total)
+	amount("Monthly maintenance", gross_total * 25 / 100)
 
 func _finance(sim: Economy, owner: SimCompany) -> void:
 	_set_report("Corporate Finance", "Managing " + owner.display_name, "Deterministic end-of-day fundamental quotes. Unrealized gains are informational, not profit.")

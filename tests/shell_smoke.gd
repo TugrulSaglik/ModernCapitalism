@@ -22,7 +22,7 @@ func _run() -> void:
 	check(screen.get_node("ShellMargin/ShellColumn/TopApplicationBar") != null, "Application bar exists")
 	check(screen.get_node("ShellMargin/ShellColumn/BottomHudBar") != null, "Bottom HUD exists")
 	check(screen.facility_list.get_parent().name == "FacilityContextBar", "Facility selector is contextual")
-	check(screen.facility_list.get_item_text(0) == "No facility selected" and screen.facility_list.get_item_text(1).contains(" • "), "Facility selector has neutral state and readable entries")
+	check(screen.facility_list.get_item_text(0) == "Select a facility, property or parcel" and screen.facility_list.get_item_text(1).contains(" • "), "Context selector has neutral state and readable facility entries")
 	screen._show_company()
 	check(screen.overview.visible and screen.world_input_blocked(), "Company opens reports and blocks world input")
 	screen.overview.hide()

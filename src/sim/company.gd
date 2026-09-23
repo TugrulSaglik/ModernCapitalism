@@ -21,6 +21,10 @@ var retail_revenue: int = 0
 var production_cash: int = 0
 var cash_expenses: int = 0
 var capex: int = 0
+var land_capex: int = 0
+var property_capex: int = 0
+var property_revenue: int = 0
+var property_maintenance: int = 0
 var research_expense: int = 0
 var advertising_expense: int = 0
 var payroll_expense: int = 0
@@ -80,10 +84,10 @@ var recorded_accounts: Dictionary = {}
 var archived_months: Array[Dictionary] = []
 
 func accounts() -> Dictionary:
-	return {"revenue": revenue, "retail_revenue": retail_revenue, "wholesale_revenue": revenue - retail_revenue,
+	return {"revenue": revenue, "retail_revenue": retail_revenue, "property_revenue": property_revenue, "wholesale_revenue": revenue - retail_revenue - property_revenue,
 		"cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense, "payroll_expense": payroll_expense, "freight": freight, "depreciation": depreciation,
 		"profit": profit(), "purchases": purchases, "production_cash": production_cash,
-		"cash_expenses": cash_expenses, "capex": capex, "capital": capital, "cash": cash,
+		"cash_expenses": cash_expenses, "capex": capex, "land_capex": land_capex, "property_capex": property_capex, "property_maintenance": property_maintenance, "capital": capital, "cash": cash,
 		"equity_purchase_cash": equity_purchase_cash, "equity_sale_cash": equity_sale_cash,
 		"equity_issue_cash": equity_issue_cash, "investment_income": investment_income,
 		"realized_investment_gain": realized_investment_gain, "dividend_receipts": dividend_receipts,
@@ -161,7 +165,7 @@ func profit() -> int:
 	return revenue - cogs - expenses + investment_income + realized_investment_gain
 
 func snapshot() -> Dictionary:
-	return {"staff_counts": staff_counts.duplicate(true), "staff_payroll_funded": staff_payroll_funded, "product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "advertising_inactive_days": advertising_inactive_days.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
+	return {"staff_counts": staff_counts.duplicate(true), "staff_payroll_funded": staff_payroll_funded, "product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "advertising_inactive_days": advertising_inactive_days.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "property_revenue": property_revenue, "property_maintenance": property_maintenance, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "land_capex": land_capex, "property_capex": property_capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
 		"freight": freight, "purchases": purchases, "depreciation": depreciation,
 		"recorded_profit": recorded_profit, "daily_history": daily_history.duplicate(true), "monthly_history": monthly_history.duplicate(true),
 		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense, "payroll_expense": payroll_expense,

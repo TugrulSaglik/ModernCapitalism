@@ -1,6 +1,25 @@
 # Technical architecture
 
-## Current milestone
+## Milestone 10 real estate
+
+`Economy.real_estate` is the authoritative economic model for cell-level land
+ownership, building records, housing and job occupancy, migration, rent and property
+depreciation. `CityMap` remains the spatial authority for parcels, terrain, roads,
+facility plots, visual ambient footprints and districts. `CityGenerator` reads the
+same catalog `property_types` definitions used by real estate. New properties have
+monotonic IDs; generated ambient IDs remain stable. City visual records mirror
+property population and owner so demand and rendering use existing city paths.
+
+At the between-day command boundary, property and facility builds acquire required
+unowned land at current parcel value. Land basis and property building basis remain
+separate company assets. Calendar day 1 migrates residents and settles rent;
+property building depreciation runs daily. All accounts use the existing company
+history and financial reports. Save schema 18 persists property and employment state
+and validates it during exact restore. Catalog 10 defines property types and
+facility jobs; save format remains 2. The legacy fixture retains fixed population
+and does not expose real-estate commands. See [real estate](REAL_ESTATE.md).
+
+## Milestone 9 (historical checkpoint)
 
 Milestone 9 adds `EquityMarket` under Economy. It owns security registries,
 aggregate founder/public float shares, corporate holdings with weighted-average
@@ -326,10 +345,10 @@ Generation proceeds in a fixed order:
    already placed businesses. No old scenario coordinates enter this selection.
 5. Ambient development fills road frontage, with occasional vacant blocks retained
    for construction. Housing type/density favors the center. Five data records in
-   CityGenerator.KINDS define houses, apartments, larger blocks, offices and generic
-   commercial buildings. Properties have stable coordinate IDs, footprints, district,
-   capacity, occupied residents, empty owner ID and saved appearance fields.
-   They have no SimFacility, company, inventory, ledger or daily economic tick.
+   catalog property types define houses, apartments, larger blocks, offices and
+   generic commercial buildings. Properties have stable coordinate IDs, footprints,
+   district, capacity and saved appearance fields. At the Milestone 5 checkpoint
+   they had empty owner IDs and no ledger; Milestone 10 adds economic records.
 
 Districts are West Gardens, Central Quarter and Harbor District. Each stores a
 development character, purchasing power, population, capacity and average land value.

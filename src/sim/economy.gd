@@ -9,6 +9,7 @@ const Demand = preload("res://src/sim/demand.gd")
 const Sourcing = preload("res://src/sim/sourcing.gd")
 const StrategicAIPlanner = preload("res://src/sim/strategic_ai.gd")
 const EquityMarketModel = preload("res://src/sim/equity_market.gd")
+const RealEstateModel = preload("res://src/sim/real_estate.gd")
 
 var catalog: SimCatalog
 var clock: SimClock
@@ -31,6 +32,7 @@ var city: CityMap = CityMap.new()
 var logistics: Logistics = Logistics.new()
 var strategic_ai: StrategicAI = StrategicAIPlanner.new()
 var equity_market: EquityMarket = EquityMarketModel.new()
+var real_estate: RealEstate = RealEstateModel.new()
 # Derived/debug-only trace. It is intentionally excluded from snapshots.
 var strategic_trace: Array[Dictionary] = []
 
@@ -97,6 +99,9 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 				if product_public(product) and product != new_facility.product_id: new_facility.assortment[product] = int(int(catalog.products[product].reference_price) * 1.3)
 	city = CityMap.new()
 	var success: bool = city.initialize(facilities, catalog, seed_value, city_settings)
+	if success:
+		real_estate = RealEstateModel.new()
+		real_estate.initialize(self)
 	category_market.clear()
 	market_history.clear()
 	return success
@@ -255,6 +260,8 @@ func _ai_research() -> void:
 	for command: Dictionary in strategic_ai.research_commands(self): queue_command(command)
 
 func command_error(command: Dictionary) -> String:
+	if str(command.get("type", "")) in ["buy_land", "acquire_property", "develop_property", "demolish_property", "redevelop_property"]:
+		return property_command_error(command)
 	if str(command.get("type", "")) in ["buy_shares", "sell_shares", "issue_shares", "declare_dividend"]:
 		return equity_market.command_error(command, companies)
 	if str(command.get("type", "")) == "build_facility":
@@ -348,6 +355,49 @@ func command_error(command: Dictionary) -> String:
 			return "Unknown management command."
 	return ""
 
+func property_command_error(command: Dictionary) -> String:
+	var owner: String = str(command.get("company", ""))
+	if not companies.has(owner): return "Unknown property owner."
+	if city.generation.preset == "legacy": return "Real estate is unavailable on the legacy board."
+	var action: String = str(command.get("type", ""))
+	if action == "buy_land":
+		for field: String in ["x", "y", "width", "depth"]:
+			if not command.get(field) is int: return "Land coordinates and size must be integers."
+		var error: String = real_estate.land_error(self, owner, int(command.x), int(command.y), int(command.width), int(command.depth))
+		if not error.is_empty(): return error
+		if companies[owner].cash < real_estate.land_cost(self, owner, int(command.x), int(command.y), int(command.width), int(command.depth)): return "Insufficient cash for land."
+		return ""
+	if action in ["acquire_property", "demolish_property", "redevelop_property"]:
+		var id: String = str(command.get("property", ""))
+		if not real_estate.properties.has(id): return "Unknown property."
+		var b: Dictionary = real_estate.properties[id]
+		if action == "acquire_property":
+			if not str(b.owner).is_empty(): return "Property is already company owned."
+			var land_error: String = real_estate.land_error(self, owner, int(b.x), int(b.y), int(b.width), int(b.depth), false, id)
+			if not land_error.is_empty(): return land_error
+			var cost: int = real_estate.land_cost(self, owner, int(b.x), int(b.y), int(b.width), int(b.depth)) + int(catalog.property_types[str(b.type)].cost)
+			return "" if companies[owner].cash >= cost else "Insufficient cash for acquisition."
+		if b.owner != owner: return "Company does not own this property."
+		if action == "demolish_property": return ""
+		var type_id: String = str(command.get("property_type", ""))
+		if not catalog.property_types.has(type_id): return "Unknown property type."
+		var definition: Dictionary = catalog.property_types[type_id]
+		var error: String = real_estate.land_error(self, owner, int(b.x), int(b.y), int(definition.width), int(definition.depth), true, id)
+		if not error.is_empty(): return error
+		var cost: int = real_estate.land_cost(self, owner, int(b.x), int(b.y), int(definition.width), int(definition.depth)) + int(definition.cost)
+		return "" if companies[owner].cash >= cost else "Insufficient cash for redevelopment."
+	if action == "develop_property":
+		var type_id: String = str(command.get("property_type", ""))
+		if not catalog.property_types.has(type_id): return "Unknown property type."
+		if not command.get("x") is int or not command.get("y") is int: return "Choose integer city cells."
+		if real_estate.next_property >= 1000000: return "Property ID limit reached."
+		var definition: Dictionary = catalog.property_types[type_id]
+		var error: String = real_estate.land_error(self, owner, int(command.x), int(command.y), int(definition.width), int(definition.depth), true)
+		if not error.is_empty(): return error
+		var cost: int = real_estate.land_cost(self, owner, int(command.x), int(command.y), int(definition.width), int(definition.depth)) + int(definition.cost)
+		return "" if companies[owner].cash >= cost else "Insufficient cash for development."
+	return "Unknown property command."
+
 func _apply_commands() -> void:
 	command_results.clear()
 	for command: Dictionary in pending_commands:
@@ -355,6 +405,11 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"buy_land": real_estate.buy_land(self, str(command.company), int(command.x), int(command.y), int(command.width), int(command.depth))
+				"acquire_property": real_estate.acquire(self, str(command.company), str(command.property))
+				"develop_property": real_estate.develop(self, str(command.company), str(command.property_type), int(command.x), int(command.y))
+				"demolish_property": real_estate.demolish(self, str(command.property))
+				"redevelop_property": real_estate.redevelop(self, str(command.property), str(command.property_type))
 				"buy_shares", "sell_shares", "issue_shares", "declare_dividend": equity_market.apply(command, companies)
 				"hire_staff":
 					var role: String = str(command.role)
@@ -393,6 +448,7 @@ func _apply_commands() -> void:
 				"set_supplier": target.suppliers[str(command.product)] = str(command.get("supplier", ""))
 				"set_operating": target.operating = bool(command.operating)
 				"set_stock_days": target.stock_days = int(command.days)
+			if str(command.type) in ["build_facility", "demolish_facility", "set_operating", "develop_property", "demolish_property", "redevelop_property"]: real_estate.recalculate(self, true)
 		command_results.append({"command": command, "accepted": error.is_empty(), "error": error})
 	pending_commands.clear()
 
@@ -420,13 +476,18 @@ func construction_error(command: Dictionary) -> String:
 	var error: String = city.placement_error(command.x, command.y, int(definition.width), int(definition.depth))
 	if not error.is_empty():
 		return error
-	if companies[str(command.company)].cash < int(definition.cost):
+	if city.generation.preset != "legacy":
+		error = real_estate.land_error(self, str(command.company), int(command.x), int(command.y), int(definition.width), int(definition.depth), true)
+		if not error.is_empty(): return error
+	var land_cost: int = 0 if city.generation.preset == "legacy" else real_estate.land_cost(self, str(command.company), int(command.x), int(command.y), int(definition.width), int(definition.depth))
+	if companies[str(command.company)].cash < int(definition.cost) + land_cost:
 		return "Insufficient cash for construction."
 	return ""
 
 func _construct(command: Dictionary) -> void:
 	var definition: Dictionary = catalog.facility_types[str(command.archetype)]
 	var owner: SimCompany = companies[str(command.company)]
+	if city.generation.preset != "legacy": real_estate.buy_land(self, owner.id, int(command.x), int(command.y), int(definition.width), int(definition.depth))
 	owner.spend(int(definition.cost))
 	owner.capex += int(definition.cost)
 	var product: String = str(command.get("product", ""))
@@ -701,9 +762,13 @@ func step() -> void:
 	_ai_decisions()
 	_ai_research()
 	_apply_commands()
+	if clock.day == 1:
+		real_estate.migrate(self)
+		real_estate.monthly_rent(self)
 	market.clear()
 	_payroll()
 	_advertise()
+	real_estate.depreciate(self)
 	logistics.deliver(self)
 	for f: SimFacility in facilities:
 		if f.asset_cost > 0 and f.asset_days < 3650:
@@ -807,6 +872,7 @@ func inventory_assets(company_id: String) -> int:
 
 func invariant_errors() -> Array[String]:
 	var errors: Array[String] = []
+	errors.append_array(real_estate.invariant_errors(self))
 	errors.append_array(equity_market.invariant_errors(companies))
 	var headquarters_owners: Dictionary = {}
 	var previous_id: int = 0
@@ -824,7 +890,7 @@ func invariant_errors() -> Array[String]:
 			if not catalog.staff_roles.has(role) or not owner.staff_counts[role] is int or int(owner.staff_counts[role]) < 0: errors.append("Staff count: " + owner.id + "/" + role)
 		if owner.total_staff() > 0 and (headquarters(owner.id) == null or owner.total_staff() > staff_capacity(owner.id)): errors.append("Staff headquarters/capacity: " + owner.id)
 		if owner.staff_payroll_funded and owner.total_staff() == 0: errors.append("Funded payroll without staff: " + owner.id)
-		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) + equity_market.investment_cost(owner.id) != owner.capital + owner.profit() - owner.dividends_paid:
+		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) + real_estate.land_assets(owner.id) + real_estate.building_assets(owner.id) + equity_market.investment_cost(owner.id) != owner.capital + owner.profit() - owner.dividends_paid:
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
 		if _behavior(f) == "headquarters":
@@ -853,7 +919,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 17, "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 18, "real_estate": real_estate.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

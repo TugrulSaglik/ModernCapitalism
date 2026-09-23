@@ -31,9 +31,13 @@
 | 8C — Strategic competitor AI (implemented) | Deterministic monthly market entry, investment, staffing, sourcing, warehouses and business-aligned research | 8UI-C |
 | 8D — Difficulty and balancing (implemented) | Fixed session difficulty, no-cheat StrategicAI profiles and deterministic balance matrix | 8C |
 | 9 — Corporate finance (implemented) | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
-| 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
+| 10 — City growth and property (implemented) | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
 | 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
 | 12 — Modes and complete-game production | Tutorial campaign, full sandbox setup, catalog breadth, finished art/audio/accessibility/tutorial presentation and final balancing | 1–11 |
+
+Milestone 10 adds the [real-estate model](REAL_ESTATE.md) on the procedural
+city foundation. Current versions are economy schema 18, catalog 10, save format 2.
+Milestone 11, Regional scale and trade, is next.
 
 Milestone 5 replaces the fixed starting board in normal games without changing the
 daily economic scheduler or logistics contracts. Save schema 5 stores generated
@@ -43,9 +47,8 @@ explicit regression fixture; its existing checks remain alongside generated-city
 Milestone 6 makes market size and financial outcomes inspectable before
 introducing property ownership or international trade. Keep the current population
 model as its aggregate input and preserve existing price/quality responses. Land
-values are currently estimates only; a future ownership milestone must define
-non-depreciating land assets and demolition/redevelopment treatment before charging
-for acquisition.
+values were estimates at that checkpoint; Milestone 10 now uses them as acquisition
+prices while owned land remains carried at cost.
 
 Supplier reliability scoring, fleet/route capacity and traffic remain possible
 extensions. Every milestone preserves deterministic headless execution, exact save

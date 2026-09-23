@@ -52,7 +52,21 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 9
+## Milestone 10
+
+Milestone 10 is implemented. Procedural cities now have company-owned land at cost,
+acquirable ambient buildings, residential/office/commercial development and
+redevelopment, gradual monthly migration, aggregate employment, rent, maintenance,
+and building depreciation. Facilities automatically acquire unowned land when
+constructed. Property activity flows through company accounts and statements;
+StrategicAI may make one conservative property investment instead of a facility
+investment in its monthly capital pass. City selection and the Company → Properties
+tab expose land, occupancy, costs, rent and city growth. Current versions are
+**economy schema 18 / catalog 10 / save format 2**. See [real-estate rules](docs/REAL_ESTATE.md).
+
+Milestone 11, Regional scale and trade, is next.
+
+## Milestone 9 (historical checkpoint)
 
 Milestone 9 is implemented. The Company → Finance tab now shows deterministic
 public securities, share portfolios, cost basis, capital structure and recent daily
@@ -65,7 +79,6 @@ Financial statements carry investments at cost and classify investment and capit
 cash flows separately. Current versions are **economy schema 17 / catalog 9 / save
 format 2**. See [corporate finance rules](docs/CORPORATE_FINANCE.md).
 
-Milestone 10, City growth and property, is next.
 
 ## Milestone 8D
 

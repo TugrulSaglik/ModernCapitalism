@@ -4,13 +4,6 @@ extends RefCounted
 # Generator version is metadata; saves store the result, never regenerate it.
 const VERSION: int = 1
 const DEFAULTS: Dictionary = {"width": 48, "depth": 36}
-const KINDS: Dictionary = {
-	"house": {"width": 2, "depth": 2, "capacity": 12, "height": 1},
-	"apartments": {"width": 2, "depth": 2, "capacity": 70, "height": 3},
-	"block": {"width": 3, "depth": 2, "capacity": 150, "height": 5},
-	"office": {"width": 2, "depth": 2, "capacity": 0, "height": 4},
-	"commercial": {"width": 2, "depth": 2, "capacity": 0, "height": 2}
-}
 
 static func generate(city: CityMap, seed_value: int, settings: Dictionary, facilities: Array[SimFacility], catalog: SimCatalog) -> bool:
 	for field: String in settings:
@@ -88,12 +81,12 @@ static func generate(city: CityMap, seed_value: int, settings: Dictionary, facil
 			if density > 0.55: kind = "block" if rng.randi_range(0, 2) == 0 else "apartments"
 			elif density > 0.25: kind = "apartments" if rng.randi_range(0, 2) == 0 else "house"
 			if rng.randi_range(0, 5) == 0: kind = "office" if density > 0.4 else "commercial"
-			var definition: Dictionary = KINDS[kind]
+			var definition: Dictionary = catalog.property_types[kind]
 			if not city.placement_error(x, y, definition.width, definition.depth).is_empty(): continue
 			# Preserve occasional large vacant frontages for later player construction.
 			if (x / 7 + y / 7) % 4 == 0: continue
 			var id: String = "ambient_%03d_%03d" % [x, y]
-			var capacity: int = definition.capacity
+			var capacity: int = int(definition.residential_capacity)
 			city.ambient[id] = {"id": id, "kind": kind, "x": x, "y": y, "width": int(definition.width), "depth": int(definition.depth),
 				"district": city.parcels[CityMap.key(x, y)].district, "capacity": capacity, "population": capacity * rng.randi_range(80, 95) / 100,
 				"height": int(definition.height), "tone": rng.randi_range(0, 4), "roof": rng.randi_range(0, 1), "orientation": rng.randi_range(0, 1), "owner": ""}

@@ -1,5 +1,14 @@
 # Corporate finance (Milestone 9)
 
+Milestone 10 adds land at acquisition cost and property buildings net of
+depreciation to the ordinary company balance sheet. The equity-market fundamental
+continues to use contributed capital plus cumulative profit less dividends, which
+reconciles to total book assets including land and property. No separate property
+premium or unrealized land gain is recognized. Rent, maintenance, development and
+disposal use the ordinary company account history; property and land cash purchases
+are investing outflows. Current versions are economy schema 18, catalog 10 and save
+format 2. See [real estate](REAL_ESTATE.md).
+
 ## Registry and initial ownership
 
 `EquityMarket` is the authoritative security registry inside `Economy`. Each

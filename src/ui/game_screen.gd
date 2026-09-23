@@ -66,6 +66,17 @@ var status_kind: String = "normal"
 var build_category: Label
 var build_action: Button
 var build_cancel: Button
+var property_panel: VBoxContainer
+var property_details: Label
+var property_type_choice: OptionButton
+var property_action: Button
+var property_acquire: Button
+var property_demolish: Button
+var property_buy_land: Button
+var property_confirm: ConfirmationDialog
+var selected_property: String = ""
+var selected_parcel: Vector2i = Vector2i(-1, -1)
+var property_pending: Dictionary = {}
 
 func _ready() -> void:
 	theme = UITheme.build()
@@ -121,6 +132,7 @@ func _ready() -> void:
 	management_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inspector_scroll.add_child(management_host)
 	management_host.add_child(inspector)
+	_build_property_panel(management_host)
 	# FacilityPanel owns its internal management scroll; give it the content height
 	# while this shell-level scroll constrains the panel to the workspace viewport.
 	inspector.custom_minimum_size.y = inspector.tabs.get_combined_minimum_size().y + UITheme.SPACE_3 * 2
@@ -130,7 +142,7 @@ func _ready() -> void:
 	_build_construction(management_host)
 	_build_bottom_hud(column)
 	minimap = CityMinimap.new()
-	minimap.position = Vector2(22, 145)
+	minimap.position = Vector2(22, 192)
 	add_child(minimap)
 	minimap.city = city
 	minimap.map = session.sim.city
@@ -182,7 +194,7 @@ func _build_context_bar(parent: VBoxContainer) -> void:
 	row.name = "FacilityContextBar"
 	parent.add_child(row)
 	var label: Label = Label.new()
-	label.text = "FACILITY"
+	label.text = "CONTEXT"
 	label.theme_type_variation = "MetricLabel"
 	label.custom_minimum_size.x = 70
 	row.add_child(label)
@@ -272,6 +284,8 @@ func _build_city() -> void:
 		minimap.map = session.sim.city
 		minimap.queue_redraw()
 	city.facility_selected.connect(select_facility)
+	city.property_selected.connect(select_property)
+	city.parcel_selected.connect(select_parcel)
 	city.placement_requested.connect(_place)
 	city.placement_changed.connect(func(reason: String) -> void:
 		_update_placement_feedback(reason))
@@ -282,6 +296,11 @@ func _build_city() -> void:
 	_refresh_facility_list()
 
 func select_facility(id: String) -> void:
+	selected_property = ""
+	selected_parcel = Vector2i(-1, -1)
+	if facility_list != null and facility_list.item_count > 0: facility_list.set_item_text(0, "Select a facility, property or parcel")
+	if property_panel != null: property_panel.hide()
+	city.select_property("")
 	if session.sim.facility(id) == null:
 		selected_id = ""
 		inspector.selected_id = ""
@@ -296,6 +315,149 @@ func select_facility(id: String) -> void:
 	for index: int in range(facility_list.item_count):
 		if facility_list.get_item_metadata(index) == id:
 			facility_list.select(index)
+
+func _build_property_panel(parent: Node) -> void:
+	property_panel = VBoxContainer.new()
+	property_panel.name = "PropertyInspector"
+	property_panel.custom_minimum_size.x = 410
+	parent.add_child(property_panel)
+	var title: Label = Label.new()
+	title.text = "PROPERTY & LAND"
+	title.theme_type_variation = "TitleLabel"
+	property_panel.add_child(title)
+	property_details = Label.new()
+	property_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	property_details.custom_minimum_size = Vector2(400, 250)
+	property_panel.add_child(property_details)
+	var selector_title: Label = Label.new()
+	selector_title.text = "DEVELOPMENT TYPE"
+	selector_title.theme_type_variation = "SectionLabel"
+	property_panel.add_child(selector_title)
+	property_type_choice = OptionButton.new()
+	for id: String in session.sim.catalog.property_types:
+		property_type_choice.add_item(str(session.sim.catalog.property_types[id].name))
+		property_type_choice.set_item_metadata(property_type_choice.item_count - 1, id)
+	property_panel.add_child(property_type_choice)
+	property_type_choice.item_selected.connect(func(_index: int) -> void: _refresh_property_panel())
+	property_action = _button(property_panel, "Develop property", _property_develop)
+	property_buy_land = _button(property_panel, "Buy this land cell", func() -> void:
+		var accepted: bool = session.submit({"type": "buy_land", "x": selected_parcel.x, "y": selected_parcel.y, "width": 1, "depth": 1})
+		_set_status(session.message, "success" if accepted else "error")
+		_refresh_property_panel())
+	property_acquire = _button(property_panel, "Acquire existing property", _property_acquire)
+	property_demolish = _button(property_panel, "Demolish property", _property_demolish)
+	property_demolish.theme_type_variation = "DestructiveButton"
+	property_confirm = ConfirmationDialog.new()
+	property_confirm.title = "Confirm property action"
+	add_child(property_confirm)
+	property_confirm.confirmed.connect(func() -> void: _apply_property_command(property_pending))
+	property_panel.hide()
+
+func select_property(id: String) -> void:
+	if not session.sim.real_estate.properties.has(id): return
+	select_facility("")
+	construction.hide()
+	city.cancel_placement()
+	selected_property = id
+	var b: Dictionary = session.sim.real_estate.properties[id]
+	selected_parcel = Vector2i(int(b.x), int(b.y))
+	city.select_property(id)
+	property_panel.show()
+	facility_list.set_item_text(0, "%s • %s" % [str(session.sim.catalog.property_types[str(b.type)].name), id])
+	_refresh_property_panel()
+
+func select_parcel(x: int, y: int) -> void:
+	if not session.sim.city.parcels.has(CityMap.key(x, y)):
+		select_facility("")
+		return
+	var info: Dictionary = session.sim.city.parcel_info(x, y)
+	if not str(info.occupant).is_empty():
+		if session.sim.real_estate.properties.has(str(info.occupant)): select_property(str(info.occupant))
+		else: select_facility(str(info.occupant))
+		return
+	select_facility("")
+	construction.hide()
+	selected_parcel = Vector2i(x, y)
+	property_panel.show()
+	facility_list.set_item_text(0, "Parcel %d,%d • %s" % [x, y, str(info.get("district", ""))])
+	_refresh_property_panel()
+
+func _refresh_property_panel() -> void:
+	if property_panel == null or not property_panel.visible: return
+	var sim: Economy = session.sim
+	var estate: RealEstate = sim.real_estate
+	var city_info: Dictionary = sim.city.population
+	var city_line: String = "CITY  Population %d / housing %d  •  Workforce %d\nJobs %d  •  Employed %d  •  Unemployed %d  •  Purchasing power %d%%" % [city_info.total, city_info.get("housing_capacity", city_info.capacity), city_info.get("workforce", 0), city_info.get("jobs", 0), city_info.get("employed", 0), city_info.get("unemployed", 0), city_info.purchasing_power]
+	var type_id: String = str(property_type_choice.get_item_metadata(property_type_choice.selected)) if property_type_choice.selected >= 0 else "apartments"
+	var definition: Dictionary = sim.catalog.property_types[type_id]
+	var b: Dictionary = estate.properties.get(selected_property, {})
+	var x: int = selected_parcel.x
+	var y: int = selected_parcel.y
+	if not b.is_empty():
+		x = int(b.x)
+		y = int(b.y)
+	var parcel: Dictionary = sim.city.parcel_info(x, y)
+	var land_owner: String = str(estate.land.get(CityMap.key(x, y), {}).get("owner", ""))
+	var owner_name: String = "Outside sector" if b.is_empty() or str(b.owner).is_empty() else str(sim.companies[str(b.owner)].display_name)
+	var road_access: bool = bool(parcel.get("road_access", false))
+	if not b.is_empty():
+		for cell: String in b.land_cells:
+			var parts: PackedStringArray = cell.split(",")
+			road_access = road_access or sim.city.touches_road(int(parts[0]), int(parts[1]))
+	var detail: String = "LOCATION  %d, %d  •  %s\nLand value $%.2f per cell  •  Road access %s  •  Waterfront %s\nLand owner  %s\n" % [x, y, str(parcel.get("district", "")), int(parcel.get("land_value", 0)) / 100.0, "Yes" if road_access else "No", "Yes" if parcel.get("waterfront", false) else "No", "Unowned" if land_owner.is_empty() else str(sim.companies[land_owner].display_name)]
+	if not b.is_empty():
+		var current: Dictionary = sim.catalog.property_types[str(b.type)]
+		var capacity: int = int(current.residential_capacity) if int(current.residential_capacity) > 0 else int(current.job_capacity)
+		var occupied: int = int(b.population) if int(current.residential_capacity) > 0 else int(b.occupied_jobs)
+		var gross: int = estate.gross_rent(sim, b)
+		detail += "\n%s  •  %s\nOwner  %s\nBuilding basis $%.2f  •  Book value $%.2f\n%s  %d / %d (%d%%)\nMonthly rent $%.2f  •  Maintenance $%.2f\nNet rent $%.2f  •  Accumulated depreciation $%.2f\n" % [str(current.name), str(current.use), owner_name, int(b.building_cost) / 100.0, (int(b.building_cost) - int(b.depreciation)) / 100.0, "Residents" if current.use == "residential" else "Jobs", occupied, capacity, occupied * 100 / maxi(1, capacity), gross / 100.0, (gross * 25 / 100) / 100.0, (gross - gross * 25 / 100) / 100.0, int(b.depreciation) / 100.0]
+	var land_cost: int = estate.land_cost(sim, session.active_company, x, y, int(definition.width), int(definition.depth))
+	var full_value: int = int(definition.cost)
+	for cell: String in estate.cells(x, y, int(definition.width), int(definition.depth)): full_value += int(sim.city.parcels.get(cell, {}).get("land_value", 0))
+	detail += "\nPROJECT  %s • %d × %d cells\nBuilding $%.2f  •  Additional land $%.2f  •  Total $%.2f\nCapacity %d %s  •  Full occupancy gross rent $%.2f / month\n\n%s" % [str(definition.name), int(definition.width), int(definition.depth), int(definition.cost) / 100.0, maxi(0, land_cost) / 100.0, (int(definition.cost) + maxi(0, land_cost)) / 100.0, int(definition.residential_capacity) if definition.use == "residential" else int(definition.job_capacity), "residents" if definition.use == "residential" else "jobs", (full_value * 12 / 1200) / 100.0, city_line]
+	property_details.text = detail
+	var owned: bool = not b.is_empty() and str(b.owner) == session.active_company
+	var unowned_property: bool = not b.is_empty() and str(b.owner).is_empty()
+	property_action.text = "Redevelop property" if owned else "Develop property"
+	property_action.visible = owned or b.is_empty()
+	property_buy_land.visible = b.is_empty() and land_owner.is_empty()
+	property_buy_land.disabled = not sim.property_command_error({"type": "buy_land", "company": session.active_company, "x": x, "y": y, "width": 1, "depth": 1}).is_empty()
+	property_action.disabled = not sim.property_command_error({"type": "redevelop_property", "company": session.active_company, "property": selected_property, "property_type": type_id} if owned else {"type": "develop_property", "company": session.active_company, "property_type": type_id, "x": x, "y": y}).is_empty()
+	property_acquire.visible = unowned_property
+	property_acquire.disabled = not unowned_property or not sim.property_command_error({"type": "acquire_property", "company": session.active_company, "property": selected_property}).is_empty()
+	property_demolish.visible = owned
+	property_action.tooltip_text = sim.property_command_error({"type": "redevelop_property", "company": session.active_company, "property": selected_property, "property_type": type_id} if owned else {"type": "develop_property", "company": session.active_company, "property_type": type_id, "x": x, "y": y})
+
+func _property_develop() -> void:
+	var type_id: String = str(property_type_choice.get_item_metadata(property_type_choice.selected))
+	if selected_property.is_empty():
+		_apply_property_command({"type": "develop_property", "property_type": type_id, "x": selected_parcel.x, "y": selected_parcel.y})
+	else:
+		_confirm_property({"type": "redevelop_property", "property": selected_property, "property_type": type_id}, "Write off this building and redevelop the site?")
+
+func _property_acquire() -> void:
+	_confirm_property({"type": "acquire_property", "property": selected_property}, "Acquire this property at land value plus replacement cost?")
+
+func _property_demolish() -> void:
+	_confirm_property({"type": "demolish_property", "property": selected_property}, "Demolish this building? Its remaining book value will be expensed; land stays owned.")
+
+func _confirm_property(command: Dictionary, question: String) -> void:
+	property_pending = command
+	property_confirm.dialog_text = question
+	property_confirm.popup_centered()
+
+func _apply_property_command(command: Dictionary) -> void:
+	var id: String = selected_property
+	var accepted: bool = session.submit(command)
+	if accepted:
+		city.sync(session.sim.snapshot())
+		if command.type == "develop_property" or command.type == "redevelop_property":
+			select_property("property_%06d" % (session.sim.real_estate.next_property - 1))
+		elif command.type == "demolish_property": select_parcel(selected_parcel.x, selected_parcel.y)
+		else: select_property(id)
+		_set_status(session.message, "success")
+	else: _set_status(session.message, "error")
+	refresh()
 
 func _process(delta: float) -> void:
 	if session.sim == null:
@@ -327,10 +489,14 @@ func _input(event: InputEvent) -> void:
 
 func refresh() -> void:
 	session._refresh_active_company()
-	if city.buildings.keys() != session.sim.city.plots.keys():
+	if city.buildings.keys() != session.sim.city.plots.keys() or city.property_buildings.keys() != session.sim.city.ambient.keys():
+		var restore_property: String = selected_property
+		var restore_parcel: Vector2i = selected_parcel
 		city.sync(session.sim.snapshot())
 		_refresh_facility_list()
-		select_facility(selected_id)
+		if not restore_property.is_empty() and session.sim.real_estate.properties.has(restore_property): select_property(restore_property)
+		elif restore_parcel.x >= 0: select_parcel(restore_parcel.x, restore_parcel.y)
+		else: select_facility(selected_id)
 	_refresh_managed_companies()
 	var owner: SimCompany = session.sim.companies[session.active_company]
 	company_name_label.text = owner.display_name
@@ -344,6 +510,7 @@ func refresh() -> void:
 	for speed: int in speed_buttons:
 		speed_buttons[speed].button_pressed = session.time.speed == speed
 	inspector.refresh()
+	if property_panel != null and property_panel.visible: _refresh_property_panel()
 	var message: String = status_override if not status_override.is_empty() else session.message
 	status.text = "%s | Pending commands: %d" % [message, session.sim.pending_commands.size()]
 	status.theme_type_variation = "NegativeLabel" if status_kind == "error" else ("PositiveLabel" if status_kind == "success" else "StatusLabel")
@@ -662,11 +829,11 @@ func _update_company() -> void:
 	reports.refresh()
 
 func world_input_blocked() -> bool:
-	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition, app_menu, save_browser, overwrite_confirmation, load_confirmation, new_session_confirmation])
+	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition, property_confirm, app_menu, save_browser, overwrite_confirmation, load_confirmation, new_session_confirmation])
 
 func _refresh_facility_list() -> void:
 	facility_list.clear()
-	facility_list.add_item("No facility selected")
+	facility_list.add_item("Select a facility, property or parcel")
 	facility_list.set_item_metadata(0, "")
 	for f: SimFacility in session.sim.facilities:
 		var definition: Dictionary = session.sim.catalog.facility_types.get(f.type_id, {})
@@ -775,7 +942,9 @@ func _choose_build() -> void:
 	if definition.behavior == "research": capacity_value = int(definition.get("research_rate", capacity_value))
 	elif definition.behavior == "headquarters": capacity_value = int(definition.get("staff_capacity", capacity_value))
 	var suffix: String = "/day" if definition.behavior in ["production", "retail", "research"] else (" units" if definition.behavior == "storage" else " staff")
-	build_details.text = "FACILITY DETAILS\nCost  $%.2f  •  Footprint  %d × %d cells\n%s  %d%s  •  Daily overhead  $%.2f\n%s" % [definition.cost / 100.0, definition.width, definition.depth, capacity_label, capacity_value, suffix, definition.overhead / 100.0, definition.description]
+	var land_cost: int = 0
+	if city.preview_cell.x >= 0 and session.sim.city.generation.preset != "legacy": land_cost = maxi(0, session.sim.real_estate.land_cost(session.sim, session.active_company, city.preview_cell.x, city.preview_cell.y, int(definition.width), int(definition.depth)))
+	build_details.text = "FACILITY DETAILS\nBuilding  $%.2f  •  Land acquisition  $%.2f  •  Total  $%.2f\nFootprint  %d × %d cells  •  %s  %d%s\nDaily overhead  $%.2f\n%s" % [definition.cost / 100.0, land_cost / 100.0, (int(definition.cost) + land_cost) / 100.0, definition.width, definition.depth, capacity_label, capacity_value, suffix, definition.overhead / 100.0, definition.description]
 	_begin_preview()
 
 func _begin_preview() -> void:
@@ -817,6 +986,15 @@ func _update_difficulty_description() -> void:
 
 func _update_placement_feedback(reason: String) -> void:
 	if build_reason == null: return
+	if construction != null and construction.visible and build_choices != null and build_choices.selected >= 0 and not build_choices.is_item_separator(build_choices.selected):
+		var definition: Dictionary = session.sim.catalog.facility_types[str(build_choices.get_item_metadata(build_choices.selected))]
+		var land_cost: int = 0
+		if session.sim.city.generation.preset != "legacy" and city.preview_cell.x >= 0:
+			land_cost = maxi(0, session.sim.real_estate.land_cost(session.sim, session.active_company, city.preview_cell.x, city.preview_cell.y, int(definition.width), int(definition.depth)))
+		var detail_lines: PackedStringArray = build_details.text.split("\n")
+		if detail_lines.size() > 1:
+			detail_lines[1] = "Building  $%.2f  •  Land acquisition  $%.2f  •  Total  $%.2f" % [int(definition.cost) / 100.0, land_cost / 100.0, (int(definition.cost) + land_cost) / 100.0]
+			build_details.text = "\n".join(detail_lines)
 	var lines: PackedStringArray = reason.split("\n")
 	var detail: String = "\n".join(lines.slice(1))
 	if city.preview_error.is_empty():
