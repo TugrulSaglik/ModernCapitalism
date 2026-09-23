@@ -152,7 +152,7 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 16 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 17 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
@@ -209,10 +209,13 @@ func restore(state: Dictionary) -> Economy:
 		template.known_technologies = {}
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex", "research_expense", "advertising_expense", "payroll_expense"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "production_cash", "cash_expenses", "capex", "research_expense", "advertising_expense", "payroll_expense", "equity_purchase_cash", "equity_sale_cash", "equity_issue_cash", "investment_income", "dividend_receipts", "dividends_paid"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
+		if not item.realized_investment_gain is int or absi(item.realized_investment_gain) > 100000000000000 or not item.ttm_profit_cached is int or absi(item.ttm_profit_cached) > 100000000000000: return null
+		owner.realized_investment_gain = item.realized_investment_gain
+		owner.ttm_profit_cached = item.ttm_profit_cached
 		if item.staff_counts.size() != sim.catalog.staff_roles.size(): return null
 		for role: String in item.staff_counts:
 			if not sim.catalog.staff_roles.has(role) or not item.staff_counts[role] is int or item.staff_counts[role] < 0: return null
@@ -396,6 +399,17 @@ func restore(state: Dictionary) -> Economy:
 			if not sim.technology_public(technology): return null
 			for prerequisite: String in sim.catalog.technologies[technology].prerequisites:
 				if int(owner.known_technologies[prerequisite]) > int(owner.known_technologies[technology]): return null
+	if not state.equity_market is Dictionary or state.equity_market.size() != sim.companies.size(): return null
+	for id: String in sim.companies:
+		if not state.equity_market.has(id) or not shape(state.equity_market[id], sim.equity_market.securities[id]): return null
+		var security: Dictionary = state.equity_market[id]
+		if security.company != id or not security.public is bool or not nonnegative(security.outstanding) or security.outstanding < 1 or not nonnegative(security.founder) or not nonnegative(security.float) or not nonnegative(security.quote) or security.quote < 1 or not security.holdings is Dictionary or not security.history is Array: return null
+		for holder: String in security.holdings:
+			if not sim.companies.has(holder) or holder == id or not shape(security.holdings[holder], {"shares": 0, "cost": 0}) or not nonnegative(security.holdings[holder].shares) or security.holdings[holder].shares == 0 or not nonnegative(security.holdings[holder].cost): return null
+		for row: Variant in security.history:
+			if not shape(row, {"date": "", "price": 0}) or not nonnegative(row.price) or row.price < 1 or not _valid_share_date(row.date) or row.date > sim.clock.date_string(): return null
+	sim.equity_market.securities = state.equity_market.duplicate(true)
+	if not sim.equity_market.invariant_errors(sim.companies).is_empty(): return null
 	for command: Variant in state.pending_commands:
 		if not command is Dictionary or not sim.command_error(command).is_empty():
 			return null
@@ -478,9 +492,9 @@ func _valid_financial_history(owner: SimCompany) -> bool:
 	for row: Dictionary in all_months:
 		if not shape(row, owner.accounts()) or not shape(row, {"opening_cash": 0, "closing_cash": 0}) or str(row.month) <= previous_month: return false
 		if int(row.opening_cash) != previous_cash or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
-		if int(row.revenue) - int(row.cogs) - int(row.expenses) != int(row.profit): return false
+		if int(row.revenue) - int(row.cogs) - int(row.expenses) + int(row.investment_income) + int(row.realized_investment_gain) != int(row.profit): return false
 		if int(row.retail_revenue) + int(row.wholesale_revenue) != int(row.revenue): return false
-		if int(row.revenue) - int(row.purchases) - int(row.production_cash) - int(row.cash_expenses) - int(row.capex) + int(row.capital) != int(row.cash): return false
+		if int(row.revenue) - int(row.purchases) - int(row.production_cash) - int(row.cash_expenses) - int(row.capex) - int(row.equity_purchase_cash) + int(row.equity_sale_cash) + int(row.dividend_receipts) + int(row.capital) - int(row.dividends_paid) != int(row.cash): return false
 		for field: String in totals: totals[field] += int(row[field])
 		previous_cash = int(row.closing_cash)
 		previous_month = row.month
@@ -490,7 +504,7 @@ func _valid_financial_history(owner: SimCompany) -> bool:
 	if owner.recorded_profit != int(owner.recorded_accounts.profit): return false
 	for row: Dictionary in owner.daily_history:
 		if not shape(row, owner.accounts()) or not shape(row, {"opening_cash": 0, "closing_cash": 0}): return false
-		if int(row.revenue) - int(row.cogs) - int(row.expenses) != int(row.profit) or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
+		if int(row.revenue) - int(row.cogs) - int(row.expenses) + int(row.investment_income) + int(row.realized_investment_gain) != int(row.profit) or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
 	return true
 
 func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
@@ -538,3 +552,17 @@ func _valid_market(sim: Economy, product: String, record: Variant) -> bool:
 	for field: String in ["average_price", "average_quality", "average_brand", "average_overall", "local_share", "market_share"]:
 		if expected[field] != record[field]: return false
 	return true
+
+func _valid_share_date(value: String) -> bool:
+	if value.length() != 10 or value.substr(4, 1) != "-" or value.substr(7, 1) != "-": return false
+	var year_text: String = value.substr(0, 4)
+	var month_text: String = value.substr(5, 2)
+	var day_text: String = value.substr(8, 2)
+	if not year_text.is_valid_int() or not month_text.is_valid_int() or not day_text.is_valid_int(): return false
+	var year: int = int(year_text)
+	var month: int = int(month_text)
+	var day: int = int(day_text)
+	if year < 1 or month < 1 or month > 12: return false
+	var days: Array[int] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+	if month == 2 and year % 4 == 0 and (year % 100 != 0 or year % 400 == 0): return day >= 1 and day <= 29
+	return day >= 1 and day <= days[month - 1]

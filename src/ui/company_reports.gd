@@ -4,7 +4,7 @@ extends VBoxContainer
 signal command_requested(command: Dictionary)
 
 const PERIOD_KEYS: Array[String] = ["current_month", "previous_month", "ttm", "year"]
-const TAB_TITLES: Array[String] = ["Income Statement", "Balance Sheet", "Cash Flow", "Markets", "History", "Companies"]
+const TAB_TITLES: Array[String] = ["Income Statement", "Balance Sheet", "Cash Flow", "Markets", "History", "Companies", "Finance"]
 
 class ReportScroll:
 	extends ScrollContainer
@@ -37,6 +37,16 @@ var market_benchmark: Tree
 var corporate_offers: Tree
 var company_shares: Tree
 var segment_potential: Tree
+var finance_content: VBoxContainer
+var securities_tree: Tree
+var portfolio_tree: Tree
+var security_details: Tree
+var capital_tree: Tree
+var prices_tree: Tree
+var security_choice: OptionButton
+var trade_quantity: SpinBox
+var issue_quantity: SpinBox
+var dividend_amount: SpinBox
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(760, 510)
@@ -93,6 +103,7 @@ func _ready() -> void:
 	table.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	report_scroll.add_child(table)
 	_build_market_content()
+	_build_finance_content()
 	report_note = Label.new()
 	report_note.theme_type_variation = "MetaLabel"
 	report_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -165,6 +176,74 @@ func _build_market_content() -> void:
 	_section_label(market_content, "SEGMENT POTENTIAL")
 	segment_potential = _market_tree(market_content, 2, ["Segment", "Potential"], [4, 2])
 	market_content.hide()
+
+func _build_finance_content() -> void:
+	finance_content = VBoxContainer.new()
+	finance_content.name = "FinanceContent"
+	finance_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	finance_content.add_theme_constant_override("separation", ModernUITheme.SPACE_3)
+	report_scroll.add_child(finance_content)
+	_section_label(finance_content, "MARKET / SECURITIES")
+	securities_tree = _market_tree(finance_content, 7, ["Company", "Status", "Price", "Market cap", "Shares", "Float", "TTM profit"], [3, 1, 1, 2, 2, 2, 2])
+	var row: HBoxContainer = HBoxContainer.new()
+	finance_content.add_child(row)
+	_control_label(row, "SELECTED SECURITY")
+	security_choice = OptionButton.new()
+	security_choice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(security_choice)
+	security_choice.item_selected.connect(func(_index: int) -> void: refresh())
+	security_details = _market_tree(finance_content, 2, ["Metric", "Value"], [3, 2])
+	_section_label(finance_content, "TRADE AGAINST PUBLIC FLOAT")
+	var trade_row: HBoxContainer = HBoxContainer.new()
+	finance_content.add_child(trade_row)
+	trade_quantity = _finance_input(trade_row, "Shares", 1000000)
+	var buy_button: Button = Button.new()
+	buy_button.text = "Buy shares"
+	trade_row.add_child(buy_button)
+	buy_button.pressed.connect(func() -> void: _trade("buy_shares"))
+	var sell_button: Button = Button.new()
+	sell_button.text = "Sell shares"
+	trade_row.add_child(sell_button)
+	sell_button.pressed.connect(func() -> void: _trade("sell_shares"))
+	_section_label(finance_content, "CORPORATE PORTFOLIO")
+	portfolio_tree = _market_tree(finance_content, 7, ["Company", "Shares", "Ownership", "Cost", "Value", "Unrealized P/L", "Control"], [3, 2, 2, 2, 2, 2, 2])
+	_section_label(finance_content, "CAPITAL STRUCTURE")
+	capital_tree = _market_tree(finance_content, 2, ["Metric", "Value"], [3, 2])
+	var issue_row: HBoxContainer = HBoxContainer.new()
+	finance_content.add_child(issue_row)
+	issue_quantity = _finance_input(issue_row, "New shares", 1000000)
+	var issue_button: Button = Button.new()
+	issue_button.text = "Go public / issue shares"
+	issue_button.name = "IssueShares"
+	issue_row.add_child(issue_button)
+	issue_button.pressed.connect(func() -> void: command_requested.emit({"type": "issue_shares", "quantity": int(issue_quantity.value)}))
+	var dividend_row: HBoxContainer = HBoxContainer.new()
+	finance_content.add_child(dividend_row)
+	dividend_amount = _finance_input(dividend_row, "Dividend cents/share", 1000000)
+	var dividend_button: Button = Button.new()
+	dividend_button.text = "Declare dividend"
+	dividend_button.name = "DeclareDividend"
+	dividend_row.add_child(dividend_button)
+	dividend_button.pressed.connect(func() -> void: command_requested.emit({"type": "declare_dividend", "per_share": int(dividend_amount.value)}))
+	_section_label(finance_content, "RECENT DAILY PRICES")
+	prices_tree = _market_tree(finance_content, 2, ["Date", "Price"], [3, 2])
+	finance_content.hide()
+
+func _finance_input(parent: HBoxContainer, label_text: String, maximum: int) -> SpinBox:
+	_control_label(parent, label_text)
+	var input: SpinBox = SpinBox.new()
+	input.min_value = 1
+	input.max_value = maximum
+	input.step = 1
+	input.rounded = true
+	input.value = 1
+	input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(input)
+	return input
+
+func _trade(action: String) -> void:
+	if security_choice.selected < 0: return
+	command_requested.emit({"type": action, "target": str(security_choice.get_item_metadata(security_choice.selected)), "quantity": int(trade_quantity.value)})
 
 func _section_label(parent: Control, text_value: String) -> Label:
 	var label: Label = Label.new()
@@ -273,7 +352,7 @@ func refresh() -> void:
 	if session == null or table == null:
 		return
 	var sim: Economy = session.sim
-	var owner: SimCompany = sim.companies[session.player_company]
+	var owner: SimCompany = sim.companies[session.active_company]
 	company_name.text = owner.display_name
 	company_date.text = sim.clock.date_string()
 	var report_tab: int = tabs.current_tab
@@ -282,8 +361,9 @@ func refresh() -> void:
 	period_label.visible = period_visible
 	periods.visible = period_visible
 	report_controls.visible = period_visible
-	table.visible = not market_visible
+	table.visible = not market_visible and report_tab != 6
 	market_content.visible = market_visible
+	finance_content.visible = report_tab == 6
 	table.tooltip_text = ""
 	match report_tab:
 		0: _income_statement(owner, sim.clock)
@@ -292,11 +372,12 @@ func refresh() -> void:
 		3: _market(sim)
 		4: _history(owner, sim.clock)
 		5: _companies(sim)
+		6: _finance(sim, owner)
 
 func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	var period: Dictionary = FinancialReports.period(owner, clock, PERIOD_KEYS[periods.selected])
 	_setup_table(2, ["Account", "Amount"], [5, 2])
-	_set_report("Income Statement", periods.get_item_text(periods.selected), "No tax or interest; net profit equals operating profit.")
+	_set_report("Income Statement", periods.get_item_text(periods.selected), "Investment results are shown separately from product sales.")
 	_section("REVENUE")
 	amount("Retail sales", int(period.retail_revenue))
 	amount("Wholesale sales", int(period.wholesale_revenue))
@@ -312,7 +393,11 @@ func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	amount("Payroll", int(period.payroll_expense))
 	amount("Other expenses / disposal losses", int(period.other_expenses))
 	amount("Total operating expenses", int(period.expenses), "subtotal")
-	amount("Operating / net profit", int(period.profit), "total")
+	amount("Operating profit", int(period.revenue) - int(period.cogs) - int(period.expenses), "subtotal")
+	_section("INVESTMENT RESULTS")
+	amount("Dividend income", int(period.investment_income))
+	amount("Realized investment gain / loss", int(period.realized_investment_gain))
+	amount("Net profit", int(period.profit), "total")
 
 func _balance_sheet(sim: Economy, owner: SimCompany) -> void:
 	var balance: Dictionary = FinancialReports.balance(sim, owner.id)
@@ -323,6 +408,7 @@ func _balance_sheet(sim: Economy, owner: SimCompany) -> void:
 	amount("Cash", int(balance.cash))
 	amount("On-hand inventory", int(balance.inventory))
 	amount("Inventory in transit", int(balance.in_transit))
+	amount("Equity investments at cost", int(balance.equity_investments))
 	add_row("Fixed assets", "", false, "group")
 	amount("Fixed assets at cost", int(balance.fixed_cost))
 	outflow_amount("Less accumulated depreciation", int(balance.accumulated_depreciation))
@@ -350,9 +436,15 @@ func _cash_flow(owner: SimCompany, clock: SimClock) -> void:
 	outflow_amount("Cash expenses including freight", int(period.cash_expenses))
 	amount("Net operating cash", int(period.operating_cash), "subtotal")
 	_section("INVESTING ACTIVITIES")
-	amount("Construction / investing cash", int(period.investing_cash), "subtotal")
+	outflow_amount("Construction", int(period.capex))
+	outflow_amount("Share purchases", int(period.equity_purchase_cash))
+	amount("Share sale proceeds", int(period.equity_sale_cash))
+	amount("Dividend receipts", int(period.dividend_receipts))
+	amount("Net investing cash", int(period.investing_cash), "subtotal")
 	_section("FINANCING ACTIVITIES")
-	amount("Capital / financing cash", int(period.financing_cash), "subtotal")
+	amount("Share issue proceeds", int(period.equity_issue_cash))
+	outflow_amount("Dividends paid", int(period.dividends_paid))
+	amount("Net financing cash", int(period.financing_cash), "subtotal")
 	amount("Net cash movement", int(period.net_cash), "total")
 	amount("Closing cash", int(period.closing_cash), "total")
 	_section("RECONCILIATION")
@@ -390,15 +482,18 @@ func _history(owner: SimCompany, clock: SimClock) -> void:
 			item.set_custom_color(2, ModernUITheme.NEGATIVE)
 
 func _companies(sim: Economy) -> void:
-	_setup_table(4, ["Company", "Cash", "Revenue", "Accumulated profit"], [3, 2, 2, 2])
+	_setup_table(6, ["Company", "Cash", "Revenue", "Profit", "Status", "Market cap"], [3, 2, 2, 2, 1, 2])
 	_set_report("Company Comparison", "Cumulative since scenario start", "Revenue includes wholesale transactions; summing firms does not measure consumer spending.")
 	for company: SimCompany in sim.companies.values():
 		var item: TreeItem = table.create_item(table.get_root())
-		var is_player: bool = company.id == session.player_company
+		var is_player: bool = company.id == session.active_company
 		item.set_text(0, company.display_name + ("  •  YOU" if is_player else ""))
 		item.set_text(1, money(company.cash))
 		item.set_text(2, money(company.revenue))
 		item.set_text(3, money(company.profit()))
+		var security: Dictionary = sim.equity_market.securities[company.id]
+		item.set_text(4, "Public" if security.public else "Private")
+		item.set_text(5, money(int(security.quote) * int(security.outstanding)))
 		for column: int in range(1, 4):
 			item.set_text_alignment(column, HORIZONTAL_ALIGNMENT_RIGHT)
 		item.set_metadata(0, company.id)
@@ -407,10 +502,59 @@ func _companies(sim: Economy) -> void:
 		item.set_metadata(3, company.profit())
 		if is_player:
 			item.set_custom_color(0, ModernUITheme.ACCENT)
-			for column: int in range(4):
+			for column: int in range(6):
 				item.set_custom_bg_color(column, ModernUITheme.SURFACE_RAISED)
 		if company.profit() < 0:
 			item.set_custom_color(3, ModernUITheme.NEGATIVE)
+
+func _finance(sim: Economy, owner: SimCompany) -> void:
+	_set_report("Corporate Finance", "Managing " + owner.display_name, "Deterministic end-of-day fundamental quotes. Unrealized gains are informational, not profit.")
+	var selected: String = ""
+	if security_choice.selected >= 0: selected = str(security_choice.get_item_metadata(security_choice.selected))
+	security_choice.clear()
+	var ids: Array = sim.companies.keys()
+	ids.sort()
+	for id: String in ids:
+		security_choice.add_item(sim.companies[id].display_name)
+		security_choice.set_item_metadata(security_choice.item_count - 1, id)
+		if id == selected: security_choice.select(security_choice.item_count - 1)
+	if security_choice.selected < 0: security_choice.select(0)
+	selected = str(security_choice.get_item_metadata(security_choice.selected))
+	for target: Tree in [securities_tree, portfolio_tree, security_details, capital_tree, prices_tree]:
+		_clear_market_tree(target)
+	for id: String in ids:
+		var security: Dictionary = sim.equity_market.securities[id]
+		var company: SimCompany = sim.companies[id]
+		_tree_row(securities_tree, [company.display_name, "Public" if security.public else "Private", money(int(security.quote)), money(int(security.quote) * int(security.outstanding)), str(security.outstanding), str(security.float), money(company.ttm_profit_cached)])
+		var position_value: Dictionary = sim.equity_market.position(owner.id, id)
+		if int(position_value.shares) > 0:
+			var value: int = int(position_value.shares) * int(security.quote)
+			_tree_row(portfolio_tree, [company.display_name, str(position_value.shares), "%.4f%%" % sim.equity_market.ownership_percent(owner.id, id), money(int(position_value.cost)), money(value), money(value - int(position_value.cost)), "CONTROLLED" if sim.equity_market.controls(owner.id, id) else "—"])
+	var chosen: Dictionary = sim.equity_market.securities[selected]
+	var holding: Dictionary = sim.equity_market.position(owner.id, selected)
+	var market_value: int = int(holding.shares) * int(chosen.quote)
+	var average_cost: float = float(holding.cost) / float(holding.shares) if int(holding.shares) > 0 else 0.0
+	for values: Array in [["Price", money(int(chosen.quote))], ["Public float", str(chosen.float)], ["Holding", str(holding.shares)], ["Ownership", "%.4f%%" % sim.equity_market.ownership_percent(owner.id, selected)], ["Average cost / share", "$%.2f" % (average_cost / 100.0)], ["Market value", money(market_value)], ["Unrealized P/L", money(market_value - int(holding.cost))], ["Controller", _controller_name(sim, selected)]]:
+		_tree_row(security_details, values)
+	var own: Dictionary = sim.equity_market.securities[owner.id]
+	var corporate_shares: int = int(own.outstanding) - int(own.founder) - int(own.float)
+	for values: Array in [["Status", "Public" if own.public else "Private"], ["Shares outstanding", str(own.outstanding)], ["Founder shares", str(own.founder)], ["Public float", str(own.float)], ["Corporate-held shares", str(corporate_shares)], ["Controller", _controller_name(sim, owner.id)]]:
+		_tree_row(capital_tree, values)
+	var history: Array = chosen.history.duplicate()
+	history.reverse()
+	for index: int in range(mini(15, history.size())):
+		_tree_row(prices_tree, [str(history[index].date), money(int(history[index].price))])
+	_size_market_tree(securities_tree, ids.size())
+	_size_market_tree(portfolio_tree, maxi(1, portfolio_tree.get_root().get_child_count()))
+	_size_market_tree(security_details, 8)
+	_size_market_tree(capital_tree, 6)
+	_size_market_tree(prices_tree, mini(15, history.size()))
+	var issue_button: Button = finance_content.find_child("IssueShares", true, false)
+	issue_button.text = "Issue shares" if own.public else "Go public / issue shares"
+
+func _controller_name(sim: Economy, target: String) -> String:
+	var id: String = sim.equity_market.controller(target)
+	return sim.companies[id].display_name if not id.is_empty() else "None"
 
 func _market(sim: Economy) -> void:
 	if products.item_count == 0:
@@ -423,7 +567,7 @@ func _market(sim: Economy) -> void:
 			products.set_item_metadata(products.item_count - 1, id)
 	var product: String = str(products.get_item_metadata(products.selected))
 	var definition: Dictionary = sim.catalog.products[product]
-	var owner: SimCompany = sim.companies[session.player_company]
+	var owner: SimCompany = sim.companies[session.active_company]
 	advertising_budget.set_value_no_signal(int(owner.advertising_budgets[product]) / 100.0)
 	var category: Dictionary = sim.category_market.get(definition.category, {})
 	var market: Dictionary = sim.market.get(product, ConsumerMarket.empty_report())
@@ -478,10 +622,10 @@ func _market(sim: Economy) -> void:
 			var share: float = float(sold) / int(market.units) if realized else 0.0
 			var company: SimCompany = sim.companies[facility.company_id]
 			var offer: TreeItem = _tree_row(corporate_offers, [
-				"%s%s • %s • %s" % [company.display_name, " • YOU" if company.id == session.player_company else "", sim.catalog.facility_types[facility.type_id].name, facility.id],
+				"%s%s • %s • %s" % [company.display_name, " • YOU" if company.id == session.active_company else "", sim.catalog.facility_types[facility.type_id].name, facility.id],
 				money(facility.line_price(product)), facility.inventory.quality_text(product), str(company.brand(product)), str(sold), "%.1f%%" % (share * 100.0) if realized else "—"
 			], [facility.id, facility.line_price(product), facility.inventory.quality(product), company.brand(product), sold, share])
-			if company.id == session.player_company:
+			if company.id == session.active_company:
 				for column: int in range(corporate_offers.columns): offer.set_custom_bg_color(column, ModernUITheme.SURFACE_RAISED)
 				offer.set_custom_color(0, ModernUITheme.ACCENT)
 			offer_count += 1

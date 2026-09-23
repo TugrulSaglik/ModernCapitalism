@@ -22,6 +22,7 @@ var cash_value: Label
 var profit_value: Label
 var sim_state_label: Label
 var company_name_label: Label
+var managed_company_selector: OptionButton
 var status: Label
 var facility_list: OptionButton
 var settings: AcceptDialog
@@ -156,6 +157,15 @@ func _build_top_shell(parent: VBoxContainer) -> void:
 	company_name_label = Label.new()
 	company_name_label.theme_type_variation = "SectionLabel"
 	identity.add_child(company_name_label)
+	managed_company_selector = OptionButton.new()
+	managed_company_selector.name = "ManagedCompanySelector"
+	managed_company_selector.tooltip_text = "Select a company controlled by your corporate group."
+	identity.add_child(managed_company_selector)
+	managed_company_selector.item_selected.connect(func(index: int) -> void:
+		if session.select_company(str(managed_company_selector.get_item_metadata(index))):
+			city.cancel_placement()
+			if construction != null and construction.visible and build_choices.selected >= 0: _choose_build()
+			refresh())
 	for item: Array in [["Company", _show_company, "Open company reports and management."], ["Build", _show_construction, "Open construction and choose a facility."]]:
 		var navigation: Button = _button(row, str(item[0]), item[1])
 		navigation.theme_type_variation = "NavigationButton"
@@ -316,11 +326,13 @@ func _input(event: InputEvent) -> void:
 	refresh()
 
 func refresh() -> void:
+	session._refresh_active_company()
 	if city.buildings.keys() != session.sim.city.plots.keys():
 		city.sync(session.sim.snapshot())
 		_refresh_facility_list()
 		select_facility(selected_id)
-	var owner: SimCompany = session.sim.companies[session.player_company]
+	_refresh_managed_companies()
+	var owner: SimCompany = session.sim.companies[session.active_company]
 	company_name_label.text = owner.display_name
 	date_label.text = session.sim.clock.date_string()
 	sim_state_label.text = ("MENU • " if application_pause else "") + ("PAUSED" if session.time.speed == 0 else ("MAX" if session.time.speed == 16 else "%d×" % session.time.speed))
@@ -350,6 +362,22 @@ func refresh() -> void:
 		var p: Dictionary = session.sim.city.parcel_info(point.x, point.y)
 		city_diagnostics.text = "Cell %s • %s\nLand $%.0f/cell • Waterfront %s • Port eligible %s\nAmbient properties %d • Roads %d" % [point, p.get("district", "fixture"), p.get("land_value", 0) / 100.0, p.get("waterfront", false), p.get("port_eligible", false), session.sim.city.ambient.size(), session.sim.city.roads.size()]
 		city_diagnostics.text += "\nSegments: " + str(ConsumerMarket.populations(session.sim)) + "\nAccounting difference: " + str(int(FinancialReports.balance(session.sim, session.player_company).assets) - int(FinancialReports.balance(session.sim, session.player_company).equity))
+
+func _refresh_managed_companies() -> void:
+	var ids: Array[String] = session.controlled_companies()
+	if managed_company_selector.item_count == ids.size():
+		var same: bool = true
+		for index: int in range(ids.size()):
+			if str(managed_company_selector.get_item_metadata(index)) != ids[index]: same = false
+		if same:
+			for index: int in range(ids.size()):
+				if ids[index] == session.active_company: managed_company_selector.select(index)
+			return
+	managed_company_selector.clear()
+	for id: String in ids:
+		managed_company_selector.add_item(session.sim.companies[id].display_name)
+		managed_company_selector.set_item_metadata(managed_company_selector.item_count - 1, id)
+		if id == session.active_company: managed_company_selector.select(managed_company_selector.item_count - 1)
 
 func slot_path(slot_number: int = 1) -> String:
 	return save_directory.path_join("slot_%d.json" % slot_number)
@@ -734,7 +762,7 @@ func _choose_build() -> void:
 	build_category.text = str(definition.category).to_upper() + " FACILITY"
 	build_products.clear()
 	for product: String in definition.products:
-		if session.sim.can_configure(session.player_company, id, product):
+		if session.sim.can_configure(session.active_company, id, product):
 			build_products.add_item(str(session.sim.catalog.products[product].name))
 			build_products.set_item_metadata(build_products.item_count - 1, product)
 	var productless: bool = session.sim.catalog.productless_behavior(str(definition.behavior))

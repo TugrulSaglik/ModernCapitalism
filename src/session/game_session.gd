@@ -9,6 +9,7 @@ var sim: Economy
 var time: GameTime = TimeController.new()
 var mode: String = "sandbox"
 var player_company: String = "player"
+var active_company: String = "player"
 var debug_unlocked: bool = false
 var message: String = ""
 
@@ -19,6 +20,7 @@ func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox",
 	if not candidate.strategic_ai.valid_difficulty(difficulty) or not candidate.initialize(seed_value, era, SaveStore.DATA_PATH, city_settings, difficulty):
 		return false
 	sim = candidate
+	active_company = player_company
 	mode = game_mode
 	time = TimeController.new()
 	debug_unlocked = false
@@ -27,14 +29,16 @@ func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox",
 
 func submit(command: Dictionary) -> bool:
 	var request: Dictionary = command.duplicate(true)
-	request["company"] = player_company
+	_refresh_active_company()
+	request["company"] = active_company
 	message = sim.command_error(request)
 	if not message.is_empty():
 		return false
 	sim.queue_command(request)
-	if str(request.type) in ["build_facility", "demolish_facility", "transfer", "hire_staff", "dismiss_staff"]:
+	if str(request.type) in ["build_facility", "demolish_facility", "transfer", "hire_staff", "dismiss_staff", "buy_shares", "sell_shares", "issue_shares", "declare_dividend"]:
 		sim.process_commands()
 		var result: Dictionary = sim.command_results.back()
+		_refresh_active_company()
 		message = "Applied at current boundary: " + str(request.type) if result.accepted else str(result.error)
 		return bool(result.accepted)
 	message = "Queued for next day: " + str(request.type)
@@ -75,7 +79,22 @@ func debug_action(action: String, amount: int = 0) -> bool:
 	return true
 
 func snapshot() -> Dictionary:
-	return {"mode": mode, "player_company": player_company, "time": time.snapshot(), "economy": sim.snapshot()}
+	_refresh_active_company()
+	return {"mode": mode, "player_company": player_company, "active_company": active_company, "time": time.snapshot(), "economy": sim.snapshot()}
+
+func controlled_companies() -> Array[String]:
+	return sim.equity_market.controlled_group(player_company)
+
+func select_company(company_id: String) -> bool:
+	if company_id not in controlled_companies():
+		message = "Company is outside the player's controlled group."
+		return false
+	active_company = company_id
+	message = "Managing " + sim.companies[company_id].display_name + "."
+	return true
+
+func _refresh_active_company() -> void:
+	if sim != null and active_company not in controlled_companies(): active_company = player_company
 
 func save_game(path: String) -> bool:
 	var store: SaveStore = Store.new()
@@ -89,7 +108,7 @@ func load_game(path: String) -> bool:
 	if state.is_empty():
 		message = store.error
 		return false
-	if not Store.shape(state, {"mode": "", "player_company": "", "time": time.snapshot(), "economy": {}}) or state.mode not in ["sandbox", "tutorial"] or state.player_company != "player":
+	if not Store.shape(state, {"mode": "", "player_company": "", "active_company": "", "time": time.snapshot(), "economy": {}}) or state.mode not in ["sandbox", "tutorial"] or state.player_company != "player":
 		message = "Invalid session state."
 		return false
 	var timing: Dictionary = state.time
@@ -100,9 +119,13 @@ func load_game(path: String) -> bool:
 	if candidate == null:
 		message = store.error
 		return false
+	if not state.active_company is String or state.active_company not in candidate.equity_market.controlled_group(state.player_company):
+		message = "Invalid active company."
+		return false
 	sim = candidate
 	mode = state.mode
 	player_company = state.player_company
+	active_company = state.active_company
 	time = TimeController.new()
 	time.speed = timing.speed
 	time.last_speed = timing.last_speed

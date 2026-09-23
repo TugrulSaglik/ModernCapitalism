@@ -125,7 +125,7 @@ func _persistence() -> void:
 	var sim: Economy = fresh("competitive")
 	for day: int in range(40): sim.step()
 	var state: Dictionary = sim.snapshot()
-	check(state.schema_version == 16 and state.difficulty == "competitive" and state.catalog_version == 9 and SaveStore.FORMAT_VERSION == 2, "Schema 16 contains exact difficulty; catalog 9 / format 2")
+	check(state.schema_version == 17 and state.difficulty == "competitive" and state.catalog_version == 9 and SaveStore.FORMAT_VERSION == 2, "Schema 17 contains exact difficulty; catalog 9 / format 2")
 	var restored: Economy = SaveStore.new().restore(state)
 	check(restored != null and restored.difficulty == "competitive" and same(state, restored.snapshot()), "Exact schema-16 restore")
 	if restored != null:

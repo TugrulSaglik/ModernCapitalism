@@ -8,6 +8,7 @@ const Facility = preload("res://src/sim/facility.gd")
 const Demand = preload("res://src/sim/demand.gd")
 const Sourcing = preload("res://src/sim/sourcing.gd")
 const StrategicAIPlanner = preload("res://src/sim/strategic_ai.gd")
+const EquityMarketModel = preload("res://src/sim/equity_market.gd")
 
 var catalog: SimCatalog
 var clock: SimClock
@@ -29,8 +30,12 @@ var debug_actions: Array[Dictionary] = []
 var city: CityMap = CityMap.new()
 var logistics: Logistics = Logistics.new()
 var strategic_ai: StrategicAI = StrategicAIPlanner.new()
+var equity_market: EquityMarket = EquityMarketModel.new()
 # Derived/debug-only trace. It is intentionally excluded from snapshots.
 var strategic_trace: Array[Dictionary] = []
+
+func ai_eligible(company_id: String) -> bool:
+	return companies.has(company_id) and companies[company_id].ai and company_id not in equity_market.controlled_group("player")
 
 func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res://data/example_economy.json", city_settings: Dictionary = {}, difficulty_id: String = "standard") -> bool:
 	if not strategic_ai.valid_difficulty(difficulty_id):
@@ -79,6 +84,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 				companies[str(definition.id)].advertising_inactive_days[product] = 0
 		for technology: String in catalog.technologies:
 			if catalog.technology_public(technology, era): companies[str(definition.id)].known_technologies[technology] = -1
+	equity_market.initialize(companies, clock.date_string())
 	definitions = catalog.scenario.facilities.duplicate(true)
 	if city_settings.get("preset", "procedural") != "legacy": definitions.append_array(catalog.scenario.get("expanded_facilities", []))
 	definitions.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
@@ -249,6 +255,8 @@ func _ai_research() -> void:
 	for command: Dictionary in strategic_ai.research_commands(self): queue_command(command)
 
 func command_error(command: Dictionary) -> String:
+	if str(command.get("type", "")) in ["buy_shares", "sell_shares", "issue_shares", "declare_dividend"]:
+		return equity_market.command_error(command, companies)
 	if str(command.get("type", "")) == "build_facility":
 		return construction_error(command)
 	if str(command.get("type", "")) == "set_advertising_budget":
@@ -347,6 +355,7 @@ func _apply_commands() -> void:
 		var error: String = command_error(command)
 		if error.is_empty():
 			match str(command.type):
+				"buy_shares", "sell_shares", "issue_shares", "declare_dividend": equity_market.apply(command, companies)
 				"hire_staff":
 					var role: String = str(command.role)
 					companies[str(command.company)].staff_counts[role] = staff_count(str(command.company), role) + int(command.quantity)
@@ -456,7 +465,7 @@ func _ai_decisions() -> void:
 		return
 	for f: SimFacility in facilities:
 		var owner: SimCompany = companies[f.company_id]
-		if not owner.ai or _behavior(f) != "retail" or not product_public(f.product_id):
+		if not ai_eligible(owner.id) or _behavior(f) != "retail" or not product_public(f.product_id):
 			continue
 		for product: String in f.line_ids():
 			if not product_public(product): continue
@@ -468,7 +477,7 @@ func _ai_decisions() -> void:
 	_ai_advertising_decisions()
 
 func _ai_advertising_eligible(company_id: String, product: String) -> bool:
-	if not companies.has(company_id) or not companies[company_id].ai or not product_public(product) or not catalog.consumer_product(product):
+	if not ai_eligible(company_id) or not product_public(product) or not catalog.consumer_product(product):
 		return false
 	for f: SimFacility in facilities:
 		if f.company_id != company_id or _behavior(f) != "retail" or not f.assortment.has(product):
@@ -485,7 +494,7 @@ func _ai_advertising_decisions() -> void:
 	company_ids.sort()
 	for company_id: String in company_ids:
 		var owner: SimCompany = companies[company_id]
-		if not owner.ai:
+		if not ai_eligible(owner.id):
 			continue
 		var candidates: Array[Dictionary] = []
 		var products: Array = owner.advertising_budgets.keys()
@@ -746,8 +755,13 @@ func step() -> void:
 		if f.recent_sales.size() > 7:
 			f.recent_sales.pop_front()
 	record_history()
+	_update_equity_quotes()
 	clock.advance()
 	record_history()
+
+func _update_equity_quotes() -> void:
+	for owner: SimCompany in companies.values(): owner.ttm_profit_cached = owner.ttm_profit(clock)
+	equity_market.update_quotes(companies, clock.date_string())
 
 func advertising_threshold(product: String, brand: int) -> int:
 	# Equivalent to reference_price * (2 + brand / 10), retaining tenths with integers.
@@ -793,6 +807,7 @@ func inventory_assets(company_id: String) -> int:
 
 func invariant_errors() -> Array[String]:
 	var errors: Array[String] = []
+	errors.append_array(equity_market.invariant_errors(companies))
 	var headquarters_owners: Dictionary = {}
 	var previous_id: int = 0
 	for shipment: Dictionary in logistics.shipments:
@@ -809,7 +824,7 @@ func invariant_errors() -> Array[String]:
 			if not catalog.staff_roles.has(role) or not owner.staff_counts[role] is int or int(owner.staff_counts[role]) < 0: errors.append("Staff count: " + owner.id + "/" + role)
 		if owner.total_staff() > 0 and (headquarters(owner.id) == null or owner.total_staff() > staff_capacity(owner.id)): errors.append("Staff headquarters/capacity: " + owner.id)
 		if owner.staff_payroll_funded and owner.total_staff() == 0: errors.append("Funded payroll without staff: " + owner.id)
-		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) != owner.capital + owner.profit():
+		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) + equity_market.investment_cost(owner.id) != owner.capital + owner.profit() - owner.dividends_paid:
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
 		if _behavior(f) == "headquarters":
@@ -838,7 +853,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 16, "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 17, "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

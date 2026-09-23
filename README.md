@@ -52,6 +52,21 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
+## Milestone 9
+
+Milestone 9 is implemented. The Company → Finance tab now shows deterministic
+public securities, share portfolios, cost basis, capital structure and recent daily
+prices. Player Electronics starts private; Circuit Supply, Orion, Nova and Metro
+start public with 400,000 founder shares and 600,000 public-float shares each.
+Corporate cash can buy and sell float shares, issue new shares, and pay immediate
+dividends. Ownership above 50% grants control; the managed-company selector lets
+players run controlled subsidiaries and suppresses their autonomous StrategicAI.
+Financial statements carry investments at cost and classify investment and capital
+cash flows separately. Current versions are **economy schema 17 / catalog 9 / save
+format 2**. See [corporate finance rules](docs/CORPORATE_FINANCE.md).
+
+Milestone 10, City growth and property, is next.
+
 ## Milestone 8D
 
 Milestone 8 is complete. Each session now has a fixed **Relaxed**, **Standard** or
@@ -60,9 +75,9 @@ opportunity threshold, retailer cap, warehouse timing and pre-hire payroll runwa
 Prices, costs, demand, research, staff effects, starting cash and every other economic
 rule remain identical. Standard preserves the Milestone 8C baseline. Settings shows
 the current immutable difficulty and selects the next sandbox difficulty; saves and
-slot summaries preserve it exactly. Current versions are **economy schema 16 / catalog
-9 / save format 2**. The deterministic five-case balance matrix is documented in
-[balancing](docs/BALANCING.md). Milestone 9 Corporate Finance is next.
+slot summaries preserve it exactly. At that checkpoint versions were **economy schema
+16 / catalog 9 / save format 2**. The deterministic five-case balance matrix is documented in
+[balancing](docs/BALANCING.md).
 
 ## Milestone 8B3
 
@@ -267,4 +282,4 @@ Screenshots are written to `.godot/m3-screenshots/`,
 The old fixed board is retained only as an explicit regression fixture.
 Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`.
 Strategic AI, session difficulty and the Milestone 8 balance checkpoint are complete;
-Corporate Finance is next.
+Corporate Finance is implemented; City growth and property is next.

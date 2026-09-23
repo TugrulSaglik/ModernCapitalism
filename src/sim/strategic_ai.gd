@@ -75,7 +75,7 @@ func evaluate_month(sim) -> Dictionary:
 	var company_ids: Array = sim.companies.keys()
 	company_ids.sort()
 	for company_id: String in company_ids:
-		if not sim.companies[company_id].ai: continue
+		if not sim.ai_eligible(company_id): continue
 		var assortment: Array[Dictionary] = _assortment_commands(sim, company_id, profile)
 		commands.append_array(assortment)
 		for command: Dictionary in assortment:
@@ -105,7 +105,7 @@ func research_commands(sim) -> Array[Dictionary]:
 	var company_ids: Array = sim.companies.keys()
 	company_ids.sort()
 	for company_id: String in company_ids:
-		if not sim.companies[company_id].ai: continue
+		if not sim.ai_eligible(company_id): continue
 		var centers: Array = _owned_facilities(sim, company_id, "research")
 		for center: Dictionary in centers:
 			var facility = sim.facility(str(center.id))

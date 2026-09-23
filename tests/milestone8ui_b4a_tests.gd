@@ -32,18 +32,18 @@ func _run() -> void:
 	var clock: SimClock = screen.session.sim.clock
 	reports.refresh()
 
-	check(reports.tabs.tab_count == 6 and reports.company_name.text == "Player Electronics" and reports.company_date.text == clock.date_string(), "Company header and six report tabs")
+	check(reports.tabs.tab_count == 7 and reports.company_name.text == "Player Electronics" and reports.company_date.text == clock.date_string(), "Company header and seven report tabs")
 	var period: Dictionary = FinancialReports.period(owner, clock, "current_month")
 	check(_row(reports, "Total revenue").get_metadata(1) == period.revenue, "Income revenue is exact")
 	check(_row(reports, "Gross profit").get_metadata(1) == period.gross_profit and _row(reports, "Gross profit").get_metadata(0) == "total", "Income gross profit hierarchy and value")
-	check(_row(reports, "Total operating expenses").get_metadata(1) == period.expenses and _row(reports, "Operating / net profit").get_metadata(1) == period.profit, "Income expense and profit values")
+	check(_row(reports, "Total operating expenses").get_metadata(1) == period.expenses and _row(reports, "Net profit").get_metadata(1) == period.profit, "Income expense and profit values")
 	check(CompanyReports.money(-123456) == "−$1,234.56", "Negative money formatting")
 
 	var previous: Dictionary = {"month": "%04d-%02d" % [clock.year - 1 if clock.month == 1 else clock.year, 12 if clock.month == 1 else clock.month - 1], "revenue": 765432, "retail_revenue": 500000, "profit": -12345, "opening_cash": 1000000, "closing_cash": 987655}
 	owner.monthly_history.push_front(previous)
 	reports.periods.select(1)
 	reports.refresh()
-	check(_row(reports, "Total revenue").get_metadata(1) == 765432 and _row(reports, "Operating / net profit").get_text(1) == "−$123.45", "Previous-month selector changes exact report period")
+	check(_row(reports, "Total revenue").get_metadata(1) == 765432 and _row(reports, "Net profit").get_text(1) == "−$123.45", "Previous-month selector changes exact report period")
 	reports.periods.select(0)
 
 	reports.tabs.current_tab = 1
@@ -57,7 +57,7 @@ func _run() -> void:
 	reports.tabs.current_tab = 2
 	reports.refresh()
 	period = FinancialReports.period(owner, clock, "current_month")
-	for label_and_key: Array in [["Opening cash", "opening_cash"], ["Customer receipts", "revenue"], ["Inventory purchases", "purchases"], ["Production conversion", "production_cash"], ["Cash expenses including freight", "cash_expenses"], ["Net operating cash", "operating_cash"], ["Construction / investing cash", "investing_cash"], ["Capital / financing cash", "financing_cash"], ["Net cash movement", "net_cash"], ["Closing cash", "closing_cash"]]:
+	for label_and_key: Array in [["Opening cash", "opening_cash"], ["Customer receipts", "revenue"], ["Inventory purchases", "purchases"], ["Production conversion", "production_cash"], ["Cash expenses including freight", "cash_expenses"], ["Net operating cash", "operating_cash"], ["Net investing cash", "investing_cash"], ["Net financing cash", "financing_cash"], ["Net cash movement", "net_cash"], ["Closing cash", "closing_cash"]]:
 		check(_row(reports, label_and_key[0]).get_metadata(1) == period[label_and_key[1]], "Cash flow exact: " + label_and_key[0])
 	check(_row(reports, "Opening + movement − closing").get_metadata(1) == int(period.opening_cash) + int(period.net_cash) - int(period.closing_cash), "Cash-flow reconciliation exact")
 	check(_row(reports, "Inventory purchases").get_text(1).begins_with("−$") or int(period.purchases) == 0, "Cash outflow sign is explicit")

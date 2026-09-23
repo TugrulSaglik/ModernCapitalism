@@ -55,7 +55,7 @@ func _initialize() -> void:
 func _catalog_and_activation() -> void:
 	var session: GameSession = fresh()
 	var sim: Economy = session.sim
-	check(sim.catalog.version == 9 and sim.snapshot().schema_version == 16 and SaveStore.FORMAT_VERSION == 2, "Catalog 9 / schema 16 / format 2")
+	check(sim.catalog.version == 9 and sim.snapshot().schema_version == 17 and SaveStore.FORMAT_VERSION == 2, "Catalog 9 / schema 17 / format 2")
 	var expected: Dictionary = {
 		"operations_manager": ["operations_capacity_percent", 10, 30],
 		"marketing_manager": ["advertising_progress_percent", 10, 30],

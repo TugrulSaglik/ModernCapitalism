@@ -2,6 +2,17 @@
 
 ## Current milestone
 
+Milestone 9 adds `EquityMarket` under Economy. It owns security registries,
+aggregate founder/public float shares, corporate holdings with weighted-average
+cost basis, quotes and bounded daily price history. Economy remains the command,
+clock, accounting and invariant authority; `SimCompany` holds cumulative finance
+accounts and the existing daily/monthly history records their deltas. `GameSession`
+authorizes commands for its active company, chosen from the root player's transitive
+controlled group. `StrategicAI` eligibility is derived from the same control graph.
+Finance and the managed-company selector are UI views of this state. Schema 17
+persists the registry and active company; catalog 9 and save format 2 are unchanged.
+See [corporate finance](CORPORATE_FINANCE.md).
+
 Milestone 8D adds one authoritative `Economy.difficulty` ID: `relaxed`, `standard`
 or `competitive`. `StrategicAI` owns the single profile table and read helpers;
 Economy persists the selected ID and supplies it to the stateless planner. Profiles

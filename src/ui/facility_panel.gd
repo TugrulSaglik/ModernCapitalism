@@ -339,7 +339,7 @@ func _build_operations() -> void:
 		if warehouse_target_product.selected >= 0:
 			replenishment_selections[selected_id] = str(warehouse_target_product.get_item_metadata(warehouse_target_product.selected))
 			_load_replenishment_value(session.sim.facility(selected_id))
-			_refresh_replenishment(session.sim.facility(selected_id), session.sim.facility(selected_id).company_id == session.player_company))
+			_refresh_replenishment(session.sim.facility(selected_id), session.sim.facility(selected_id).company_id == session.active_company))
 	replenishment_current = _note(replenishment_body, "Current target: Off")
 	_note(replenishment_body, "New target quantity")
 	var target_row := HBoxContainer.new()
@@ -426,7 +426,7 @@ func _build_sourcing() -> void:
 		if product.selected >= 0:
 			sourcing_selections[selected_id] = str(product.get_item_metadata(product.selected))
 		_populate_suppliers()
-		_refresh_sourcing(session.sim.facility(selected_id), session.sim.facility(selected_id).company_id == session.player_company))
+		_refresh_sourcing(session.sim.facility(selected_id), session.sim.facility(selected_id).company_id == session.active_company))
 	var policy_body := _section(sourcing_page, "CURRENT POLICY")
 	sourcing_policy = Label.new()
 	sourcing_policy.theme_type_variation = "ValueLabel"
@@ -706,7 +706,7 @@ func refresh() -> void:
 	var owner: SimCompany = session.sim.companies[f.company_id]
 	var definition: Dictionary = session.sim.catalog.facility_types[f.type_id]
 	var behavior: String = session.sim._behavior(f)
-	var own: bool = f.company_id == session.player_company
+	var own: bool = f.company_id == session.active_company
 	_refresh_header(f, owner, definition, own)
 	_configure_tabs(behavior)
 	for section: Control in production_sections: section.visible = behavior == "production"
@@ -818,8 +818,8 @@ func _refresh_production(f: SimFacility, owner: SimCompany, facility_definition:
 	price_heading.text = "Wholesale sale price"
 	price.value = f.price / 100.0
 	stock.value = f.stock_days
-	apply_price.disabled = f.company_id != session.player_company
-	apply_stock.disabled = f.company_id != session.player_company
+	apply_price.disabled = f.company_id != session.active_company
+	apply_stock.disabled = f.company_id != session.active_company
 	_refresh_recipe(definition.get("inputs", {}))
 	info.text = "%s\n%s\n%s" % [str(definition.name), _availability(f, f.product_id).to_upper(), "Operating" if f.operating else "Suspended"]
 
@@ -844,8 +844,8 @@ func _refresh_retail(f: SimFacility, facility_definition: Dictionary) -> void:
 	_set_metric(retail_metrics, "overhead", _base_effective_money(int(facility_definition.overhead), overhead) + "/day")
 	assortment_summary.text = "Lines %d / %d" % [f.assortment.size(), int(facility_definition.get("slots", 1))]
 	price_heading.text = "Retail selling price"
-	configure.disabled = f.company_id != session.player_company or choices.item_count == 0 or f.assortment.size() >= int(facility_definition.get("slots", 1))
-	remove_line.disabled = f.company_id != session.player_company or f.assortment.size() <= 1
+	configure.disabled = f.company_id != session.active_company or choices.item_count == 0 or f.assortment.size() >= int(facility_definition.get("slots", 1))
+	remove_line.disabled = f.company_id != session.active_company or f.assortment.size() <= 1
 	_refresh_retail_line(f)
 	stock.value = f.stock_days
 	info.text = "%s\nLines %d / %d\n%s" % [facility_definition.name, f.assortment.size(), int(facility_definition.get("slots", 1)), "Operating" if f.operating else "Suspended"]
@@ -874,8 +874,8 @@ func _refresh_retail_line(f: SimFacility) -> void:
 	_set_metric(retail_line_metrics, "margin", CompanyReports.money(int(sales.get("revenue", 0)) - int(sales.get("cogs", 0))))
 	line_info.text = "Lines %d / %d • %s" % [f.assortment.size(), int(session.sim.catalog.facility_types[f.type_id].get("slots", 1)), selected]
 	price.value = f.line_price(selected) / 100.0
-	apply_price.disabled = f.company_id != session.player_company
-	apply_stock.disabled = f.company_id != session.player_company
+	apply_price.disabled = f.company_id != session.active_company
+	apply_stock.disabled = f.company_id != session.active_company
 
 func _refresh_recipe(inputs: Dictionary) -> void:
 	for child: Node in recipe_rows.get_children(): child.queue_free()

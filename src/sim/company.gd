@@ -24,6 +24,14 @@ var capex: int = 0
 var research_expense: int = 0
 var advertising_expense: int = 0
 var payroll_expense: int = 0
+var equity_purchase_cash: int = 0
+var equity_sale_cash: int = 0
+var equity_issue_cash: int = 0
+var investment_income: int = 0
+var realized_investment_gain: int = 0
+var dividend_receipts: int = 0
+var dividends_paid: int = 0
+var ttm_profit_cached: int = 0
 # Knowledge maps technology to acquisition tick (-1 = starting-era baseline).
 # Completion is permanent here; partial work is removed on completion.
 var known_technologies: Dictionary = {}
@@ -75,7 +83,11 @@ func accounts() -> Dictionary:
 	return {"revenue": revenue, "retail_revenue": retail_revenue, "wholesale_revenue": revenue - retail_revenue,
 		"cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense, "payroll_expense": payroll_expense, "freight": freight, "depreciation": depreciation,
 		"profit": profit(), "purchases": purchases, "production_cash": production_cash,
-		"cash_expenses": cash_expenses, "capex": capex, "capital": capital, "cash": cash}
+		"cash_expenses": cash_expenses, "capex": capex, "capital": capital, "cash": cash,
+		"equity_purchase_cash": equity_purchase_cash, "equity_sale_cash": equity_sale_cash,
+		"equity_issue_cash": equity_issue_cash, "investment_income": investment_income,
+		"realized_investment_gain": realized_investment_gain, "dividend_receipts": dividend_receipts,
+		"dividends_paid": dividends_paid}
 var daily_history: Array[Dictionary] = []
 var monthly_history: Array[Dictionary] = []
 
@@ -146,13 +158,16 @@ func record_sale(amount: int, carrying_cost: int) -> void:
 	daily_cogs += carrying_cost
 
 func profit() -> int:
-	return revenue - cogs - expenses
+	return revenue - cogs - expenses + investment_income + realized_investment_gain
 
 func snapshot() -> Dictionary:
 	return {"staff_counts": staff_counts.duplicate(true), "staff_payroll_funded": staff_payroll_funded, "product_brands": product_brands.duplicate(true), "advertising_budgets": advertising_budgets.duplicate(true), "advertising_progress": advertising_progress.duplicate(true), "advertising_inactive_days": advertising_inactive_days.duplicate(true), "known_technologies": known_technologies.duplicate(true), "research_progress": research_progress.duplicate(true), "product_quality_levels": product_quality_levels.duplicate(true), "product_quality_progress": product_quality_progress.duplicate(true), "process_efficiency_levels": process_efficiency_levels.duplicate(true), "process_efficiency_progress": process_efficiency_progress.duplicate(true), "opening_cash": opening_cash, "retail_revenue": retail_revenue, "production_cash": production_cash, "cash_expenses": cash_expenses, "capex": capex, "recorded_accounts": recorded_accounts.duplicate(true), "archived_months": archived_months.duplicate(true), "id": id, "name": display_name, "ai": ai, "cash": cash,
 		"freight": freight, "purchases": purchases, "depreciation": depreciation,
 		"recorded_profit": recorded_profit, "daily_history": daily_history.duplicate(true), "monthly_history": monthly_history.duplicate(true),
 		"capital": capital, "revenue": revenue, "cogs": cogs, "expenses": expenses, "research_expense": research_expense, "advertising_expense": advertising_expense, "payroll_expense": payroll_expense,
+		"equity_purchase_cash": equity_purchase_cash, "equity_sale_cash": equity_sale_cash, "equity_issue_cash": equity_issue_cash,
+		"investment_income": investment_income, "realized_investment_gain": realized_investment_gain,
+		"dividend_receipts": dividend_receipts, "dividends_paid": dividends_paid, "ttm_profit_cached": ttm_profit_cached,
 		"profit": profit(), "daily_revenue": daily_revenue,
 		"daily_cogs": daily_cogs, "daily_expenses": daily_expenses,
 		"daily_profit": daily_revenue - daily_cogs - daily_expenses}

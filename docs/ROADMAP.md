@@ -30,7 +30,7 @@
 | 8UI-C — City/build interaction polish (implemented) | Polished construction and placement feedback; city select/deselect/context flow; tooltips and status presentation; pause/application menu; Save / Load / Settings organization; three-slot save browser; overwrite/load/new-session confirmations; and removal of the persistent raw Slot selector | 8UI-B |
 | 8C — Strategic competitor AI (implemented) | Deterministic monthly market entry, investment, staffing, sourcing, warehouses and business-aligned research | 8UI-C |
 | 8D — Difficulty and balancing (implemented) | Fixed session difficulty, no-cheat StrategicAI profiles and deterministic balance matrix | 8C |
-| 9 — Corporate finance | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
+| 9 — Corporate finance (implemented) | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
 | 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
 | 12 — Modes and complete-game production | Tutorial campaign, full sandbox setup, catalog breadth, finished art/audio/accessibility/tutorial presentation and final balancing | 1–11 |
@@ -87,7 +87,7 @@ simulation-gating application menu, Save / Load / Settings organization, a valid
 three-slot browser, overwrite/load/new-session confirmations and removal of the
 persistent raw Slot selector. The complete 8UI-A / 8UI-B / 8UI-C block, 8C Strategic
 competitor AI and 8D Difficulty and balancing are implemented. Milestone 8 is complete;
-Milestone 9 Corporate Finance is next.
+Milestone 9 Corporate Finance is implemented. Milestone 10 City growth and property is next.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.

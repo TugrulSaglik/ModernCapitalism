@@ -116,7 +116,7 @@ func _isolation_and_persistence() -> void:
 	check(session.sim.companies.player.product_brands == brands and session.sim.companies.player.known_technologies == knowledge, "Headquarters adds no brand or research effect")
 	check(headquarters.inventory.quantities.is_empty() and headquarters.assortment.is_empty() and headquarters.suppliers.is_empty() and headquarters.research_project.is_empty(), "Headquarters product/logistics/research state stays empty")
 	var state: Dictionary = session.sim.snapshot()
-	check(state.schema_version == 16 and state.catalog_version == 9 and SaveStore.FORMAT_VERSION == 2, "Current economy uses schema 16 and catalog 9")
+	check(state.schema_version == 17 and state.catalog_version == 9 and SaveStore.FORMAT_VERSION == 2, "Current economy uses schema 17 and catalog 9")
 	var restored: Economy = SaveStore.new().restore(state)
 	var restored_hq: SimFacility = restored.headquarters("player") if restored != null else null
 	check(restored_hq != null and restored_hq.id == headquarters.id and restored_hq.company_id == headquarters.company_id, "Built headquarters restores exact identity and owner")

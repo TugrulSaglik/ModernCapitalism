@@ -142,7 +142,7 @@ func _run() -> void:
 		for scrollbar: Node in market_tree.find_children("*", "HScrollBar", true, false):
 			horizontal_overflow = horizontal_overflow or (scrollbar as HScrollBar).visible
 	check(not horizontal_overflow, "Markets has no horizontal overflow")
-	check(reports.tabs.tab_count == 6 and screen.world_input_blocked(), "Company dialog remains six-tab and modal")
+	check(reports.tabs.tab_count == 7 and screen.world_input_blocked(), "Company dialog remains seven-tab and modal")
 
 	print("8UI-B4B TEST RESULT: %d checks, %d failures" % [checks, failures])
 	quit(0 if failures == 0 else 1)

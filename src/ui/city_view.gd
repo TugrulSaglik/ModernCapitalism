@@ -234,7 +234,7 @@ func update_preview(x: int, y: int) -> void:
 	if build_type.is_empty(): return
 	preview_cell = Vector2i(x, y)
 	var definition: Dictionary = session.sim.catalog.facility_types[build_type]
-	preview_error = session.sim.command_error({"type": "build_facility", "company": session.player_company, "archetype": build_type, "product": build_product, "x": x, "y": y})
+	preview_error = session.sim.command_error({"type": "build_facility", "company": session.active_company, "archetype": build_type, "product": build_product, "x": x, "y": y})
 	preview.mesh.size = Vector3(definition.width * CELL - 0.08, 0.16, definition.depth * CELL - 0.08)
 	preview.position = cell_position(x + (definition.width - 1) / 2.0, y + (definition.depth - 1) / 2.0) + Vector3(0, 0.25, 0)
 	preview.material_override.albedo_color = Color("67ffb8") if preview_error.is_empty() else Color("ff6170")

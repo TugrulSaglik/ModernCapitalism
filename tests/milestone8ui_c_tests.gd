@@ -66,7 +66,7 @@ func _run() -> void:
 	invalid.close()
 	var incompatible: Dictionary = store.inspect_file(screen.slot_path(3))
 	check(incompatible.state == "incompatible" and str(incompatible.reason).contains("catalog"), "Incompatible slot is unavailable with a concise reason")
-	check(SaveStore.FORMAT_VERSION == 2 and screen.session.sim.snapshot().schema_version == 16 and screen.session.sim.catalog.version == 9, "Save format 2 / schema 16 / catalog 9")
+	check(SaveStore.FORMAT_VERSION == 2 and screen.session.sim.snapshot().schema_version == 17 and screen.session.sim.catalog.version == 9, "Save format 2 / schema 17 / catalog 9")
 
 	screen._show_menu()
 	screen._show_save_browser("load")

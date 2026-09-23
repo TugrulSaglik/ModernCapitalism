@@ -1,5 +1,23 @@
 # Economic model
 
+## Milestone 9 corporate finance
+
+Each company has 1,000,000 initial integer shares. Player Electronics starts
+private and founder owned. All four non-player commercial companies start public
+with 400,000 founder shares and 600,000 public-float shares. Corporate holdings
+trade only against public float. The target company receives no secondary-trade
+cash. A company cannot buy itself. New shares are issued at the current quote,
+increase issuer cash and contributed capital, and dilute existing shareholders.
+One issue may add at most 25% of shares outstanding before that issue.
+
+The deterministic quote is `max(1 cent, floor(max(10,000,000 cents,
+contributed capital + cumulative profit − dividends paid,
+10 × max(0, trailing-12-month profit)) / shares outstanding))`.
+Quotes update once after each completed day's accounting. The current quote applies
+to commands until the next daily update. There is no spread, volume, trading noise
+or intraday market. See [corporate finance](CORPORATE_FINANCE.md) for control,
+accounting, history and persistence details.
+
 ## Milestone 8D difficulty and balance checkpoint
 
 `Economy.difficulty` is the single authoritative session difficulty and is fixed at

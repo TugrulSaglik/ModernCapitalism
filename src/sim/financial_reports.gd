@@ -13,8 +13,9 @@ static func balance(sim: Economy, company: String) -> Dictionary:
 	var inventory: int = sim.inventory_assets(company) - transit
 	return {"cash": owner.cash, "inventory": inventory, "in_transit": transit, "fixed_cost": cost,
 		"accumulated_depreciation": depreciation, "net_fixed_assets": cost - depreciation,
-		"assets": owner.cash + inventory + transit + cost - depreciation, "liabilities": 0,
-		"contributed_capital": owner.capital, "retained_earnings": owner.profit(), "equity": owner.capital + owner.profit()}
+		"equity_investments": sim.equity_market.investment_cost(company),
+		"assets": owner.cash + inventory + transit + cost - depreciation + sim.equity_market.investment_cost(company), "liabilities": 0,
+		"contributed_capital": owner.capital, "retained_earnings": owner.profit() - owner.dividends_paid, "equity": owner.capital + owner.profit() - owner.dividends_paid}
 
 static func period(owner: SimCompany, clock: SimClock, choice: String = "current_month") -> Dictionary:
 	var records: Array[Dictionary] = []
@@ -36,7 +37,7 @@ static func period(owner: SimCompany, clock: SimClock, choice: String = "current
 	result["gross_profit"] = int(result.revenue) - int(result.cogs)
 	result["other_expenses"] = int(result.expenses) - int(result.freight) - int(result.depreciation) - int(result.research_expense) - int(result.advertising_expense) - int(result.payroll_expense)
 	result["operating_cash"] = int(result.revenue) - int(result.purchases) - int(result.production_cash) - int(result.cash_expenses)
-	result["investing_cash"] = -int(result.capex)
-	result["financing_cash"] = int(result.capital)
+	result["investing_cash"] = -int(result.capex) - int(result.equity_purchase_cash) + int(result.equity_sale_cash) + int(result.dividend_receipts)
+	result["financing_cash"] = int(result.capital) - int(result.dividends_paid)
 	result["net_cash"] = int(result.operating_cash) + int(result.investing_cash) + int(result.financing_cash)
 	return result
