@@ -1,6 +1,23 @@
 # Technical architecture
 
-## Milestone 10 real estate
+## Milestone 11 regional architecture
+
+`Economy.cities` and `Economy.real_estates` own one authoritative map and estate
+per city. `sim.city` and `sim.real_estate` are compatibility references to Metro.
+Facilities carry an authoritative city ID; new facility IDs come from one regional
+counter. Companies, research, securities and accounts remain regional. The normal
+scenario generates Metro, Harbor and Highland with catalog seed offsets and
+regional coordinates. The legacy board contains Metro alone.
+
+Each procedural CityMap stores one public waterfront port. Logistics keeps local
+road routes unchanged and uses facility-to-port road legs plus Manhattan regional
+distance for inter-city shipments. RegionalTrade provides bounded synthetic
+import/export capacity and history. ConsumerMarket clears demand independently in
+each city, then derives weighted regional reports. GameSession persists an active
+city separately from active company. Schema 19 persists every map, estate, market,
+port, shipment and trade counter. See [regional trade](REGIONAL_TRADE.md).
+
+## Milestone 10 real estate (historical checkpoint)
 
 `Economy.real_estate` is the authoritative economic model for cell-level land
 ownership, building records, housing and job occupancy, migration, rent and property
@@ -165,7 +182,7 @@ rendering or input dependencies. The SceneTree test runner is only a host.
 | GameSession | Own the Economy, player authorization, mode, save/load and Debug access |
 | GameTime | Convert frame deltas and selected speed into bounded calls to `Economy.step` |
 | SaveStore | Validate, encode, atomically write and transactionally restore session state; expose read-only validated slot summaries |
-| CityMap | Serializable cells, road mask, ownership/footprints and monotonic facility IDs |
+| CityMap | Serializable cells, road mask, public port and city-local ownership/footprints; Economy allocates globally unique facility IDs |
 | CityGenerator | Seeded terrain, streets, parcels, initial site allocation and ambient development |
 | CityMinimap | Compact derived map and camera navigation; no simulation ownership |
 | SaveBrowser | Present the fixed three slots and emit user intent; owns no save or simulation authority |

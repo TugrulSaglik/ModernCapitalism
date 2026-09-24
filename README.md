@@ -52,7 +52,20 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 10
+## Milestone 11
+
+Milestone 11 is implemented. Procedural sandbox games now simulate Metro, Harbor
+and Highland as one region. The city selector changes the active map and build
+location; companies, corporate finance and accounting remain regional. Each city
+has independent population, real estate and consumer demand, plus a public port.
+Port routed freight connects cities and the external import/export market. The
+Company → Markets location selector and Trade tab expose regional activity.
+StrategicAI can expand across cities. Current versions are **economy schema 19 /
+catalog 11 / save format 2**. See [regional trade](docs/REGIONAL_TRADE.md).
+
+Milestone 12, Modes and complete-game production, is next.
+
+## Milestone 10 (historical checkpoint)
 
 Milestone 10 is implemented. Procedural cities now have company-owned land at cost,
 acquirable ambient buildings, residential/office/commercial development and
@@ -62,9 +75,9 @@ constructed. Property activity flows through company accounts and statements;
 StrategicAI may make one conservative property investment instead of a facility
 investment in its monthly capital pass. City selection and the Company → Properties
 tab expose land, occupancy, costs, rent and city growth. Current versions are
-**economy schema 18 / catalog 10 / save format 2**. See [real-estate rules](docs/REAL_ESTATE.md).
+**economy schema 18 / catalog 10 / save format 2** at that checkpoint. See [real-estate rules](docs/REAL_ESTATE.md).
 
-Milestone 11, Regional scale and trade, is next.
+Milestone 11 supersedes the single-city scope described here.
 
 ## Milestone 9 (historical checkpoint)
 
@@ -295,4 +308,4 @@ Screenshots are written to `.godot/m3-screenshots/`,
 The old fixed board is retained only as an explicit regression fixture.
 Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`.
 Strategic AI, session difficulty and the Milestone 8 balance checkpoint are complete;
-Corporate Finance is implemented; City growth and property is next.
+Corporate Finance, city growth, and regional trade are implemented.

@@ -1,5 +1,5 @@
 {
-  "version": 10,
+  "version": 11,
   "staff_roles": [
     {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000, "effect": "operations_capacity_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
     {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000, "effect": "advertising_progress_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
@@ -675,6 +675,11 @@
   ],
   "scenario": {
     "id": "device_competition",
+    "regional_cities": [
+      {"id": "metro", "name": "Metro City", "seed_offset": 0, "x": 0, "y": 0, "external_trade_distance": 80},
+      {"id": "harbor", "name": "Harbor City", "seed_offset": 1009, "x": 100, "y": 40, "external_trade_distance": 40},
+      {"id": "highland", "name": "Highland City", "seed_offset": 2017, "x": 45, "y": 130, "external_trade_distance": 110}
+    ],
     "starting_years": [
       2012,
       2022

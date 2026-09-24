@@ -4,7 +4,7 @@ extends VBoxContainer
 signal command_requested(command: Dictionary)
 
 const PERIOD_KEYS: Array[String] = ["current_month", "previous_month", "ttm", "year"]
-const TAB_TITLES: Array[String] = ["Income Statement", "Balance Sheet", "Cash Flow", "Markets", "History", "Companies", "Finance", "Properties"]
+const TAB_TITLES: Array[String] = ["Income Statement", "Balance Sheet", "Cash Flow", "Markets", "History", "Companies", "Finance", "Properties", "Trade"]
 
 class ReportScroll:
 	extends ScrollContainer
@@ -15,6 +15,7 @@ var session: GameSession
 var tabs: TabBar
 var periods: OptionButton
 var products: OptionButton
+var market_city: OptionButton
 var table: Tree
 var context: Label
 var advertising_budget: SpinBox
@@ -47,6 +48,16 @@ var security_choice: OptionButton
 var trade_quantity: SpinBox
 var issue_quantity: SpinBox
 var dividend_amount: SpinBox
+var trade_content: VBoxContainer
+var trade_city: OptionButton
+var trade_product: OptionButton
+var import_destination: OptionButton
+var export_source: OptionButton
+var import_quantity: SpinBox
+var export_quantity: SpinBox
+var trade_market_details: Label
+var import_quote_details: Label
+var export_quote_details: Label
 
 func _ready() -> void:
 	custom_minimum_size = Vector2(760, 510)
@@ -104,6 +115,7 @@ func _ready() -> void:
 	report_scroll.add_child(table)
 	_build_market_content()
 	_build_finance_content()
+	_build_trade_content()
 	report_note = Label.new()
 	report_note.theme_type_variation = "MetaLabel"
 	report_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -111,6 +123,7 @@ func _ready() -> void:
 	tabs.tab_changed.connect(func(_index: int) -> void: refresh())
 	periods.item_selected.connect(func(_index: int) -> void: refresh())
 	products.item_selected.connect(func(_index: int) -> void: refresh())
+	market_city.item_selected.connect(func(_index: int) -> void: refresh())
 	apply_advertising.pressed.connect(func() -> void:
 		if products.selected >= 0:
 			command_requested.emit({"type": "set_advertising_budget", "product": str(products.get_item_metadata(products.selected)), "budget": int(round(advertising_budget.value * 100.0))}))
@@ -122,6 +135,13 @@ func _build_market_content() -> void:
 	market_content.add_theme_constant_override("separation", ModernUITheme.SPACE_3)
 	report_scroll.add_child(market_content)
 	_section_label(market_content, "PRODUCT")
+	var city_row: HBoxContainer = HBoxContainer.new()
+	market_content.add_child(city_row)
+	_control_label(city_row, "LOCATION")
+	market_city = OptionButton.new()
+	market_city.name = "MarketLocationSelector"
+	market_city.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	city_row.add_child(market_city)
 	var product_row: HBoxContainer = HBoxContainer.new()
 	market_content.add_child(product_row)
 	market_label = _control_label(product_row, "PRODUCT")
@@ -228,6 +248,73 @@ func _build_finance_content() -> void:
 	_section_label(finance_content, "RECENT DAILY PRICES")
 	prices_tree = _market_tree(finance_content, 2, ["Date", "Price"], [3, 2])
 	finance_content.hide()
+
+func _build_trade_content() -> void:
+	trade_content = VBoxContainer.new()
+	trade_content.name = "RegionalTradeContent"
+	trade_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	trade_content.add_theme_constant_override("separation", ModernUITheme.SPACE_3)
+	report_scroll.add_child(trade_content)
+	var location_row: HBoxContainer = HBoxContainer.new()
+	trade_content.add_child(location_row)
+	_control_label(location_row, "CITY")
+	trade_city = OptionButton.new()
+	trade_city.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	location_row.add_child(trade_city)
+	var product_row: HBoxContainer = HBoxContainer.new()
+	trade_content.add_child(product_row)
+	_control_label(product_row, "PRODUCT")
+	trade_product = OptionButton.new()
+	trade_product.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	product_row.add_child(trade_product)
+	trade_market_details = Label.new()
+	trade_market_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	trade_content.add_child(trade_market_details)
+	_section_label(trade_content, "IMPORT")
+	var import_row: HBoxContainer = HBoxContainer.new()
+	trade_content.add_child(import_row)
+	_control_label(import_row, "DESTINATION")
+	import_destination = OptionButton.new()
+	import_destination.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	import_row.add_child(import_destination)
+	import_quantity = _finance_input(import_row, "UNITS", 100)
+	import_quantity.value = 1
+	import_quote_details = Label.new()
+	trade_content.add_child(import_quote_details)
+	var import_button: Button = Button.new()
+	import_button.name = "ImportGoodsButton"
+	import_button.text = "Import goods"
+	import_button.theme_type_variation = "PrimaryButton"
+	trade_content.add_child(import_button)
+	import_button.pressed.connect(func() -> void:
+		if import_destination.selected >= 0 and trade_product.selected >= 0:
+			command_requested.emit({"type": "import_goods", "facility": str(import_destination.get_item_metadata(import_destination.selected)), "product": str(trade_product.get_item_metadata(trade_product.selected)), "quantity": int(import_quantity.value)}))
+	_section_label(trade_content, "EXPORT")
+	var export_row: HBoxContainer = HBoxContainer.new()
+	trade_content.add_child(export_row)
+	_control_label(export_row, "SOURCE")
+	export_source = OptionButton.new()
+	export_source.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	export_row.add_child(export_source)
+	export_quantity = _finance_input(export_row, "UNITS", 10000)
+	export_quantity.value = 1
+	export_quote_details = Label.new()
+	trade_content.add_child(export_quote_details)
+	var export_button: Button = Button.new()
+	export_button.name = "ExportGoodsButton"
+	export_button.text = "Export goods"
+	export_button.theme_type_variation = "PrimaryButton"
+	trade_content.add_child(export_button)
+	export_button.pressed.connect(func() -> void:
+		if export_source.selected >= 0 and trade_product.selected >= 0:
+			command_requested.emit({"type": "export_goods", "facility": str(export_source.get_item_metadata(export_source.selected)), "product": str(trade_product.get_item_metadata(trade_product.selected)), "quantity": int(export_quantity.value)}))
+	trade_city.item_selected.connect(func(_index: int) -> void: refresh())
+	trade_product.item_selected.connect(func(_index: int) -> void: refresh())
+	import_destination.item_selected.connect(func(_index: int) -> void: refresh())
+	export_source.item_selected.connect(func(_index: int) -> void: refresh())
+	import_quantity.value_changed.connect(func(_value: float) -> void: refresh())
+	export_quantity.value_changed.connect(func(_value: float) -> void: refresh())
+	trade_content.hide()
 
 func _finance_input(parent: HBoxContainer, label_text: String, maximum: int) -> SpinBox:
 	_control_label(parent, label_text)
@@ -361,9 +448,10 @@ func refresh() -> void:
 	period_label.visible = period_visible
 	periods.visible = period_visible
 	report_controls.visible = period_visible
-	table.visible = not market_visible and report_tab != 6
+	table.visible = not market_visible and report_tab not in [6, 8]
 	market_content.visible = market_visible
 	finance_content.visible = report_tab == 6
+	trade_content.visible = report_tab == 8
 	table.tooltip_text = ""
 	match report_tab:
 		0: _income_statement(owner, sim.clock)
@@ -374,6 +462,7 @@ func refresh() -> void:
 		5: _companies(sim)
 		6: _finance(sim, owner)
 		7: _properties(sim, owner)
+		8: _trade_report(sim, owner)
 
 func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	var period: Dictionary = FinancialReports.period(owner, clock, PERIOD_KEYS[periods.selected])
@@ -381,7 +470,8 @@ func _income_statement(owner: SimCompany, clock: SimClock) -> void:
 	_set_report("Income Statement", periods.get_item_text(periods.selected), "Investment results are shown separately from product sales.")
 	_section("REVENUE")
 	amount("Retail sales", int(period.retail_revenue))
-	amount("Wholesale sales", int(period.wholesale_revenue))
+	amount("Domestic wholesale sales", int(period.wholesale_revenue))
+	amount("Export sales", int(period.export_revenue))
 	amount("Property rent", int(period.property_revenue))
 	amount("Total revenue", int(period.revenue), "subtotal")
 	_section("COST OF GOODS SOLD")
@@ -517,9 +607,9 @@ func _companies(sim: Economy) -> void:
 			item.set_custom_color(3, ModernUITheme.NEGATIVE)
 
 func _properties(sim: Economy, owner: SimCompany) -> void:
-	_setup_table(8, ["Property", "Type", "District", "Land basis", "Building NBV", "Occupancy", "Gross rent", "Net rent"], [3, 2, 2, 2, 2, 2, 2, 2])
+	_setup_table(9, ["Property", "City", "Type", "District", "Land basis", "Building NBV", "Occupancy", "Gross rent", "Net rent"], [3, 2, 2, 2, 2, 2, 2, 2, 2])
 	_set_report("Properties", "Owned portfolio and city growth", "Land and buildings are carried at cost; rent estimates use current property value and occupancy.")
-	var p: Dictionary = sim.city.population
+	var p: Dictionary = sim.cities[session.active_city].population
 	_section("CITY OVERVIEW")
 	add_row("Population", str(p.total))
 	add_row("Housing capacity", str(p.get("housing_capacity", p.capacity)))
@@ -527,41 +617,96 @@ func _properties(sim: Economy, owner: SimCompany) -> void:
 	add_row("Employed / unemployed", "%d / %d" % [int(p.get("employed", 0)), int(p.get("unemployed", 0))])
 	add_row("Purchasing power", "%d%%" % int(p.purchasing_power))
 	_section("PORTFOLIO")
-	var ids: Array = sim.real_estate.properties.keys()
-	ids.sort()
 	var gross_total: int = 0
-	for id: String in ids:
-		var b: Dictionary = sim.real_estate.properties[id]
-		if b.owner != owner.id: continue
-		var definition: Dictionary = sim.catalog.property_types[str(b.type)]
-		var land_basis: int = 0
-		for cell: String in b.land_cells: land_basis += int(sim.real_estate.land[cell].basis)
-		var capacity: int = int(definition.residential_capacity) if definition.use == "residential" else int(definition.job_capacity)
-		var occupied: int = int(b.population) if definition.use == "residential" else int(b.occupied_jobs)
-		var gross: int = sim.real_estate.gross_rent(sim, b)
-		gross_total += gross
-		var row: TreeItem = table.create_item(table.get_root())
-		var values: Array[String] = [id, str(definition.name), str(b.district), money(land_basis), money(int(b.building_cost) - int(b.depreciation)), "%d / %d" % [occupied, capacity], money(gross), money(gross - gross * 25 / 100)]
-		for column: int in range(values.size()): row.set_text(column, values[column])
+	var land_total: int = 0
+	var building_total: int = 0
 	var vacant_cells: int = 0
 	var vacant_basis: int = 0
-	for cell: String in sim.real_estate.land:
-		var holding: Dictionary = sim.real_estate.land[cell]
-		if holding.owner != owner.id: continue
-		var occupied: bool = false
-		for b: Dictionary in sim.real_estate.properties.values():
-			if cell in b.land_cells: occupied = true
-		for plot: Dictionary in sim.city.plots.values():
-			if cell in sim.real_estate.cells(int(plot.x), int(plot.y), int(plot.width), int(plot.depth)): occupied = true
-		if not occupied:
-			vacant_cells += 1
-			vacant_basis += int(holding.basis)
+	var city_ids: Array = sim.cities.keys()
+	city_ids.sort()
+	for city_id: String in city_ids:
+		var estate: RealEstate = sim.real_estates[city_id]
+		land_total += estate.land_assets(owner.id)
+		building_total += estate.building_assets(owner.id)
+		var ids: Array = estate.properties.keys()
+		ids.sort()
+		for id: String in ids:
+			var b: Dictionary = estate.properties[id]
+			if b.owner != owner.id: continue
+			var definition: Dictionary = sim.catalog.property_types[str(b.type)]
+			var land_basis: int = 0
+			for cell: String in b.land_cells: land_basis += int(estate.land[cell].basis)
+			var capacity: int = int(definition.residential_capacity) if definition.use == "residential" else int(definition.job_capacity)
+			var occupied: int = int(b.population) if definition.use == "residential" else int(b.occupied_jobs)
+			var gross: int = estate.gross_rent(sim, b)
+			gross_total += gross
+			var row: TreeItem = table.create_item(table.get_root())
+			var values: Array[String] = [id, sim.cities[city_id].display_name, str(definition.name), str(b.district), money(land_basis), money(int(b.building_cost) - int(b.depreciation)), "%d / %d" % [occupied, capacity], money(gross), money(gross - gross * 25 / 100)]
+			for column: int in range(values.size()): row.set_text(column, values[column])
+		for cell: String in estate.land:
+			var holding: Dictionary = estate.land[cell]
+			if holding.owner != owner.id: continue
+			var occupied: bool = false
+			for b: Dictionary in estate.properties.values():
+				if cell in b.land_cells: occupied = true
+			for plot: Dictionary in sim.cities[city_id].plots.values():
+				if cell in estate.cells(int(plot.x), int(plot.y), int(plot.width), int(plot.depth)): occupied = true
+			if not occupied:
+				vacant_cells += 1
+				vacant_basis += int(holding.basis)
 	_section("SUMMARY")
 	add_row("Vacant owned land", "%d cells • %s" % [vacant_cells, money(vacant_basis)])
-	amount("Land at cost", sim.real_estate.land_assets(owner.id))
-	amount("Property buildings net", sim.real_estate.building_assets(owner.id))
+	amount("Land at cost", land_total)
+	amount("Property buildings net", building_total)
 	amount("Monthly gross rent", gross_total)
 	amount("Monthly maintenance", gross_total * 25 / 100)
+
+func _rebuild_choices(choice: OptionButton, entries: Array[Dictionary], preferred: String) -> String:
+	var current: String = preferred
+	if choice.selected >= 0: current = str(choice.get_item_metadata(choice.selected))
+	choice.clear()
+	for entry: Dictionary in entries:
+		choice.add_item(str(entry.name))
+		choice.set_item_metadata(choice.item_count - 1, str(entry.id))
+		if str(entry.id) == current: choice.select(choice.item_count - 1)
+	if choice.selected < 0 and choice.item_count > 0: choice.select(0)
+	return str(choice.get_item_metadata(choice.selected)) if choice.selected >= 0 else ""
+
+func _trade_report(sim: Economy, owner: SimCompany) -> void:
+	_set_report("Regional Trade", "Public ports connect the company's facilities to the external market.", "Import purchases are inventory; exports are product sales. Freight is an operating expense.")
+	var city_entries: Array[Dictionary] = []
+	var city_ids: Array = sim.cities.keys()
+	city_ids.sort()
+	for city_id: String in city_ids: city_entries.append({"id": city_id, "name": sim.cities[city_id].display_name})
+	var city_id: String = _rebuild_choices(trade_city, city_entries, session.active_city)
+	var product_entries: Array[Dictionary] = []
+	var product_ids: Array = sim.catalog.products.keys()
+	product_ids.sort()
+	for product: String in product_ids:
+		if sim.product_public(product): product_entries.append({"id": product, "name": sim.catalog.products[product].name})
+	var product: String = _rebuild_choices(trade_product, product_entries, "smartphone")
+	if city_id.is_empty() or product.is_empty():
+		trade_market_details.text = "No external market is available."
+		return
+	var import_remaining: int = sim.regional_trade.import_remaining(sim, city_id, product)
+	var export_remaining: int = sim.regional_trade.export_remaining(sim, city_id, product)
+	trade_market_details.text = "EXTERNAL MARKET  •  %s\nImport %s / unit  •  Quality 50  •  Remaining supply %d\nExport %s / unit  •  Remaining demand %d" % [sim.cities[city_id].display_name, money(sim.regional_trade.import_price(sim, product)), import_remaining, money(sim.regional_trade.export_price(sim, product)), export_remaining]
+	var destinations: Array[Dictionary] = []
+	var sources: Array[Dictionary] = []
+	for f: SimFacility in sim.facilities:
+		if f.company_id != owner.id or f.city_id != city_id: continue
+		if sim.can_receive(f, product) and not sim.regional_trade.quote(sim, f.id, product, 1, "import").is_empty(): destinations.append({"id": f.id, "name": f.id + " • " + sim.catalog.facility_types[f.type_id].name})
+		if f.inventory.quantity(product) > 0 and not sim.regional_trade.quote(sim, f.id, product, 1, "export").is_empty(): sources.append({"id": f.id, "name": f.id + " • " + str(f.inventory.quantity(product)) + " units"})
+	var destination: String = _rebuild_choices(import_destination, destinations, "")
+	var source: String = _rebuild_choices(export_source, sources, "")
+	if destination.is_empty(): import_quote_details.text = "No compatible destination facility in this city."
+	else:
+		var q: Dictionary = sim.regional_trade.quote(sim, destination, product, int(import_quantity.value), "import")
+		import_quote_details.text = "Goods %s  •  Freight %s  •  Total %s  •  %d days" % [money(int(q.price) * int(q.quantity)), money(int(q.freight)), money(int(q.price) * int(q.quantity) + int(q.freight)), int(q.lead_days)]
+	if source.is_empty(): export_quote_details.text = "No stocked source facility in this city."
+	else:
+		var q: Dictionary = sim.regional_trade.quote(sim, source, product, int(export_quantity.value), "export")
+		export_quote_details.text = "Revenue %s  •  Freight %s  •  Net cash before COGS %s  •  %d days" % [money(int(q.price) * int(q.quantity)), money(int(q.freight)), money(int(q.price) * int(q.quantity) - int(q.freight)), int(q.lead_days)]
 
 func _finance(sim: Economy, owner: SimCompany) -> void:
 	_set_report("Corporate Finance", "Managing " + owner.display_name, "Deterministic end-of-day fundamental quotes. Unrealized gains are informational, not profit.")
@@ -613,6 +758,14 @@ func _controller_name(sim: Economy, target: String) -> String:
 	return sim.companies[id].display_name if not id.is_empty() else "None"
 
 func _market(sim: Economy) -> void:
+	if market_city.item_count == 0:
+		market_city.add_item("Regional total")
+		market_city.set_item_metadata(0, "")
+		var city_ids: Array = sim.cities.keys()
+		city_ids.sort()
+		for city_id: String in city_ids:
+			market_city.add_item(sim.cities[city_id].display_name)
+			market_city.set_item_metadata(market_city.item_count - 1, city_id)
 	if products.item_count == 0:
 		var ids: Array = sim.catalog.products.keys()
 		ids.sort()
@@ -625,8 +778,12 @@ func _market(sim: Economy) -> void:
 	var definition: Dictionary = sim.catalog.products[product]
 	var owner: SimCompany = sim.companies[session.active_company]
 	advertising_budget.set_value_no_signal(int(owner.advertising_budgets[product]) / 100.0)
-	var category: Dictionary = sim.category_market.get(definition.category, {})
-	var market: Dictionary = sim.market.get(product, ConsumerMarket.empty_report())
+	var location: String = str(market_city.get_item_metadata(market_city.selected))
+	var categories: Dictionary = sim.category_market if location.is_empty() else sim.category_market_by_city[location]
+	var markets: Dictionary = sim.market if location.is_empty() else sim.market_by_city[location]
+	var history: Array = sim.market_history if location.is_empty() else sim.market_history_by_city[location]
+	var category: Dictionary = categories.get(definition.category, {})
+	var market: Dictionary = markets.get(product, ConsumerMarket.empty_report())
 	var local: Dictionary = ConsumerMarket.local_offer(sim, product)
 	var realized: bool = int(market.units) > 0
 	var public: bool = sim.product_public(product)
@@ -638,7 +795,7 @@ func _market(sim: Economy) -> void:
 	apply_advertising.tooltip_text = "" if public else "Advertising is unavailable until this product becomes public."
 
 	var history_units: int = 0
-	for record: Dictionary in sim.market_history:
+	for record: Dictionary in history:
 		history_units += int(record.categories.get(definition.category, {}).get("units", 0))
 	_fill_tree(market_overview, [
 		["Category potential", str(int(category.get("potential", 0))), int(category.get("potential", 0))],
@@ -646,7 +803,7 @@ func _market(sim: Economy) -> void:
 		["No purchase / unfilled", str(maxi(0, int(category.get("potential", 0)) - int(category.get("units", 0)))), maxi(0, int(category.get("potential", 0)) - int(category.get("units", 0)))],
 		["Product units sold", str(int(market.units)) if realized else "No realized sales today", int(market.units)],
 		["Local share", "%.1f%%" % (float(market.local_share) * 100.0) if realized else "—", float(market.local_share)],
-		["90-day category activity", "%d units • includes Local" % history_units if not sim.market_history.is_empty() else "No market history yet", history_units],
+		["90-day category activity", "%d units • includes Local" % history_units if not history.is_empty() else "No market history yet", history_units],
 	])
 
 	var brand: int = owner.brand(product)
@@ -672,6 +829,7 @@ func _market(sim: Economy) -> void:
 	var offer_count: int = 0
 	if public:
 		for facility: SimFacility in sim.facilities:
+			if not location.is_empty() and facility.city_id != location: continue
 			if sim._behavior(facility) != "retail" or not facility.assortment.has(product):
 				continue
 			var sold: int = int(facility.line_today.get(product, {}).get("units", 0))

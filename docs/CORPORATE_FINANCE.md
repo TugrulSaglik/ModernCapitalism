@@ -1,13 +1,19 @@
 # Corporate finance (Milestone 9)
 
-Milestone 10 adds land at acquisition cost and property buildings net of
+Milestone 11 aggregates land, property buildings, inventory, transit, profit and
+cash across every city of each legal company. The equity registry, ownership,
+control and fundamental valuation remain company level. Import purchases stay
+operating inventory purchases; export receipts are operating product revenue.
+Current versions are economy schema 19, catalog 11 and save format 2.
+
+Milestone 10 added land at acquisition cost and property buildings net of
 depreciation to the ordinary company balance sheet. The equity-market fundamental
 continues to use contributed capital plus cumulative profit less dividends, which
 reconciles to total book assets including land and property. No separate property
 premium or unrealized land gain is recognized. Rent, maintenance, development and
 disposal use the ordinary company account history; property and land cash purchases
-are investing outflows. Current versions are economy schema 18, catalog 10 and save
-format 2. See [real estate](REAL_ESTATE.md).
+are investing outflows. At the Milestone 10 checkpoint, versions were economy
+schema 18, catalog 10 and save format 2. See [real estate](REAL_ESTATE.md).
 
 ## Registry and initial ownership
 

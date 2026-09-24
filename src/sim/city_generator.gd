@@ -72,6 +72,7 @@ static func generate(city: CityMap, seed_value: int, settings: Dictionary, facil
 				score = separation
 				best = p
 		city.occupy(f, best.x, best.y, definition)
+	if not city.establish_port(): return false
 	# Cheap properties, not companies/facilities: capacity and appearance only.
 	for y: int in range(1, d - 2):
 		for x: int in range(1, w - 2):

@@ -32,12 +32,13 @@
 | 8D — Difficulty and balancing (implemented) | Fixed session difficulty, no-cheat StrategicAI profiles and deterministic balance matrix | 8C |
 | 9 — Corporate finance (implemented) | Public/private ownership, share registry, stock market, valuation, issuance, dividends and corporate control | 6 and 8 |
 | 10 — City growth and property (implemented) | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
-| 11 — Regional scale and trade | Multiple cities, operating ports, imports/exports, inter-city shipments and larger AI economies | 4–10 |
+| 11 — Regional scale and trade (implemented) | Three independent cities, public ports, city markets, inter-city freight, imports/exports and regional AI | 4–10 |
 | 12 — Modes and complete-game production | Tutorial campaign, full sandbox setup, catalog breadth, finished art/audio/accessibility/tutorial presentation and final balancing | 1–11 |
 
-Milestone 10 adds the [real-estate model](REAL_ESTATE.md) on the procedural
-city foundation. Current versions are economy schema 18, catalog 10, save format 2.
-Milestone 11, Regional scale and trade, is next.
+Milestone 11 adds the [regional trade model](REGIONAL_TRADE.md) to the
+[real-estate model](REAL_ESTATE.md). Current versions are economy schema 19,
+catalog 11, save format 2. Milestone 12, Modes and complete-game production,
+is next.
 
 Milestone 5 replaces the fixed starting board in normal games without changing the
 daily economic scheduler or logistics contracts. Save schema 5 stores generated
@@ -90,7 +91,7 @@ simulation-gating application menu, Save / Load / Settings organization, a valid
 three-slot browser, overwrite/load/new-session confirmations and removal of the
 persistent raw Slot selector. The complete 8UI-A / 8UI-B / 8UI-C block, 8C Strategic
 competitor AI and 8D Difficulty and balancing are implemented. Milestone 8 is complete;
-Milestone 9 Corporate Finance is implemented. Milestone 10 City growth and property is next.
+The Milestone 9 checkpoint led to Milestone 10 city growth and property, now implemented.
 
 
 Milestone 6 deliberately excludes borrowing, taxes and transaction-journal complexity.

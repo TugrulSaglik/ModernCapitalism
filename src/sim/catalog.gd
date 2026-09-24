@@ -91,6 +91,20 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		else:
 			for field: String in ["width", "depth", "cost", "height", "residential_capacity", "job_capacity"]: p[field] = int(p[field])
 	scenario = root.get("scenario", {})
+	var city_definitions: Variant = scenario.get("regional_cities", [])
+	if not city_definitions is Array or city_definitions.size() != 3:
+		errors.append("Exactly three regional city definitions are required")
+	else:
+		var city_ids: Dictionary = {}
+		for definition: Variant in city_definitions:
+			if not definition is Dictionary or str(definition.get("id", "")) not in ["metro", "harbor", "highland"] or city_ids.has(str(definition.get("id", ""))) or str(definition.get("name", "")).is_empty():
+				errors.append("Invalid regional city definition")
+				continue
+			city_ids[str(definition.id)] = true
+			for field: String in ["seed_offset", "x", "y", "external_trade_distance"]:
+				var value: Variant = definition.get(field)
+				if not (value is int or value is float) or float(value) != floor(float(value)) or int(value) < 0 or int(value) > 1000000: errors.append("Invalid regional city field: " + field)
+				else: definition[field] = int(value)
 	for id: String in technologies:
 		if float(technologies[id].get("year", -1)) != floor(float(technologies[id].get("year", -1))) or int(technologies[id].get("year", -1)) < 1900 or int(technologies[id].get("year", 0)) > 3000: errors.append("Invalid technology year: " + id)
 		var tech: Dictionary = technologies[id]
@@ -153,7 +167,7 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	for id: String in facilities:
 		var f: Dictionary = facilities[id]
 		var behavior: String = str(facility_types.get(str(f.get("type", "")), {}).get("behavior", ""))
-		if not companies.has(str(f.get("company", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))) or not facility_types.has(str(f.get("type", ""))) or int(f.get("capacity", 0)) <= 0 or (not productless_behavior(behavior) and int(f.get("price", 0)) <= 0) or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or str(f.get("city", "")).is_empty():
+		if not companies.has(str(f.get("company", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))) or not facility_types.has(str(f.get("type", ""))) or int(f.get("capacity", 0)) <= 0 or (not productless_behavior(behavior) and int(f.get("price", 0)) <= 0) or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or str(f.get("city", "")) not in ["metro", "harbor", "highland"]:
 			errors.append("Invalid facility: " + id)
 	for id: String in facility_types:
 		var f: Dictionary = facility_types[id]
@@ -194,7 +208,7 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 	_index(scenario.get("expanded_facilities", []), expanded)
 	for id: String in expanded:
 		var f: Dictionary = expanded[id]
-		if not companies.has(str(f.get("company", ""))) or not facility_types.has(str(f.get("type", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))):
+		if not companies.has(str(f.get("company", ""))) or not facility_types.has(str(f.get("type", ""))) or not supports_product(str(f.get("type", "")), str(f.get("product", ""))) or str(f.get("city", "")) not in ["metro", "harbor", "highland"]:
 			errors.append("Invalid expanded facility: " + id)
 		elif not supports_product(str(f.type), str(f.get("product", ""))) or int(f.get("capacity", 0)) <= 0 or int(f.get("quality", 0)) < 1 or int(f.get("quality", 0)) > 100 or (not productless_behavior(str(facility_types.get(str(f.get("type", "")), {}).get("behavior", ""))) and int(f.get("price", 0)) <= 0):
 			errors.append("Invalid expanded facility operation: " + id)

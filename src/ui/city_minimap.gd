@@ -27,6 +27,8 @@ func _draw() -> void:
 		var p: Dictionary = map.plots[id]
 		var color: Color = Color("ffe190") if city.selected == id else (Color("45f0be") if p.owner == "player" else Color("e69079"))
 		draw_rect(Rect2(Vector2(4, 4) + Vector2(p.x, p.y) * cell, Vector2(p.width, p.depth) * cell), color)
+	if not map.port.is_empty():
+		draw_rect(Rect2(Vector2(4, 4) + Vector2(int(map.port.x), int(map.port.y)) * cell, cell * 1.4), Color("f4c86a"))
 	var focus_point: Vector2 = Vector2(city.focus.x / CityView.CELL + (map.width - 1) / 2.0, city.focus.z / CityView.CELL + (map.depth - 1) / 2.0)
 	draw_circle(Vector2(4, 4) + focus_point * cell, 3.0, Color.WHITE, false, 1.0)
 

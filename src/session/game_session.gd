@@ -10,6 +10,7 @@ var time: GameTime = TimeController.new()
 var mode: String = "sandbox"
 var player_company: String = "player"
 var active_company: String = "player"
+var active_city: String = "metro"
 var debug_unlocked: bool = false
 var message: String = ""
 
@@ -21,6 +22,7 @@ func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox",
 		return false
 	sim = candidate
 	active_company = player_company
+	active_city = "metro"
 	mode = game_mode
 	time = TimeController.new()
 	debug_unlocked = false
@@ -31,11 +33,13 @@ func submit(command: Dictionary) -> bool:
 	var request: Dictionary = command.duplicate(true)
 	_refresh_active_company()
 	request["company"] = active_company
+	if str(request.get("type", "")) in ["build_facility", "buy_land", "acquire_property", "develop_property", "demolish_property", "redevelop_property"]:
+		request["city"] = str(request.get("city", active_city))
 	message = sim.command_error(request)
 	if not message.is_empty():
 		return false
 	sim.queue_command(request)
-	if str(request.type) in ["build_facility", "demolish_facility", "buy_land", "acquire_property", "develop_property", "demolish_property", "redevelop_property", "transfer", "hire_staff", "dismiss_staff", "buy_shares", "sell_shares", "issue_shares", "declare_dividend"]:
+	if str(request.type) in ["build_facility", "demolish_facility", "buy_land", "acquire_property", "develop_property", "demolish_property", "redevelop_property", "transfer", "import_goods", "export_goods", "hire_staff", "dismiss_staff", "buy_shares", "sell_shares", "issue_shares", "declare_dividend"]:
 		sim.process_commands()
 		var result: Dictionary = sim.command_results.back()
 		_refresh_active_company()
@@ -80,7 +84,15 @@ func debug_action(action: String, amount: int = 0) -> bool:
 
 func snapshot() -> Dictionary:
 	_refresh_active_company()
-	return {"mode": mode, "player_company": player_company, "active_company": active_company, "time": time.snapshot(), "economy": sim.snapshot()}
+	return {"mode": mode, "player_company": player_company, "active_company": active_company, "active_city": active_city, "time": time.snapshot(), "economy": sim.snapshot()}
+
+func select_city(city_id: String) -> bool:
+	if not sim.cities.has(city_id):
+		message = "Unknown city."
+		return false
+	active_city = city_id
+	message = "Viewing " + sim.cities[city_id].display_name + "."
+	return true
 
 func controlled_companies() -> Array[String]:
 	return sim.equity_market.controlled_group(player_company)
@@ -108,7 +120,7 @@ func load_game(path: String) -> bool:
 	if state.is_empty():
 		message = store.error
 		return false
-	if not Store.shape(state, {"mode": "", "player_company": "", "active_company": "", "time": time.snapshot(), "economy": {}}) or state.mode not in ["sandbox", "tutorial"] or state.player_company != "player":
+	if not Store.shape(state, {"mode": "", "player_company": "", "active_company": "", "active_city": "", "time": time.snapshot(), "economy": {}}) or state.mode not in ["sandbox", "tutorial"] or state.player_company != "player":
 		message = "Invalid session state."
 		return false
 	var timing: Dictionary = state.time
@@ -122,10 +134,14 @@ func load_game(path: String) -> bool:
 	if not state.active_company is String or state.active_company not in candidate.equity_market.controlled_group(state.player_company):
 		message = "Invalid active company."
 		return false
+	if not candidate.cities.has(state.active_city):
+		message = "Invalid active city."
+		return false
 	sim = candidate
 	mode = state.mode
 	player_company = state.player_company
 	active_company = state.active_company
+	active_city = state.active_city
 	time = TimeController.new()
 	time.speed = timing.speed
 	time.last_speed = timing.last_speed

@@ -11,13 +11,15 @@ static func balance(sim: Economy, company: String) -> Dictionary:
 			depreciation += f.accumulated_depreciation
 	var transit: int = sim.logistics.assets(company)
 	var inventory: int = sim.inventory_assets(company) - transit
-	var land: int = sim.real_estate.land_assets(company)
+	var land: int = 0
 	var property_cost: int = 0
 	var property_depreciation: int = 0
-	for b: Dictionary in sim.real_estate.properties.values():
-		if b.owner == company:
-			property_cost += int(b.building_cost)
-			property_depreciation += int(b.depreciation)
+	for estate: RealEstate in sim.real_estates.values():
+		land += estate.land_assets(company)
+		for b: Dictionary in estate.properties.values():
+			if b.owner == company:
+				property_cost += int(b.building_cost)
+				property_depreciation += int(b.depreciation)
 	return {"cash": owner.cash, "inventory": inventory, "in_transit": transit, "fixed_cost": cost,
 		"land": land, "property_cost": property_cost, "property_depreciation": property_depreciation, "net_property": property_cost - property_depreciation,
 		"accumulated_depreciation": depreciation, "net_fixed_assets": cost - depreciation,

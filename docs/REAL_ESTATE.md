@@ -1,7 +1,10 @@
 # Real estate and city growth (Milestone 10)
 
-`RealEstate` owns land and economic property records. `CityMap` owns geometry,
-roads, water, parcels, districts and visual footprints. Catalog 10 defines five
+Each procedural city has its own `RealEstate` and `CityMap`. Land cells and
+property IDs are scoped by city ID; a Metro parcel and a Harbor parcel with the
+same coordinates are independent. `RealEstate` owns land and economic property
+records. `CityMap` owns geometry, roads, water, parcels, districts and visual
+footprints. Catalog 11 defines five
 types: house (12 residents, $25,000 construction), apartments (70, $120,000),
 block (150, $300,000), office (100 jobs, $180,000) and commercial (40 jobs,
 $90,000). Each has a catalog footprint and height. Facilities also have catalog
@@ -9,7 +12,7 @@ job counts. The legacy fixed board keeps its 5,000 residents and has no property
 commands.
 
 Every owned buildable cell stores its company and historical acquisition basis.
-Road and water cannot be owned. Existing scenario facilities start with their
+Road, water and public port cells cannot be owned. Existing scenario facilities start with their
 footprint owned at zero basis. `buy_land` charges current parcel land value for
 newly acquired cells and zero for the company's existing cells. Facility and
 property construction automatically acquire unowned footprint land; rival land
@@ -23,10 +26,11 @@ land value plus catalog replacement cost; residents and job occupancy remain.
 `redevelop_property` atomically writes off the old net building value, retains
 owned land, acquires any extra unowned cells, and builds a new empty property.
 `demolish_property` writes off remaining building value and retains land. Each
-new building receives a monotonic `property_000001` style ID. Property buildings
+new building receives a city-scoped monotonic `property_000001` style ID. Property buildings
 depreciate over 3,650 days; land does not depreciate or revalue in profit.
 
-Monthly migration targets `min(floor(housing × 95 / 100), jobs × 2)`, moves about
+Each city runs monthly migration independently. Migration targets
+`min(floor(housing × 95 / 100), jobs × 2)`, moves about
 one twelfth of the gap, and caps movement at about 2% of current population.
 Residents distribute by residential capacity with stable-ID remainder assignment.
 Workforce is `floor(population / 2)`, employed is `min(workforce, jobs)` and
@@ -56,10 +60,11 @@ remain ahead of property investment. Controlled subsidiaries do not run AI.
 Clicking an existing building selects its property inspector; vacant parcels expose
 land and development actions. Acquiring, demolishing and redeveloping require a
 confirmation. Company → Properties shows the portfolio, vacant owned land and a
-compact city summary. Facility construction displays building, land and total cost.
+compact summary for the active city, while its property portfolio and asset totals
+cover all cities. Facility construction displays city, building, land and total cost.
 
-Economy schema 18 persists land basis, property records, accumulated depreciation,
+Economy schema 19 persists each city's land basis, property records, accumulated depreciation,
 population/occupancy, fixed baseline jobs, the next property ID and expanded city
 employment. Restore rejects malformed ownership, footprints, capacities, aggregate
-state and accounting. Catalog version is 10; save envelope format remains 2. Old
-schema 17 saves have no migration and are rejected.
+state and accounting. Catalog version is 11; save envelope format remains 2. Old
+schema 18 saves have no migration and are rejected.

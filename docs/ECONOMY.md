@@ -1,6 +1,18 @@
 # Economic model
 
-## Milestone 10 city growth and property
+## Milestone 11 regional economy
+
+Population, property migration, employment and consumer demand are calculated
+separately for Metro, Harbor and Highland. Local is present independently in each
+city. Regional market totals sum units, revenue, potential and company shares;
+average price, quality and brand use those summed numerators and units. Company
+statements aggregate operations across all cities. Imports are inventory purchases
+at 125% of reference price plus freight, with quality 50. Exports are product sales
+at 110% of reference price, with ordinary COGS and freight. Import purchases and
+export revenue are informational subsets of purchases and revenue. See
+[regional trade](REGIONAL_TRADE.md) for route, capacity and UI rules.
+
+## Milestone 10 city growth and property (historical checkpoint)
 
 Procedural city population now changes through deterministic monthly migration.
 Its target is the lesser of 95% of housing capacity and twice aggregate job capacity;

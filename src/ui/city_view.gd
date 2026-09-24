@@ -4,6 +4,7 @@ extends Node3D
 signal facility_selected(id: String)
 signal property_selected(id: String)
 signal parcel_selected(x: int, y: int)
+signal port_selected
 signal placement_requested(x: int, y: int)
 signal placement_changed(reason: String)
 signal placement_cancelled
@@ -48,7 +49,7 @@ func build(state: Dictionary) -> void:
 	sun.rotation_degrees = Vector3(-55, -30, 0)
 	sun.light_energy = 1.2
 	add_child(sun)
-	var map: Dictionary = state.city
+	var map: Dictionary = state.get("city", state.get("cities", {}).get(session.active_city, {}))
 	map_width = int(map.width)
 	map_depth = int(map.depth)
 	max_zoom = maxf(65.0, maxf(map_width, map_depth) * CELL * 1.5)
@@ -60,7 +61,7 @@ func build(state: Dictionary) -> void:
 			if CityMap.key(x, y) in map.water:
 				var shore: bool = x > 0 and CityMap.key(x - 1, y) not in map.water
 				_box(self, pos + Vector3(0, 0.02, 0), Vector3(CELL, 0.04, CELL), Color("549caf") if shore else Color("3c819c"))
-			elif session.sim.city.touches_water(x, y):
+			elif session.sim.cities[session.active_city].touches_water(x, y):
 				_box(self, pos + Vector3(0, 0.01, 0), Vector3(CELL, 0.02, CELL), Color("b0ac82"))
 			if road:
 				_box(self, pos + Vector3(0, 0.015, 0), Vector3(CELL, 0.03, CELL), Color("394953"))
@@ -75,6 +76,25 @@ func build(state: Dictionary) -> void:
 	structures = Node3D.new()
 	add_child(structures)
 	sync(state)
+	if not map.port.is_empty():
+		var marker: StaticBody3D = StaticBody3D.new()
+		marker.position = cell_position(int(map.port.x), int(map.port.y)) + Vector3(0, 0.65, 0)
+		marker.set_meta("port_id", str(map.port.id))
+		add_child(marker)
+		_box(marker, Vector3.ZERO, Vector3(CELL * 1.1, 0.45, CELL * 1.1), Color("e8a843"))
+		_box(marker, Vector3(0, 1.1, 0), Vector3(0.25, 2.0, 0.25), Color("fff0aa"))
+		_box(marker, Vector3(0, 2.1, 0), Vector3(1.0, 0.16, 0.25), Color("fff0aa"))
+		var label: Label3D = Label3D.new()
+		label.text = "PORT"
+		label.font_size = 30
+		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		label.position = Vector3(0, 2.65, 0)
+		marker.add_child(label)
+		var collision: CollisionShape3D = CollisionShape3D.new()
+		var shape: BoxShape3D = BoxShape3D.new()
+		shape.size = Vector3(CELL * 1.2, 3.0, CELL * 1.2)
+		collision.shape = shape
+		marker.add_child(collision)
 	preview = _box(self, Vector3.ZERO, Vector3.ONE, Color("70efbb"))
 	preview.hide()
 	camera = Camera3D.new()
@@ -88,18 +108,20 @@ func cell_position(x: float, y: float) -> Vector3:
 	return Vector3((x - (map_width - 1) / 2.0) * CELL, 0, (y - (map_depth - 1) / 2.0) * CELL)
 
 func sync(state: Dictionary) -> void:
+	var map: Dictionary = state.get("city", state.get("cities", {}).get(session.active_city, {}))
 	if property_structures != null:
 		for child: Node in property_structures.get_children():
 			property_structures.remove_child(child)
 			child.queue_free()
 		property_buildings.clear()
-		_build_ambient(state.city)
+		_build_ambient(map)
 	for child: Node in structures.get_children():
 		structures.remove_child(child)
 		child.queue_free()
 	buildings.clear()
 	for f: Dictionary in state.facilities:
-		var p: Dictionary = state.city.plots[f.id]
+		if str(f.city) != session.active_city: continue
+		var p: Dictionary = map.plots[f.id]
 		var definition: Dictionary = session.sim.catalog.facility_types[f.type] if session != null else {}
 		var style: String = str(definition.get("style", "shop"))
 		var height: float = 2.6 if style == "factory" else (2.9 if style == "department" else 1.5)
@@ -161,13 +183,13 @@ func _refresh_parcel_overlay() -> void:
 	for child: Node in parcel_overlay.get_children():
 		parcel_overlay.remove_child(child)
 		child.queue_free()
-	for k: String in session.sim.city.parcels:
-		var p: Dictionary = session.sim.city.parcels[k]
+	for k: String in session.sim.cities[session.active_city].parcels:
+		var p: Dictionary = session.sim.cities[session.active_city].parcels[k]
 		if p.terrain == "land" and p.road_access:
 			var coordinates: PackedStringArray = k.split(",")
 			var x: int = int(coordinates[0])
 			var y: int = int(coordinates[1])
-			if session.sim.city.placement_error(x, y, 1, 1).is_empty():
+			if session.sim.cities[session.active_city].placement_error(x, y, 1, 1).is_empty():
 				_box(parcel_overlay, cell_position(x, y) + Vector3(0, 0.07, 0), Vector3(CELL * 0.88, 0.04, CELL * 0.88), Color("82bca0"))
 
 func _build_ambient(map: Dictionary) -> void:
@@ -263,13 +285,13 @@ func update_preview(x: int, y: int) -> void:
 	if build_type.is_empty(): return
 	preview_cell = Vector2i(x, y)
 	var definition: Dictionary = session.sim.catalog.facility_types[build_type]
-	preview_error = session.sim.command_error({"type": "build_facility", "company": session.active_company, "archetype": build_type, "product": build_product, "x": x, "y": y})
+	preview_error = session.sim.command_error({"type": "build_facility", "company": session.active_company, "city": session.active_city, "archetype": build_type, "product": build_product, "x": x, "y": y})
 	preview.mesh.size = Vector3(definition.width * CELL - 0.08, 0.16, definition.depth * CELL - 0.08)
 	preview.position = cell_position(x + (definition.width - 1) / 2.0, y + (definition.depth - 1) / 2.0) + Vector3(0, 0.25, 0)
 	preview.material_override.albedo_color = Color("67ffb8") if preview_error.is_empty() else Color("ff6170")
 	preview.material_override.no_depth_test = true
 	preview.show()
-	var info: Dictionary = session.sim.city.parcel_info(x, y)
+	var info: Dictionary = session.sim.cities[session.active_city].parcel_info(x, y)
 	var detail: String = ""
 	if info.has("land_value"):
 		detail = "\n%s • Land $%.0f/cell%s" % [info.district, info.land_value / 100.0, " • Waterfront" if info.waterfront else ""]
@@ -335,6 +357,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 			if not hit.is_empty() and hit.collider.has_meta("facility_id"):
 				facility_selected.emit(str(hit.collider.get_meta("facility_id")))
+			elif not hit.is_empty() and hit.collider.has_meta("port_id"):
+				port_selected.emit()
 			elif not hit.is_empty() and hit.collider.has_meta("property_id"):
 				property_selected.emit(str(hit.collider.get_meta("property_id")))
 			else:

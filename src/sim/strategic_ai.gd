@@ -41,11 +41,13 @@ func cash_reserve(cash: int, profile: Dictionary = DIFFICULTY_PROFILES.standard)
 
 # Integer score based on currently observable demand. Category unmet demand and
 # Local-held units raise urgency; the company's realized share lowers it.
-func market_opportunity(sim, company_id: String, product: String) -> int:
+func market_opportunity(sim, company_id: String, product: String, city_id: String = "") -> int:
 	if not sim.catalog.products.has(product) or not sim.catalog.consumer_product(product): return -1000000
 	var definition: Dictionary = sim.catalog.products[product]
-	var category: Dictionary = sim.category_market.get(str(definition.category), {})
-	var report: Dictionary = sim.market.get(product, {})
+	var categories: Dictionary = sim.category_market if city_id.is_empty() else sim.category_market_by_city.get(city_id, {})
+	var markets: Dictionary = sim.market if city_id.is_empty() else sim.market_by_city.get(city_id, {})
+	var category: Dictionary = categories.get(str(definition.category), {})
+	var report: Dictionary = markets.get(product, {})
 	var unmet: int = maxi(0, int(category.get("potential", 0)) - int(category.get("units", 0)))
 	var local_units: int = int(report.get("local_units", 0))
 	var realized: int = int(report.get("units", 0))
@@ -81,31 +83,39 @@ func evaluate_month(sim) -> Dictionary:
 		for command: Dictionary in assortment:
 			trace.append(_trace(company_id, "ADD_LINE", str(command.product), market_opportunity(sim, company_id, str(command.product))))
 
-		var capital: Dictionary = _capital_command(sim, company_id, not assortment.is_empty(), reserved, profile)
-		if capital.is_empty(): capital = _property_command(sim, company_id, reserved, profile)
+		var capital: Dictionary = {}
+		var city_ids: Array = sim.cities.keys()
+		city_ids.sort()
+		for city_id: String in city_ids:
+			var candidate: Dictionary = _capital_command(sim, company_id, not assortment.is_empty(), reserved, profile, city_id)
+			if candidate.is_empty(): candidate = _property_command(sim, company_id, reserved, profile, city_id)
+			if candidate.is_empty(): continue
+			if capital.is_empty() or int(candidate.get("priority", 0)) > int(capital.get("priority", 0)) or (int(candidate.get("priority", 0)) == int(capital.get("priority", 0)) and int(candidate.get("strategic_score", 0)) > int(capital.get("strategic_score", 0))): capital = candidate
 		var post_capital_cash: int = int(sim.companies[company_id].cash)
 		if not capital.is_empty():
 			commands.append(capital)
 			if capital.type == "build_facility":
 				var definition: Dictionary = sim.catalog.facility_types[str(capital.archetype)]
-				post_capital_cash -= int(definition.cost) + (0 if sim.city.generation.preset == "legacy" else sim.real_estate.land_cost(sim, company_id, int(capital.x), int(capital.y), int(definition.width), int(definition.depth)))
+				post_capital_cash -= int(definition.cost) + (0 if sim.cities[capital.city].generation.preset == "legacy" else sim.real_estates[capital.city].land_cost(sim, company_id, int(capital.x), int(capital.y), int(definition.width), int(definition.depth)))
 				_reserve_footprint(sim, capital, reserved)
 				trace.append(_trace(company_id, "BUILD", "%s/%s" % [capital.archetype, capital.get("product", "")], int(capital.get("strategic_score", 0))))
 			else:
 				var definition: Dictionary = sim.catalog.property_types[str(capital.property_type)]
-				post_capital_cash -= int(definition.cost) + sim.real_estate.land_cost(sim, company_id, int(capital.x), int(capital.y), int(definition.width), int(definition.depth))
-				for cell: String in sim.real_estate.cells(int(capital.x), int(capital.y), int(definition.width), int(definition.depth)): reserved[cell] = true
+				post_capital_cash -= int(definition.cost) + sim.real_estates[capital.city].land_cost(sim, company_id, int(capital.x), int(capital.y), int(definition.width), int(definition.depth))
+				for cell: String in sim.real_estates[capital.city].cells(int(capital.x), int(capital.y), int(definition.width), int(definition.depth)): reserved[str(capital.city) + ":" + cell] = true
 				trace.append(_trace(company_id, "PROPERTY", str(capital.property_type), int(capital.get("strategic_score", 0))))
 			capital.erase("strategic_score")
+			capital.erase("priority")
 
 		commands.append_array(_staffing_commands(sim, company_id, post_capital_cash, profile))
-		var warehouse: Dictionary = _owned_facility(sim, company_id, "storage")
-		if not warehouse.is_empty():
-			var targets: Dictionary = warehouse_targets(sim, company_id, str(warehouse.id))
-			commands.append_array(_warehouse_target_commands(sim, company_id, str(warehouse.id), targets))
-			commands.append_array(_sourcing_commands(sim, company_id, str(warehouse.id), targets))
-		else:
-			commands.append_array(_sourcing_commands(sim, company_id, "", {}))
+		for city_id: String in city_ids:
+			var warehouse: Dictionary = _owned_facility(sim, company_id, "storage", city_id)
+			if not warehouse.is_empty():
+				var targets: Dictionary = warehouse_targets(sim, company_id, str(warehouse.id))
+				commands.append_array(_warehouse_target_commands(sim, company_id, str(warehouse.id), targets))
+				commands.append_array(_sourcing_commands(sim, company_id, str(warehouse.id), targets, city_id))
+			else:
+				commands.append_array(_sourcing_commands(sim, company_id, "", {}, city_id))
 	return {"commands": commands, "trace": trace}
 
 func research_commands(sim) -> Array[Dictionary]:
@@ -172,7 +182,7 @@ func warehouse_targets(sim, company_id: String, warehouse_id: String) -> Diction
 	if warehouse == null or warehouse.company_id != company_id or sim._behavior(warehouse) != "storage": return {}
 	var requirements: Dictionary = {}
 	for f in sim.facilities:
-		if f.company_id != company_id or f.id == warehouse_id: continue
+		if f.company_id != company_id or f.id == warehouse_id or f.city_id != warehouse.city_id: continue
 		if sim._behavior(f) == "retail":
 			for product: String in f.line_ids():
 				requirements[product] = int(requirements.get(product, 0)) + sim.retail_replenishment_target(f)
@@ -208,50 +218,50 @@ func _assortment_commands(sim, company_id: String, profile: Dictionary = DIFFICU
 		var candidates: Array[Dictionary] = []
 		for product: String in eligible_consumer_products(sim):
 			if f.assortment.has(product) or not sim.catalog.supports_product(f.type_id, product): continue
-			var score: int = market_opportunity(sim, company_id, product)
+			var score: int = market_opportunity(sim, company_id, product, f.city_id)
 			if score >= int(profile.opportunity_threshold): candidates.append({"product": product, "score": score})
 		candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.score) > int(b.score) if a.score != b.score else str(a.product) < str(b.product))
 		if not candidates.is_empty(): result.append({"type": "add_line", "company": company_id, "facility": f.id, "product": str(candidates[0].product)})
 	return result
 
-func _capital_command(sim, company_id: String, assortment_added: bool, reserved: Dictionary, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> Dictionary:
+func _capital_command(sim, company_id: String, assortment_added: bool, reserved: Dictionary, profile: Dictionary, city_id: String) -> Dictionary:
 	var owner = sim.companies[company_id]
 	var candidates: Array[Dictionary] = []
-	var commercials: Array = _owned_commercial(sim, company_id)
+	var commercials: Array = _owned_commercial(sim, company_id, city_id)
 	# Structural input gaps outrank elective investment, but an existing physical
 	# producer counts as a supply path even when it is temporarily out of stock.
 	for f in sim.facilities:
-		if f.company_id != company_id or sim._behavior(f) != "production": continue
+		if f.company_id != company_id or f.city_id != city_id or sim._behavior(f) != "production": continue
 		var inputs: Array = sim.catalog.products[f.product_id].inputs.keys()
 		inputs.sort()
 		for input: String in inputs:
 			if _has_structural_supplier(sim, f.id, input) or _owns_production(sim, company_id, input) or not sim.can_manufacture(company_id, input): continue
 			var archetype: String = _production_archetype(sim, input)
 			if not archetype.is_empty(): candidates.append({"priority": 600, "score": sim.production_input_target(f, input), "archetype": archetype, "product": input})
-	if not commercials.is_empty() and sim.headquarters(company_id) == null:
+	if not _owned_commercial(sim, company_id).is_empty() and sim.headquarters(company_id) == null and city_id == "metro":
 		var hq_type: String = _cheapest_type(sim, "headquarters")
 		if not hq_type.is_empty(): candidates.append({"priority": 500, "score": commercials.size(), "archetype": hq_type, "product": ""})
-	if not commercials.is_empty() and _owned_facilities(sim, company_id, "research").is_empty() and not research_choice(sim, company_id).is_empty():
+	if not _owned_commercial(sim, company_id).is_empty() and _owned_facilities(sim, company_id, "research").is_empty() and not research_choice(sim, company_id).is_empty() and city_id == "metro":
 		var research_type: String = _cheapest_type(sim, "research")
 		if not research_type.is_empty(): candidates.append({"priority": 400, "score": 0, "archetype": research_type, "product": ""})
-	for product: String in _sold_products(sim, company_id):
+	for product: String in _sold_products(sim, company_id, city_id):
 		if not _owns_production(sim, company_id, product) and sim.can_manufacture(company_id, product):
-			var score: int = market_opportunity(sim, company_id, product)
+			var score: int = market_opportunity(sim, company_id, product, city_id)
 			var archetype: String = _production_archetype(sim, product)
 			if score >= int(profile.opportunity_threshold) and not archetype.is_empty(): candidates.append({"priority": 300, "score": score, "archetype": archetype, "product": product})
-	var retailers: Array = _owned_facilities(sim, company_id, "retail")
+	var retailers: Array = _owned_facilities(sim, company_id, "retail", city_id)
 	if not assortment_added and retailers.size() < int(profile.maximum_retailers):
 		var served: Dictionary = {}
 		for item: Dictionary in retailers:
 			for product: String in sim.facility(str(item.id)).line_ids(): served[product] = true
 		var opportunities: Array[Dictionary] = []
 		for product: String in eligible_consumer_products(sim):
-			if not served.has(product): opportunities.append({"product": product, "score": market_opportunity(sim, company_id, product)})
+			if not served.has(product): opportunities.append({"product": product, "score": market_opportunity(sim, company_id, product, city_id)})
 		opportunities.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a.score) > int(b.score) if a.score != b.score else str(a.product) < str(b.product))
 		if not opportunities.is_empty() and int(opportunities[0].score) >= int(profile.opportunity_threshold):
 			var retail_type: String = _retail_archetype(sim, str(opportunities[0].product))
 			if not retail_type.is_empty(): candidates.append({"priority": 200, "score": int(opportunities[0].score), "archetype": retail_type, "product": str(opportunities[0].product)})
-	if commercials.size() >= int(profile.warehouse_commercial_threshold) and _owned_facilities(sim, company_id, "storage").is_empty():
+	if commercials.size() >= int(profile.warehouse_commercial_threshold) and _owned_facilities(sim, company_id, "storage", city_id).is_empty():
 		var storage_type: String = _cheapest_type(sim, "storage")
 		if not storage_type.is_empty(): candidates.append({"priority": 100, "score": commercials.size(), "archetype": storage_type, "product": str(sim.catalog.facility_types[storage_type].products[0])})
 	candidates.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -261,17 +271,19 @@ func _capital_command(sim, company_id: String, assortment_added: bool, reserved:
 		return str(a.product) < str(b.product))
 	var reserve: int = cash_reserve(owner.cash, profile)
 	for candidate: Dictionary in candidates:
-		var site: Vector2i = _placement_for(sim, company_id, str(candidate.archetype), str(candidate.product), reserved)
+		var site: Vector2i = _placement_for(sim, company_id, str(candidate.archetype), str(candidate.product), reserved, city_id)
 		if site.x < 0: continue
 		var definition: Dictionary = sim.catalog.facility_types[str(candidate.archetype)]
-		var cost: int = int(definition.cost) + (0 if sim.city.generation.preset == "legacy" else sim.real_estate.land_cost(sim, company_id, site.x, site.y, int(definition.width), int(definition.depth)))
+		var cost: int = int(definition.cost) + (0 if sim.cities[city_id].generation.preset == "legacy" else sim.real_estates[city_id].land_cost(sim, company_id, site.x, site.y, int(definition.width), int(definition.depth)))
 		if owner.cash - cost < reserve: continue
-		return {"type": "build_facility", "company": company_id, "city": sim.city.id, "archetype": str(candidate.archetype), "product": str(candidate.product), "x": site.x, "y": site.y, "strategic_score": int(candidate.score)}
+		return {"type": "build_facility", "company": company_id, "city": city_id, "archetype": str(candidate.archetype), "product": str(candidate.product), "x": site.x, "y": site.y, "strategic_score": int(candidate.score), "priority": int(candidate.priority)}
 	return {}
 
-func _property_command(sim, company_id: String, reserved: Dictionary, profile: Dictionary) -> Dictionary:
-	if sim.city.generation.preset == "legacy": return {}
-	var population: Dictionary = sim.city.population
+func _property_command(sim, company_id: String, reserved: Dictionary, profile: Dictionary, city_id: String) -> Dictionary:
+	var city: CityMap = sim.cities[city_id]
+	var estate: RealEstate = sim.real_estates[city_id]
+	if city.generation.preset == "legacy": return {}
+	var population: Dictionary = city.population
 	var housing: int = int(population.housing_capacity)
 	var people: int = int(population.total)
 	var workforce: int = int(population.workforce)
@@ -285,14 +297,15 @@ func _property_command(sim, company_id: String, reserved: Dictionary, profile: D
 	var definition: Dictionary = sim.catalog.property_types[type_id]
 	var owner = sim.companies[company_id]
 	var reserve: int = cash_reserve(owner.cash, profile)
-	for y: int in range(sim.city.depth - int(definition.depth) + 1):
-		for x: int in range(sim.city.width - int(definition.width) + 1):
-			if _reserved_overlap(x, y, int(definition.width), int(definition.depth), reserved): continue
-			var command: Dictionary = {"type": "develop_property", "company": company_id, "property_type": type_id, "x": x, "y": y}
+	for y: int in range(city.depth - int(definition.depth) + 1):
+		for x: int in range(city.width - int(definition.width) + 1):
+			if _reserved_overlap(x, y, int(definition.width), int(definition.depth), reserved, city_id): continue
+			var command: Dictionary = {"type": "develop_property", "company": company_id, "city": city_id, "property_type": type_id, "x": x, "y": y}
 			if not sim.property_command_error(command).is_empty(): continue
-			var cost: int = int(definition.cost) + sim.real_estate.land_cost(sim, company_id, x, y, int(definition.width), int(definition.depth))
+			var cost: int = int(definition.cost) + estate.land_cost(sim, company_id, x, y, int(definition.width), int(definition.depth))
 			if owner.cash - cost >= reserve:
 				command["strategic_score"] = housing - people if type_id in ["apartments", "block"] else workforce - jobs
+				command["priority"] = 50
 				return command
 	return {}
 	return {}
@@ -343,31 +356,33 @@ func _warehouse_target_commands(sim, company_id: String, warehouse_id: String, t
 			result.append({"type": "set_warehouse_target", "company": company_id, "facility": warehouse_id, "product": product, "quantity": quantity})
 	return result
 
-func _sourcing_commands(sim, company_id: String, warehouse_id: String, targets: Dictionary) -> Array[Dictionary]:
+func _sourcing_commands(sim, company_id: String, warehouse_id: String, targets: Dictionary, city_id: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for item: Dictionary in _owned_commercial(sim, company_id):
 		var f = sim.facility(str(item.id))
+		if f.city_id != city_id: continue
 		var products: Array = f.line_ids() if sim._behavior(f) == "retail" else sim.catalog.products[f.product_id].inputs.keys()
 		products.sort()
 		for product: String in products:
 			var supplier: String = ""
-			if not warehouse_id.is_empty() and int(targets.get(product, 0)) > 0 and sim.city.road_distance(warehouse_id, f.id) >= 0: supplier = warehouse_id
+			if not warehouse_id.is_empty() and int(targets.get(product, 0)) > 0 and sim.cities[city_id].road_distance(warehouse_id, f.id) >= 0: supplier = warehouse_id
 			if str(f.suppliers.get(product, "")) != supplier:
 				result.append({"type": "set_supplier", "company": company_id, "facility": f.id, "product": product, "supplier": supplier})
 	return result
 
-func _placement_for(sim, company_id: String, type_id: String, product: String, reserved: Dictionary) -> Vector2i:
+func _placement_for(sim, company_id: String, type_id: String, product: String, reserved: Dictionary, city_id: String) -> Vector2i:
 	var definition: Dictionary = sim.catalog.facility_types[type_id]
+	var city: CityMap = sim.cities[city_id]
 	var sites: Array[Dictionary] = []
-	for point: Vector2i in sim.city.valid_sites(int(definition.width), int(definition.depth)):
-		if _reserved_overlap(point.x, point.y, int(definition.width), int(definition.depth), reserved): continue
-		var command: Dictionary = {"type": "build_facility", "company": company_id, "city": sim.city.id, "archetype": type_id, "product": product, "x": point.x, "y": point.y}
+	for point: Vector2i in city.valid_sites(int(definition.width), int(definition.depth)):
+		if _reserved_overlap(point.x, point.y, int(definition.width), int(definition.depth), reserved, city_id): continue
+		var command: Dictionary = {"type": "build_facility", "company": company_id, "city": city_id, "archetype": type_id, "product": product, "x": point.x, "y": point.y}
 		if not sim.construction_error(command).is_empty(): continue
 		var distance: int = 0
 		var found: bool = false
 		for f in sim.facilities:
-			if f.company_id != company_id or not sim.city.plots.has(f.id): continue
-			var plot: Dictionary = sim.city.plots[f.id]
+			if f.company_id != company_id or f.city_id != city_id or not city.plots.has(f.id): continue
+			var plot: Dictionary = city.plots[f.id]
 			var d: int = absi(point.x - int(plot.x)) + absi(point.y - int(plot.y))
 			if not found or d < distance: distance = d
 			found = true
@@ -378,38 +393,38 @@ func _placement_for(sim, company_id: String, type_id: String, product: String, r
 		return int(a.point.x) < int(b.point.x))
 	return Vector2i(-1, -1) if sites.is_empty() else sites[0].point
 
-func _reserved_overlap(x: int, y: int, width: int, depth: int, reserved: Dictionary) -> bool:
+func _reserved_overlap(x: int, y: int, width: int, depth: int, reserved: Dictionary, city_id: String) -> bool:
 	for cy: int in range(y, y + depth):
 		for cx: int in range(x, x + width):
-			if reserved.has("%d,%d" % [cx, cy]): return true
+			if reserved.has(city_id + ":%d,%d" % [cx, cy]): return true
 	return false
 
 func _reserve_footprint(sim, command: Dictionary, reserved: Dictionary) -> void:
 	var definition: Dictionary = sim.catalog.facility_types[str(command.archetype)]
 	for y: int in range(int(command.y), int(command.y) + int(definition.depth)):
 		for x: int in range(int(command.x), int(command.x) + int(definition.width)):
-			reserved["%d,%d" % [x, y]] = true
+			reserved[str(command.city) + ":%d,%d" % [x, y]] = true
 
-func _owned_facilities(sim, company_id: String, behavior: String) -> Array:
+func _owned_facilities(sim, company_id: String, behavior: String, city_id: String = "") -> Array:
 	var result: Array = []
 	for f in sim.facilities:
-		if f.company_id == company_id and sim._behavior(f) == behavior: result.append({"id": f.id})
+		if f.company_id == company_id and sim._behavior(f) == behavior and (city_id.is_empty() or f.city_id == city_id): result.append({"id": f.id})
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	return result
 
-func _owned_facility(sim, company_id: String, behavior: String) -> Dictionary:
-	var facilities: Array = _owned_facilities(sim, company_id, behavior)
+func _owned_facility(sim, company_id: String, behavior: String, city_id: String = "") -> Dictionary:
+	var facilities: Array = _owned_facilities(sim, company_id, behavior, city_id)
 	return {} if facilities.is_empty() else facilities[0]
 
-func _owned_commercial(sim, company_id: String) -> Array:
-	var result: Array = _owned_facilities(sim, company_id, "production")
-	result.append_array(_owned_facilities(sim, company_id, "retail"))
+func _owned_commercial(sim, company_id: String, city_id: String = "") -> Array:
+	var result: Array = _owned_facilities(sim, company_id, "production", city_id)
+	result.append_array(_owned_facilities(sim, company_id, "retail", city_id))
 	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return str(a.id) < str(b.id))
 	return result
 
-func _sold_products(sim, company_id: String) -> Array[String]:
+func _sold_products(sim, company_id: String, city_id: String = "") -> Array[String]:
 	var found: Dictionary = {}
-	for item: Dictionary in _owned_facilities(sim, company_id, "retail"):
+	for item: Dictionary in _owned_facilities(sim, company_id, "retail", city_id):
 		for product: String in sim.facility(str(item.id)).line_ids(): found[product] = true
 	var result: Array[String] = []
 	for product: String in found: result.append(product)
@@ -424,9 +439,9 @@ func _owns_production(sim, company_id: String, product: String) -> bool:
 func _has_structural_supplier(sim, buyer_id: String, product: String) -> bool:
 	var buyer = sim.facility(buyer_id)
 	for seller in sim.facilities:
-		if seller == buyer or seller.city_id != buyer.city_id: continue
+		if seller == buyer: continue
 		if (sim._behavior(seller) == "production" and seller.product_id == product) or (sim._behavior(seller) == "storage" and seller.company_id == buyer.company_id and int(seller.replenishment_targets.get(product, 0)) > 0):
-			if sim.city.road_distance(seller.id, buyer.id) >= 0: return true
+			if sim.logistics.quote(sim, seller.id, buyer.id, 1).distance >= 0: return true
 	return false
 
 func _production_archetype(sim, product: String) -> String:

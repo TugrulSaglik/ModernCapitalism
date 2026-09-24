@@ -19,16 +19,17 @@ static func district_segments(catalog: SimCatalog, population: int, income: int)
 	for index: int in range(maxi(0, population) - assigned): result[ids[index % ids.size()]] += 1
 	return result
 
-static func populations(sim: Economy) -> Dictionary:
+static func populations(sim: Economy, city_id: String = "metro") -> Dictionary:
 	var result: Dictionary = {}
+	var city: CityMap = sim.cities[city_id]
 	for id: String in sim.catalog.segments: result[id] = 0
-	if int(sim.city.population.total) == 0: return result
-	if sim.city.districts.is_empty():
-		return district_segments(sim.catalog, sim.city.population.total, sim.city.population.purchasing_power)
-	var ids: Array = sim.city.districts.keys()
+	if int(city.population.total) == 0: return result
+	if city.districts.is_empty():
+		return district_segments(sim.catalog, city.population.total, city.population.purchasing_power)
+	var ids: Array = city.districts.keys()
 	ids.sort()
 	for id: String in ids:
-		var d: Dictionary = sim.city.districts[id]
+		var d: Dictionary = city.districts[id]
 		var counts: Dictionary = district_segments(sim.catalog, d.population, d.purchasing_power)
 		for segment: String in counts: result[segment] += int(counts[segment])
 	return result
@@ -58,31 +59,34 @@ static func finish_report(m: Dictionary, reference_price: int) -> void:
 	for company: String in m.company_units:
 		m.market_share[company] = float(m.company_units[company]) / units if units > 0 else 0.0
 
-static func clear(sim: Economy) -> void:
-	var counts: Dictionary = populations(sim)
+static func clear_city(sim: Economy, city_id: String) -> void:
+	var city: CityMap = sim.cities[city_id]
+	var city_market: Dictionary = sim.market_by_city[city_id]
+	var city_category: Dictionary = sim.category_market_by_city[city_id]
+	var counts: Dictionary = populations(sim, city_id)
 	var categories: Array = sim.catalog.categories.keys()
 	categories.sort()
 	var segments: Array = sim.catalog.segments.keys()
 	segments.sort()
 	var products: Array = sim.catalog.products.keys()
 	products.sort()
-	sim.market.clear()
+	city_market.clear()
 	for product: String in products:
-		if sim.product_public(product): sim.market[product] = empty_report()
-	sim.category_market.clear()
+		if sim.product_public(product): city_market[product] = empty_report()
+	city_category.clear()
 	for category_id: String in categories:
 		var category: Dictionary = sim.catalog.categories[category_id]
 		var shock: int = sim.rng.randi_range(90, 110)
 		var report: Dictionary = {"potential": 0, "units": 0, "revenue": 0, "local_units": 0, "local_revenue": 0, "segments": {}}
 		for segment_id: String in segments:
 			var segment: Dictionary = sim.catalog.segments[segment_id]
-			var demand: int = potential(category, segment, counts[segment_id], sim.city.population.purchasing_power, shock)
+			var demand: int = potential(category, segment, counts[segment_id], city.population.purchasing_power, shock)
 			if not sim.technology_public(category.technology): demand = 0
 			report.potential += demand
 			report.segments[segment_id] = demand
 			var offers: Array[Dictionary] = []
 			for f: SimFacility in sim.facilities:
-				if not f.active or sim._behavior(f) != "retail": continue
+				if f.city_id != city_id or not f.active or sim._behavior(f) != "retail": continue
 				for product: String in f.line_ids():
 					var p: Dictionary = sim.catalog.products[product]
 					if p.category != category_id or not sim.product_public(product) or not sim.catalog.consumer_product(product): continue
@@ -99,7 +103,7 @@ static func clear(sim: Economy) -> void:
 			for index: int in range(offers.size()):
 				var offer: Dictionary = offers[index]
 				var sold: int = allocation[index]
-				var m: Dictionary = sim.market[offer.product]
+				var m: Dictionary = city_market[offer.product]
 				if offer.has("facility"):
 					var f: SimFacility = sim.facility(offer.facility)
 					sold = sim.consumer_sale(f, sold, offer.product)
@@ -116,13 +120,44 @@ static func clear(sim: Economy) -> void:
 				report.units += sold
 				report.revenue += revenue
 		for product: String in products:
-			if sim.market.has(product) and sim.catalog.products[product].category == category_id:
-				var m: Dictionary = sim.market[product]
+			if city_market.has(product) and sim.catalog.products[product].category == category_id:
+				var m: Dictionary = city_market[product]
 				# Potential belongs to the shared category, not each variant separately.
 				m.potential = report.potential
 				finish_report(m, int(sim.catalog.products[product].reference_price))
-		sim.category_market[category_id] = report
+		city_category[category_id] = report
 		sim.cumulative_consumer_units += int(report.units)
 		sim.cumulative_consumer_revenue += int(report.revenue)
+	sim.market_history_by_city[city_id].append({"date": sim.clock.date_string(), "categories": city_category.duplicate(true)})
+	if sim.market_history_by_city[city_id].size() > 90: sim.market_history_by_city[city_id].pop_front()
+
+static func clear(sim: Economy) -> void:
+	var city_ids: Array = sim.cities.keys()
+	city_ids.sort()
+	for city_id: String in city_ids: clear_city(sim, city_id)
+	aggregate(sim)
 	sim.market_history.append({"date": sim.clock.date_string(), "categories": sim.category_market.duplicate(true)})
 	if sim.market_history.size() > 90: sim.market_history.pop_front()
+
+static func aggregate(sim: Economy) -> void:
+	sim.market.clear()
+	sim.category_market.clear()
+	var city_ids: Array = sim.cities.keys()
+	city_ids.sort()
+	for city_id: String in city_ids:
+		for product: String in sim.market_by_city[city_id]:
+			var local: Dictionary = sim.market_by_city[city_id][product]
+			if not sim.market.has(product): sim.market[product] = empty_report()
+			var total: Dictionary = sim.market[product]
+			for field: String in ["potential", "units", "revenue", "quality_total", "brand_total", "local_units"]: total[field] += int(local[field])
+			for company: String in local.company_units:
+				total.company_units[company] = int(total.company_units.get(company, 0)) + int(local.company_units[company])
+		for category_id: String in sim.category_market_by_city[city_id]:
+			var local_category: Dictionary = sim.category_market_by_city[city_id][category_id]
+			if not sim.category_market.has(category_id): sim.category_market[category_id] = {"potential": 0, "units": 0, "revenue": 0, "local_units": 0, "local_revenue": 0, "segments": {}}
+			var total_category: Dictionary = sim.category_market[category_id]
+			for field: String in ["potential", "units", "revenue", "local_units", "local_revenue"]: total_category[field] += int(local_category[field])
+			for segment: String in local_category.segments:
+				total_category.segments[segment] = int(total_category.segments.get(segment, 0)) + int(local_category.segments[segment])
+	for product: String in sim.market:
+		finish_report(sim.market[product], int(sim.catalog.products[product].reference_price))

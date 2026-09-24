@@ -1111,7 +1111,7 @@ func _refresh_transfer_quote() -> void:
 func _add_offer_row(parent: VBoxContainer, offer: Dictionary, index: int) -> void:
 	var status: String = "AVAILABLE" if bool(offer.eligible) else "UNAVAILABLE"
 	var rank: String = " • Automatic rank #1" if index == 0 and bool(offer.eligible) else ""
-	var row: Control = _add_compact_row(parent, "%s%s" % [_facility_label(str(offer.id)), rank], "%s • %s/unit • Q%d • %d in stock" % [status, CompanyReports.money(int(offer.price)), int(offer.quality), int(offer.stock)], "Delivery %dd • Landed %s/unit • Score %.2f\n%d cells • Freight %s for %d" % [int(offer.lead_days), CompanyReports.money(int(offer.landed)), float(offer.score), int(offer.distance), CompanyReports.money(int(offer.freight)), int(offer.quote_quantity)])
+	var row: Control = _add_compact_row(parent, "%s%s" % [_facility_label(str(offer.id)), rank], "%s • %s/unit • Q%d • %d in stock" % [status, CompanyReports.money(int(offer.price)), int(offer.quality), int(offer.stock)], "Delivery %dd • Landed %s/unit • Score %.2f\n%s • %d cells • Freight %s for %d" % [int(offer.lead_days), CompanyReports.money(int(offer.landed)), float(offer.score), session.sim.cities[str(offer.city)].display_name, int(offer.distance), CompanyReports.money(int(offer.freight)), int(offer.quote_quantity)])
 	row.set_meta("offer", offer.duplicate(true))
 	if not bool(offer.eligible):
 		for child: Node in row.get_children():
@@ -1122,8 +1122,9 @@ func _add_shipment_row(parent: VBoxContainer, shipment: Dictionary, facility_id:
 	var counterpart: String = str(shipment.source) if incoming else str(shipment.destination)
 	var active: bool = str(shipment.status) == "in_transit"
 	var eta: int = maxi(0, int(shipment.arrival) - session.sim.clock.tick)
-	var status: String = "IN TRANSIT" if active else "DELIVERED"
-	var detail: String = "%s • ETA %d day%s • %d cells • Freight %s" % [_facility_label(counterpart), eta, "" if eta == 1 else "s", int(shipment.distance), CompanyReports.money(int(shipment.transport_cost))]
+	var status: String = "IN TRANSIT" if active else ("EXPORTED" if shipment.mode == "export" else "DELIVERED")
+	var route: String = "%s → %s" % [session.sim.cities[str(shipment.source_city)].display_name, session.sim.cities[str(shipment.destination_city)].display_name] if shipment.mode == "regional" else session.sim.cities[str(shipment.source_city)].display_name
+	var detail: String = "%s • %s • ETA %d day%s • %d cells • Freight %s" % [shipment.mode.to_upper(), route, eta, "" if eta == 1 else "s", int(shipment.distance), CompanyReports.money(int(shipment.transport_cost))]
 	var row: Control = _add_compact_row(parent, "#%d • %s • %s" % [int(shipment.id), "IN" if incoming else "OUT", _product_name(str(shipment.product))], "%d units • %s" % [int(shipment.quantity), status], detail)
 	row.set_meta("shipment", shipment.duplicate(true))
 
@@ -1160,9 +1161,11 @@ func _clear_rows(parent: Node) -> void:
 		child.queue_free()
 
 func _facility_label(facility_id: String) -> String:
+	if facility_id.begins_with("import:"): return "Global import • " + session.sim.cities[facility_id.trim_prefix("import:")].display_name
+	if facility_id.begins_with("export:"): return "External market • " + session.sim.cities[facility_id.trim_prefix("export:")].display_name
 	var facility: SimFacility = session.sim.facility(facility_id)
 	if facility == null: return facility_id
-	return "%s • %s" % [session.sim.catalog.facility_types[facility.type_id].name, facility.id]
+	return "%s • %s • %s" % [session.sim.catalog.facility_types[facility.type_id].name, facility.id, session.sim.cities[facility.city_id].display_name]
 
 func _availability(f: SimFacility, product_id: String) -> String:
 	if session.sim.can_configure(f.company_id, f.type_id, product_id): return "Available"

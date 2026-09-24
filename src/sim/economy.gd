@@ -10,6 +10,7 @@ const Sourcing = preload("res://src/sim/sourcing.gd")
 const StrategicAIPlanner = preload("res://src/sim/strategic_ai.gd")
 const EquityMarketModel = preload("res://src/sim/equity_market.gd")
 const RealEstateModel = preload("res://src/sim/real_estate.gd")
+const RegionalTradeModel = preload("res://src/sim/regional_trade.gd")
 
 var catalog: SimCatalog
 var clock: SimClock
@@ -29,7 +30,14 @@ var cumulative_consumer_revenue: int = 0
 var unlocked_technologies: Array[String] = []
 var debug_actions: Array[Dictionary] = []
 var city: CityMap = CityMap.new()
+var cities: Dictionary = {}
+var real_estates: Dictionary = {}
+var next_facility_id: int = 1
+var market_by_city: Dictionary = {}
+var category_market_by_city: Dictionary = {}
+var market_history_by_city: Dictionary = {}
 var logistics: Logistics = Logistics.new()
+var regional_trade: RegionalTrade = RegionalTradeModel.new()
 var strategic_ai: StrategicAI = StrategicAIPlanner.new()
 var equity_market: EquityMarket = EquityMarketModel.new()
 var real_estate: RealEstate = RealEstateModel.new()
@@ -59,6 +67,7 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	clock = Clock.new(era)
 	companies.clear()
 	logistics = Logistics.new()
+	regional_trade = RegionalTradeModel.new()
 	strategic_ai = StrategicAIPlanner.new()
 	strategic_trace.clear()
 	facilities.clear()
@@ -97,14 +106,50 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 		if city_settings.get("preset", "procedural") != "legacy":
 			for product: String in catalog.scenario.get("assortments", {}).get(new_facility.id, []):
 				if product_public(product) and product != new_facility.product_id: new_facility.assortment[product] = int(int(catalog.products[product].reference_price) * 1.3)
-	city = CityMap.new()
-	var success: bool = city.initialize(facilities, catalog, seed_value, city_settings)
-	if success:
-		real_estate = RealEstateModel.new()
-		real_estate.initialize(self)
+	cities.clear()
+	real_estates.clear()
+	market_by_city.clear()
+	category_market_by_city.clear()
+	market_history_by_city.clear()
+	next_facility_id = 1
+	var legacy: bool = city_settings.get("preset", "procedural") == "legacy"
+	for definition: Dictionary in catalog.scenario.regional_cities:
+		var city_id: String = str(definition.id)
+		if legacy and city_id != "metro": continue
+		var map: CityMap = CityMap.new()
+		map.id = city_id
+		map.display_name = str(definition.name)
+		var local_facilities: Array[SimFacility] = []
+		for f: SimFacility in facilities:
+			if f.city_id == city_id: local_facilities.append(f)
+		if not map.initialize(local_facilities, catalog, seed_value + int(definition.seed_offset), city_settings): return false
+		cities[city_id] = map
+	for f: SimFacility in facilities:
+		if not cities.has(f.city_id): return false
+	city = cities["metro"]
+	for city_id: String in cities:
+		var estate: RealEstate = RealEstateModel.new()
+		estate.city_id = city_id
+		real_estates[city_id] = estate
+		estate.initialize(self)
+		market_by_city[city_id] = {}
+		category_market_by_city[city_id] = {}
+		market_history_by_city[city_id] = []
+	real_estate = real_estates["metro"]
 	category_market.clear()
 	market_history.clear()
-	return success
+	return true
+
+func city_definition(city_id: String) -> Dictionary:
+	for definition: Dictionary in catalog.scenario.regional_cities:
+		if definition.id == city_id: return definition
+	return {}
+
+func regional_distance(source_city: String, destination_city: String) -> int:
+	var a: Dictionary = city_definition(source_city)
+	var b: Dictionary = city_definition(destination_city)
+	if a.is_empty() or b.is_empty(): return -1
+	return absi(int(a.x) - int(b.x)) + absi(int(a.y) - int(b.y))
 
 func facility(id: String) -> SimFacility:
 	for candidate: SimFacility in facilities:
@@ -134,6 +179,13 @@ func can_configure(company: String, type_id: String, product: String) -> bool:
 	var behavior: String = catalog.facility_types[type_id].behavior
 	if catalog.productless_behavior(behavior): return true
 	return can_manufacture(company, product) if behavior == "production" else product_public(product)
+
+func can_receive(f: SimFacility, product: String) -> bool:
+	var behavior: String = _behavior(f)
+	if behavior == "storage": return true
+	if behavior == "retail": return f.assortment.has(product)
+	if behavior == "production": return catalog.products[f.product_id].inputs.has(product)
+	return false
 
 func technology_project(technology: String) -> Dictionary:
 	return {"kind": "technology", "technology": technology}
@@ -260,6 +312,7 @@ func _ai_research() -> void:
 	for command: Dictionary in strategic_ai.research_commands(self): queue_command(command)
 
 func command_error(command: Dictionary) -> String:
+	if str(command.get("type", "")) in ["import_goods", "export_goods"]: return regional_trade.command_error(self, command)
 	if str(command.get("type", "")) in ["buy_land", "acquire_property", "develop_property", "demolish_property", "redevelop_property"]:
 		return property_command_error(command)
 	if str(command.get("type", "")) in ["buy_shares", "sell_shares", "issue_shares", "declare_dividend"]:
@@ -325,7 +378,7 @@ func command_error(command: Dictionary) -> String:
 			if not command.get("quantity") is int or command.quantity <= 0 or command.quantity > target.inventory.quantity(product): return "Quantity exceeds available stock."
 			if logistics.free_capacity(self, destination) < command.quantity: return "Destination capacity is reserved or full."
 			var quote: Dictionary = logistics.quote(self, target.id, destination.id, command.quantity)
-			if quote.distance < 0 or target.city_id != destination.city_id: return "No road route."
+			if quote.distance < 0: return "No freight route."
 			if companies[target.company_id].cash < quote.freight: return "Insufficient freight funds."
 			if not product_public(product): return "Product unavailable."
 		"set_price":
@@ -342,8 +395,10 @@ func command_error(command: Dictionary) -> String:
 			var supplier_id: String = str(command.get("supplier", ""))
 			if supplier_id != "":
 				var seller: SimFacility = facility(supplier_id)
-				if seller == null or seller == target or seller.city_id != target.city_id or not ((seller.product_id == product and _behavior(seller) == "production") or (_behavior(seller) == "storage" and seller.company_id == target.company_id and _behavior(target) != "storage")):
-					return "Supplier cannot supply this product in this city."
+				if supplier_id.begins_with("import:"):
+					if supplier_id != "import:" + target.city_id or regional_trade.quote(self, target.id, product, 1, "import").is_empty(): return "Import supplier unavailable."
+				elif seller == null or seller == target or logistics.quote(self, seller.id, target.id, 1).distance < 0 or not ((seller.product_id == product and _behavior(seller) == "production") or (_behavior(seller) == "storage" and seller.company_id == target.company_id and _behavior(target) != "storage")):
+					return "Supplier cannot supply this product."
 		"set_operating":
 			if not command.get("operating") is bool:
 				return "Operating setting must be true or false."
@@ -358,43 +413,47 @@ func command_error(command: Dictionary) -> String:
 func property_command_error(command: Dictionary) -> String:
 	var owner: String = str(command.get("company", ""))
 	if not companies.has(owner): return "Unknown property owner."
-	if city.generation.preset == "legacy": return "Real estate is unavailable on the legacy board."
+	var city_id: String = str(command.get("city", "metro"))
+	if not cities.has(city_id): return "Unknown map."
+	var map: CityMap = cities[city_id]
+	var estate: RealEstate = real_estates[city_id]
+	if map.generation.preset == "legacy": return "Real estate is unavailable on the legacy board."
 	var action: String = str(command.get("type", ""))
 	if action == "buy_land":
 		for field: String in ["x", "y", "width", "depth"]:
 			if not command.get(field) is int: return "Land coordinates and size must be integers."
-		var error: String = real_estate.land_error(self, owner, int(command.x), int(command.y), int(command.width), int(command.depth))
+		var error: String = estate.land_error(self, owner, int(command.x), int(command.y), int(command.width), int(command.depth))
 		if not error.is_empty(): return error
-		if companies[owner].cash < real_estate.land_cost(self, owner, int(command.x), int(command.y), int(command.width), int(command.depth)): return "Insufficient cash for land."
+		if companies[owner].cash < estate.land_cost(self, owner, int(command.x), int(command.y), int(command.width), int(command.depth)): return "Insufficient cash for land."
 		return ""
 	if action in ["acquire_property", "demolish_property", "redevelop_property"]:
 		var id: String = str(command.get("property", ""))
-		if not real_estate.properties.has(id): return "Unknown property."
-		var b: Dictionary = real_estate.properties[id]
+		if not estate.properties.has(id): return "Unknown property."
+		var b: Dictionary = estate.properties[id]
 		if action == "acquire_property":
 			if not str(b.owner).is_empty(): return "Property is already company owned."
-			var land_error: String = real_estate.land_error(self, owner, int(b.x), int(b.y), int(b.width), int(b.depth), false, id)
+			var land_error: String = estate.land_error(self, owner, int(b.x), int(b.y), int(b.width), int(b.depth), false, id)
 			if not land_error.is_empty(): return land_error
-			var cost: int = real_estate.land_cost(self, owner, int(b.x), int(b.y), int(b.width), int(b.depth)) + int(catalog.property_types[str(b.type)].cost)
+			var cost: int = estate.land_cost(self, owner, int(b.x), int(b.y), int(b.width), int(b.depth)) + int(catalog.property_types[str(b.type)].cost)
 			return "" if companies[owner].cash >= cost else "Insufficient cash for acquisition."
 		if b.owner != owner: return "Company does not own this property."
 		if action == "demolish_property": return ""
 		var type_id: String = str(command.get("property_type", ""))
 		if not catalog.property_types.has(type_id): return "Unknown property type."
 		var definition: Dictionary = catalog.property_types[type_id]
-		var error: String = real_estate.land_error(self, owner, int(b.x), int(b.y), int(definition.width), int(definition.depth), true, id)
+		var error: String = estate.land_error(self, owner, int(b.x), int(b.y), int(definition.width), int(definition.depth), true, id)
 		if not error.is_empty(): return error
-		var cost: int = real_estate.land_cost(self, owner, int(b.x), int(b.y), int(definition.width), int(definition.depth)) + int(definition.cost)
+		var cost: int = estate.land_cost(self, owner, int(b.x), int(b.y), int(definition.width), int(definition.depth)) + int(definition.cost)
 		return "" if companies[owner].cash >= cost else "Insufficient cash for redevelopment."
 	if action == "develop_property":
 		var type_id: String = str(command.get("property_type", ""))
 		if not catalog.property_types.has(type_id): return "Unknown property type."
 		if not command.get("x") is int or not command.get("y") is int: return "Choose integer city cells."
-		if real_estate.next_property >= 1000000: return "Property ID limit reached."
+		if estate.next_property >= 1000000: return "Property ID limit reached."
 		var definition: Dictionary = catalog.property_types[type_id]
-		var error: String = real_estate.land_error(self, owner, int(command.x), int(command.y), int(definition.width), int(definition.depth), true)
+		var error: String = estate.land_error(self, owner, int(command.x), int(command.y), int(definition.width), int(definition.depth), true)
 		if not error.is_empty(): return error
-		var cost: int = real_estate.land_cost(self, owner, int(command.x), int(command.y), int(definition.width), int(definition.depth)) + int(definition.cost)
+		var cost: int = estate.land_cost(self, owner, int(command.x), int(command.y), int(definition.width), int(definition.depth)) + int(definition.cost)
 		return "" if companies[owner].cash >= cost else "Insufficient cash for development."
 	return "Unknown property command."
 
@@ -404,13 +463,16 @@ func _apply_commands() -> void:
 		var target: SimFacility = facility(str(command.get("facility", "")))
 		var error: String = command_error(command)
 		if error.is_empty():
+			var command_city: String = str(command.get("city", "metro"))
+			var command_estate: RealEstate = real_estates.get(command_city, real_estate)
 			match str(command.type):
-				"buy_land": real_estate.buy_land(self, str(command.company), int(command.x), int(command.y), int(command.width), int(command.depth))
-				"acquire_property": real_estate.acquire(self, str(command.company), str(command.property))
-				"develop_property": real_estate.develop(self, str(command.company), str(command.property_type), int(command.x), int(command.y))
-				"demolish_property": real_estate.demolish(self, str(command.property))
-				"redevelop_property": real_estate.redevelop(self, str(command.property), str(command.property_type))
+				"buy_land": command_estate.buy_land(self, str(command.company), int(command.x), int(command.y), int(command.width), int(command.depth))
+				"acquire_property": command_estate.acquire(self, str(command.company), str(command.property))
+				"develop_property": command_estate.develop(self, str(command.company), str(command.property_type), int(command.x), int(command.y))
+				"demolish_property": command_estate.demolish(self, str(command.property))
+				"redevelop_property": command_estate.redevelop(self, str(command.property), str(command.property_type))
 				"buy_shares", "sell_shares", "issue_shares", "declare_dividend": equity_market.apply(command, companies)
+				"import_goods", "export_goods": regional_trade.execute(self, command)
 				"hire_staff":
 					var role: String = str(command.role)
 					companies[str(command.company)].staff_counts[role] = staff_count(str(command.company), role) + int(command.quantity)
@@ -448,7 +510,8 @@ func _apply_commands() -> void:
 				"set_supplier": target.suppliers[str(command.product)] = str(command.get("supplier", ""))
 				"set_operating": target.operating = bool(command.operating)
 				"set_stock_days": target.stock_days = int(command.days)
-			if str(command.type) in ["build_facility", "demolish_facility", "set_operating", "develop_property", "demolish_property", "redevelop_property"]: real_estate.recalculate(self, true)
+			if str(command.type) in ["build_facility", "demolish_facility", "set_operating", "develop_property", "demolish_property", "redevelop_property"]:
+				for estate: RealEstate in real_estates.values(): estate.recalculate(self, true)
 		command_results.append({"command": command, "accepted": error.is_empty(), "error": error})
 	pending_commands.clear()
 
@@ -460,7 +523,7 @@ func process_commands() -> void:
 func construction_error(command: Dictionary) -> String:
 	if not companies.has(str(command.get("company", ""))):
 		return "Unknown construction owner."
-	if city.next_facility >= 1000000:
+	if next_facility_id >= 1000000:
 		return "Facility ID limit reached."
 	var type_id: String = str(command.get("archetype", ""))
 	if not catalog.facility_types.has(type_id):
@@ -471,15 +534,18 @@ func construction_error(command: Dictionary) -> String:
 	var product: String = str(command.get("product", ""))
 	if not can_configure(str(command.company), type_id, product):
 		return "Product is unsupported or era locked."
-	if command.get("city", "metro") != city.id or not command.get("x") is int or not command.get("y") is int:
-		return "Choose integer cells in this city."
-	var error: String = city.placement_error(command.x, command.y, int(definition.width), int(definition.depth))
+	var city_id: String = str(command.get("city", "metro"))
+	if not cities.has(city_id) or not command.get("x") is int or not command.get("y") is int:
+		return "Choose integer cells in this map."
+	var map: CityMap = cities[city_id]
+	var estate: RealEstate = real_estates[city_id]
+	var error: String = map.placement_error(command.x, command.y, int(definition.width), int(definition.depth))
 	if not error.is_empty():
 		return error
-	if city.generation.preset != "legacy":
-		error = real_estate.land_error(self, str(command.company), int(command.x), int(command.y), int(definition.width), int(definition.depth), true)
+	if map.generation.preset != "legacy":
+		error = estate.land_error(self, str(command.company), int(command.x), int(command.y), int(definition.width), int(definition.depth), true)
 		if not error.is_empty(): return error
-	var land_cost: int = 0 if city.generation.preset == "legacy" else real_estate.land_cost(self, str(command.company), int(command.x), int(command.y), int(definition.width), int(definition.depth))
+	var land_cost: int = 0 if map.generation.preset == "legacy" else estate.land_cost(self, str(command.company), int(command.x), int(command.y), int(definition.width), int(definition.depth))
 	if companies[str(command.company)].cash < int(definition.cost) + land_cost:
 		return "Insufficient cash for construction."
 	return ""
@@ -487,21 +553,24 @@ func construction_error(command: Dictionary) -> String:
 func _construct(command: Dictionary) -> void:
 	var definition: Dictionary = catalog.facility_types[str(command.archetype)]
 	var owner: SimCompany = companies[str(command.company)]
-	if city.generation.preset != "legacy": real_estate.buy_land(self, owner.id, int(command.x), int(command.y), int(definition.width), int(definition.depth))
+	var map: CityMap = cities[str(command.get("city", "metro"))]
+	var estate: RealEstate = real_estates[map.id]
+	if map.generation.preset != "legacy": estate.buy_land(self, owner.id, int(command.x), int(command.y), int(definition.width), int(definition.depth))
 	owner.spend(int(definition.cost))
 	owner.capex += int(definition.cost)
 	var product: String = str(command.get("product", ""))
 	var price: int = int(catalog.products.get(product, {}).get("reference_price", 0))
 	if definition.behavior == "retail":
 		price = int(price * 1.3)
-	var f: SimFacility = Facility.new({"id": "built_%06d" % city.next_facility,
-		"company": owner.id, "city": city.id, "type": str(command.archetype),
+	var f: SimFacility = Facility.new({"id": "built_%06d" % next_facility_id,
+		"company": owner.id, "city": map.id, "type": str(command.archetype),
 		"product": product, "capacity": int(definition.capacity), "price": price, "quality": 50})
-	city.next_facility += 1
+	next_facility_id += 1
+	map.next_facility = next_facility_id
 	f.asset_cost = int(definition.cost)
 	facilities.append(f)
 	facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
-	city.occupy(f, command.x, command.y, definition)
+	map.occupy(f, command.x, command.y, definition)
 
 func _demolish(f: SimFacility) -> void:
 	var owner: SimCompany = companies[f.company_id]
@@ -509,7 +578,7 @@ func _demolish(f: SimFacility) -> void:
 	owner.expenses += loss
 	owner.daily_expenses += loss
 	facilities.erase(f)
-	city.plots.erase(f.id)
+	cities[f.city_id].plots.erase(f.id)
 	for other: SimFacility in facilities:
 		for product: String in other.suppliers.keys():
 			if other.suppliers[product] == f.id:
@@ -536,6 +605,27 @@ func _ai_decisions() -> void:
 			queue_command({"type": "set_price", "company": owner.id, "facility": f.id, "product": product,
 				"price": clampi(price + change, int(reference * 1.10), int(reference * 1.60))})
 	_ai_advertising_decisions()
+	_ai_export_decisions()
+
+func _ai_export_decisions() -> void:
+	for f: SimFacility in facilities:
+		if not ai_eligible(f.company_id) or _behavior(f) not in ["production", "storage"] or not f.active: continue
+		var products: Array = f.inventory.quantities.keys()
+		products.sort()
+		for product: String in products:
+			if not product_public(product): continue
+			var normal: int = int(f.replenishment_targets.get(product, 0)) if _behavior(f) == "storage" else effective_capacity(f) * f.stock_days
+			var excess: int = f.inventory.quantity(product) - normal * 2
+			if excess < 10: continue
+			var downstream_need: bool = false
+			for buyer: SimFacility in facilities:
+				if buyer == f or buyer.company_id != f.company_id or buyer.city_id != f.city_id or not can_receive(buyer, product): continue
+				if buyer.inventory.quantity(product) + logistics.incoming(buyer.id, product) < buyer.capacity: downstream_need = true
+			if downstream_need: continue
+			var quantity: int = mini(excess / 2, regional_trade.export_remaining(self, f.city_id, product))
+			if quantity < 10: continue
+			var command: Dictionary = {"type": "export_goods", "company": f.company_id, "facility": f.id, "product": product, "quantity": quantity}
+			if regional_trade.command_error(self, command).is_empty(): queue_command(command)
 
 func _ai_advertising_eligible(company_id: String, product: String) -> bool:
 	if not ai_eligible(company_id) or not product_public(product) or not catalog.consumer_product(product):
@@ -682,7 +772,21 @@ func _source(buyer: SimFacility, product: String, target: int) -> void:
 		var missing: int = target - buyer.inventory.quantity(product) - logistics.incoming(buyer.id, product)
 		if missing <= 0:
 			break
-		var bought: int = trade(facility(str(offer.id)), buyer, product, missing)
+		var bought: int = 0
+		if str(offer.id).begins_with("import:"):
+			var quantity: int = mini(missing, regional_trade.import_remaining(self, buyer.city_id, product))
+			quantity = mini(quantity, logistics.free_capacity(self, buyer))
+			var route: Dictionary = regional_trade.quote(self, buyer.id, product, 1, "import")
+			if not route.is_empty():
+				var per_unit: int = int(route.price) + int(route.distance) * int(logistics.config.cell_unit_cents)
+				quantity = mini(quantity, maxi(0, (companies[buyer.company_id].cash - int(logistics.config.base_cents)) / maxi(1, per_unit)))
+			if quantity > 0:
+				var command: Dictionary = {"type": "import_goods", "company": buyer.company_id, "facility": buyer.id, "product": product, "quantity": quantity}
+				if regional_trade.command_error(self, command).is_empty():
+					regional_trade.execute(self, command)
+					bought = quantity
+		else:
+			bought = trade(facility(str(offer.id)), buyer, product, missing)
 		if bought > 0:
 			if not buyer.last_sources.has(product):
 				buyer.last_sources[product] = []
@@ -756,6 +860,7 @@ func consumer_sale(f: SimFacility, requested: int, product: String = "") -> int:
 	return units
 
 func step() -> void:
+	regional_trade._roll_day(self)
 	record_history()
 	for owner: SimCompany in companies.values():
 		owner.begin_day()
@@ -763,12 +868,13 @@ func step() -> void:
 	_ai_research()
 	_apply_commands()
 	if clock.day == 1:
-		real_estate.migrate(self)
-		real_estate.monthly_rent(self)
+		for estate: RealEstate in real_estates.values():
+			estate.migrate(self)
+			estate.monthly_rent(self)
 	market.clear()
 	_payroll()
 	_advertise()
-	real_estate.depreciate(self)
+	for estate: RealEstate in real_estates.values(): estate.depreciate(self)
 	logistics.deliver(self)
 	for f: SimFacility in facilities:
 		if f.asset_cost > 0 and f.asset_days < 3650:
@@ -872,9 +978,10 @@ func inventory_assets(company_id: String) -> int:
 
 func invariant_errors() -> Array[String]:
 	var errors: Array[String] = []
-	errors.append_array(real_estate.invariant_errors(self))
+	for estate: RealEstate in real_estates.values(): errors.append_array(estate.invariant_errors(self))
 	errors.append_array(equity_market.invariant_errors(companies))
 	var headquarters_owners: Dictionary = {}
+	var facility_ids: Dictionary = {}
 	var previous_id: int = 0
 	for shipment: Dictionary in logistics.shipments:
 		if int(shipment.id) <= previous_id or int(shipment.id) >= logistics.next_id or int(shipment.quantity) <= 0 or int(shipment.value) < 0 or int(shipment.transport_cost) < 0:
@@ -882,17 +989,28 @@ func invariant_errors() -> Array[String]:
 		previous_id = int(shipment.id)
 		if shipment.status == "in_transit":
 			var destination: SimFacility = facility(shipment.destination)
-			if destination == null or facility(shipment.source) == null or destination.company_id != shipment.company or int(shipment.arrival) < clock.tick:
+			if destination == null or (shipment.mode != "import" and facility(shipment.source) == null) or destination.company_id != shipment.company or int(shipment.arrival) < clock.tick:
 				errors.append("Shipment endpoint or arrival")
+			elif shipment.mode == "regional":
+				var quote: Dictionary = logistics.quote(self, shipment.source, shipment.destination, int(shipment.quantity))
+				if quote.mode != "regional" or quote.distance != shipment.distance or quote.regional_leg != shipment.regional_distance or quote.freight != shipment.transport_cost: errors.append("Regional shipment route")
+		if shipment.mode == "regional" and (shipment.source_city == shipment.destination_city or not cities.has(shipment.source_city) or not cities.has(shipment.destination_city)):
+			errors.append("Regional shipment cities")
+		if shipment.mode == "local" and shipment.source_city != shipment.destination_city: errors.append("Local shipment cities")
 	for owner: SimCompany in companies.values():
 		if owner.staff_counts.size() != catalog.staff_roles.size(): errors.append("Staff role map: " + owner.id)
 		for role: String in owner.staff_counts:
 			if not catalog.staff_roles.has(role) or not owner.staff_counts[role] is int or int(owner.staff_counts[role]) < 0: errors.append("Staff count: " + owner.id + "/" + role)
 		if owner.total_staff() > 0 and (headquarters(owner.id) == null or owner.total_staff() > staff_capacity(owner.id)): errors.append("Staff headquarters/capacity: " + owner.id)
 		if owner.staff_payroll_funded and owner.total_staff() == 0: errors.append("Funded payroll without staff: " + owner.id)
-		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) + real_estate.land_assets(owner.id) + real_estate.building_assets(owner.id) + equity_market.investment_cost(owner.id) != owner.capital + owner.profit() - owner.dividends_paid:
+		var property_assets: int = 0
+		for estate: RealEstate in real_estates.values(): property_assets += estate.land_assets(owner.id) + estate.building_assets(owner.id)
+		if owner.cash < 0 or owner.cash + inventory_assets(owner.id) + fixed_assets(owner.id) + property_assets + equity_market.investment_cost(owner.id) != owner.capital + owner.profit() - owner.dividends_paid:
 			errors.append("Company balance: " + owner.id)
 	for f: SimFacility in facilities:
+		if facility_ids.has(f.id): errors.append("Duplicate facility ID: " + f.id)
+		facility_ids[f.id] = true
+		if not cities.has(f.city_id) or not cities[f.city_id].plots.has(f.id): errors.append("Facility city: " + f.id)
 		if _behavior(f) == "headquarters":
 			if headquarters_owners.has(f.company_id): errors.append("Duplicate headquarters: " + f.company_id)
 			headquarters_owners[f.company_id] = true
@@ -908,9 +1026,19 @@ func invariant_errors() -> Array[String]:
 	for shipment: Dictionary in logistics.shipments:
 		if int(shipment.quality_points) < int(shipment.quantity) or int(shipment.quality_points) > int(shipment.quantity) * 100:
 			errors.append("Shipment quality: " + str(shipment.id))
+	for city_id: String in cities:
+		if not cities[city_id].valid_port(): errors.append("Invalid port: " + city_id)
+		for facility_id: String in cities[city_id].plots:
+			var placed: SimFacility = facility(facility_id)
+			if placed == null or placed.city_id != city_id: errors.append("Foreign facility plot: " + facility_id)
 	return errors
 
 func snapshot() -> Dictionary:
+	var city_data: Dictionary = {}
+	var estate_data: Dictionary = {}
+	for city_id: String in cities:
+		city_data[city_id] = cities[city_id].snapshot()
+		estate_data[city_id] = real_estates[city_id].snapshot()
 	var company_data: Array[Dictionary] = []
 	for owner: SimCompany in companies.values():
 		var record: Dictionary = owner.snapshot()
@@ -919,7 +1047,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 18, "real_estate": real_estate.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version, "city": city.snapshot(),
+	return {"schema_version": 19, "cities": city_data, "real_estates": estate_data, "next_facility_id": next_facility_id, "market_by_city": market_by_city.duplicate(true), "category_market_by_city": category_market_by_city.duplicate(true), "market_history_by_city": market_history_by_city.duplicate(true), "regional_trade": regional_trade.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version,
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

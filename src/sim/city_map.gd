@@ -9,6 +9,7 @@ var depth: int = 24
 var roads: Array[String] = []
 var plots: Dictionary = {}
 var next_facility: int = 1
+var port: Dictionary = {}
 var _route_cache: Dictionary = {}
 var _cached_roads: Array[String] = []
 var water: Array[String] = []
@@ -23,6 +24,7 @@ func initialize(facilities: Array[SimFacility], catalog: SimCatalog, seed_value:
 	roads.clear()
 	water.clear()
 	plots.clear()
+	port.clear()
 	parcels.clear()
 	districts.clear()
 	ambient.clear()
@@ -55,8 +57,9 @@ static func key(x: int, y: int) -> String:
 
 func road_access(id_value: String) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	if not plots.has(id_value): return result
-	var p: Dictionary = plots[id_value]
+	var p: Dictionary = plots.get(id_value, {})
+	if id_value == str(port.get("id", "")): p = {"x": int(port.x), "y": int(port.y), "width": 1, "depth": 1}
+	if p.is_empty(): return result
 	for y: int in range(p.y - 1, p.y + p.depth + 1):
 		for x: int in range(p.x - 1, p.x + p.width + 1):
 			if (x >= p.x and x < p.x + p.width) or (y >= p.y and y < p.y + p.depth):
@@ -90,6 +93,39 @@ func road_distance(source: String, destination: String) -> int:
 	_route_cache[cache_key] = -1
 	return -1
 
+func road_distance_to_port(facility_id: String) -> int:
+	return -1 if port.is_empty() else road_distance(facility_id, str(port.id))
+
+func establish_port() -> bool:
+	var candidates: Array[Vector2i] = []
+	for y: int in range(1, depth - 1):
+		for x: int in range(width):
+			var cell: String = key(x, y)
+			if bool(parcels.get(cell, {}).get("port_eligible", false)) and placement_error(x, y, 1, 1).is_empty():
+				candidates.append(Vector2i(x, y))
+	if candidates.is_empty(): return false
+	var site: Vector2i = candidates[0]
+	port = {"id": "port_" + id, "x": site.x, "y": site.y}
+	return true
+
+func valid_port() -> bool:
+	if port.is_empty(): return generation.preset == "legacy"
+	if port.size() != 3 or port.get("id") != "port_" + id or not port.get("x") is int or not port.get("y") is int: return false
+	var cell: String = key(int(port.x), int(port.y))
+	if generation.preset != "procedural" or not bool(parcels.get(cell, {}).get("port_eligible", false)) or not touches_road(int(port.x), int(port.y)): return false
+	for b: Dictionary in ambient.values():
+		if int(port.x) >= int(b.x) and int(port.x) < int(b.x) + int(b.width) and int(port.y) >= int(b.y) and int(port.y) < int(b.y) + int(b.depth): return false
+	for b: Dictionary in plots.values():
+		if int(port.x) >= int(b.x) and int(port.x) < int(b.x) + int(b.width) and int(port.y) >= int(b.y) and int(port.y) < int(b.y) + int(b.depth): return false
+	for y: int in range(1, depth - 1):
+		for x: int in range(width):
+			if not bool(parcels.get(key(x, y), {}).get("port_eligible", false)): continue
+			var occupied: bool = false
+			for b: Dictionary in plots.values():
+				if x >= int(b.x) and x < int(b.x) + int(b.width) and y >= int(b.y) and y < int(b.y) + int(b.depth): occupied = true
+			if not occupied: return x == int(port.x) and y == int(port.y)
+	return false
+
 func placement_error(x: int, y: int, w: int, d: int) -> String:
 	if w < 1 or d < 1 or x < 0 or y < 0 or x + w > width or y + d > depth:
 		return "Footprint is outside city bounds."
@@ -106,6 +142,8 @@ func placement_error(x: int, y: int, w: int, d: int) -> String:
 	for p: Dictionary in plots.values() + ambient.values():
 		if x < int(p.x) + int(p.width) and x + w > int(p.x) and y < int(p.y) + int(p.depth) and y + d > int(p.y):
 			return "Footprint overlaps an existing property."
+	if not port.is_empty() and x <= int(port.x) and int(port.x) < x + w and y <= int(port.y) and int(port.y) < y + d:
+		return "Footprint overlaps the public port."
 	return "" if access else "Footprint must touch a road."
 
 func occupy(f: SimFacility, x: int, y: int, definition: Dictionary) -> void:
@@ -113,7 +151,7 @@ func occupy(f: SimFacility, x: int, y: int, definition: Dictionary) -> void:
 
 func snapshot() -> Dictionary:
 	return {"id": id, "name": display_name, "width": width, "depth": depth,
-		"terrain": "grass", "roads": roads.duplicate(), "plots": plots.duplicate(true), "next_facility": next_facility,
+		"terrain": "grass", "roads": roads.duplicate(), "plots": plots.duplicate(true), "next_facility": next_facility, "port": port.duplicate(true),
 		"water": water.duplicate(), "road_classes": road_classes.duplicate(true), "parcels": parcels.duplicate(true),
 		"districts": districts.duplicate(true), "ambient": ambient.duplicate(true), "generation": generation.duplicate(true), "population": population.duplicate(true)}
 
@@ -122,6 +160,7 @@ func restore(state: Dictionary, facilities: Array[SimFacility], catalog: SimCata
 	if not _fields_match(state, snapshot()) or state.id != id or state.name != display_name or state.terrain != "grass" or state.next_facility < 1 or state.next_facility > 1000000 or state.plots.size() != facilities.size():
 		return false
 	if not restore_foundation(state, catalog): return false
+	port = state.port.duplicate(true)
 	plots.clear()
 	for f: SimFacility in facilities:
 		var p: Variant = state.plots.get(f.id)
@@ -132,10 +171,7 @@ func restore(state: Dictionary, facilities: Array[SimFacility], catalog: SimCata
 			return false
 		occupy(f, p.x, p.y, definition)
 	next_facility = state.next_facility
-	for f: SimFacility in facilities:
-		if f.id.begins_with("built_") and int(f.id.trim_prefix("built_")) >= next_facility:
-			return false
-	return true
+	return valid_port()
 
 func touches_road(x: int, y: int) -> bool:
 	for offset: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:

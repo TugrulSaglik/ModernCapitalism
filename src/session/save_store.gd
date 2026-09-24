@@ -152,8 +152,28 @@ func restore(state: Dictionary) -> Economy:
 	# hydration below never depends on the current procedural generator.
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
-	if not shape(state, sim.snapshot()) or state.schema_version != 18 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	error = "Invalid regional header."
+	if not shape(state, sim.snapshot()) or state.schema_version != 19 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
+	var legacy: bool = state.cities.size() == 1
+	if legacy and (not state.cities.has("metro") or not state.cities.metro.port.is_empty()): return null
+	if not legacy and state.cities.size() != sim.catalog.scenario.regional_cities.size(): return null
+	if state.real_estates.size() != state.cities.size() or not nonnegative(state.next_facility_id) or state.next_facility_id < 1 or state.next_facility_id >= 1000000: return null
+	for definition: Dictionary in sim.catalog.scenario.regional_cities:
+		var city_id: String = str(definition.id)
+		if legacy and city_id != "metro": continue
+		if not state.cities.has(city_id) or not state.real_estates.has(city_id): return null
+		if city_id != "metro":
+			var map: CityMap = CityMap.new()
+			map.id = city_id
+			map.display_name = str(definition.name)
+			sim.cities[city_id] = map
+			var estate: RealEstate = RealEstate.new()
+			estate.city_id = city_id
+			sim.real_estates[city_id] = estate
+			sim.market_by_city[city_id] = {}
+			sim.category_market_by_city[city_id] = {}
+			sim.market_history_by_city[city_id] = []
 	if state.companies.size() != sim.companies.size() or state.facilities.size() > 768:
 		return null
 	var facility_template: Dictionary = sim.facilities[0].snapshot()
@@ -162,14 +182,14 @@ func restore(state: Dictionary) -> Economy:
 	var restored_ids: Dictionary = {}
 	var headquarters_owners: Dictionary = {}
 	for item: Variant in state.facilities:
-		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.supports_product(item.type, item.product) or item.city != sim.city.id:
+		if not shape(item, facility_template) or restored_ids.has(item.id) or not sim.companies.has(item.company) or not sim.catalog.facility_types.has(item.type) or not sim.catalog.supports_product(item.type, item.product) or not sim.cities.has(item.city):
 			return null
 		var original: SimFacility = sim.facility(item.id)
 		if original == null:
 			for definition: Dictionary in sim.catalog.scenario.get("expanded_facilities", []):
 				if definition.id == item.id: original = SimFacility.new(definition)
 		if original != null:
-			if item.company != original.company_id or item.type != original.type_id or not sim.catalog.supports_product(item.type, item.product) or item.capacity != original.capacity or item.quality != original.quality:
+			if item.company != original.company_id or item.city != original.city_id or item.type != original.type_id or not sim.catalog.supports_product(item.type, item.product) or item.capacity != original.capacity or item.quality != original.quality:
 				return null
 		else:
 			var definition: Dictionary = sim.catalog.facility_types[item.type]
@@ -187,12 +207,26 @@ func restore(state: Dictionary) -> Economy:
 	# Deleted scenario facilities are valid. All live IDs must exist before supplier validation.
 	sim.facilities = restored
 	sim.facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
-	if not sim.city.restore(state.city, sim.facilities, sim.catalog):
-		return null
-	sim.city.population = state.city.population.duplicate(true)
-	if not sim.real_estate.restore_state(sim, state.real_estate): return null
-	if sim.city.generation.seed != state.seed: return null
+	error = "Invalid regional maps or real estate."
+	for city_id: String in sim.cities:
+		error = "Invalid map: " + city_id
+		var local_facilities: Array[SimFacility] = []
+		for f: SimFacility in sim.facilities:
+			if f.city_id == city_id: local_facilities.append(f)
+		if not sim.cities[city_id].restore(state.cities[city_id], local_facilities, sim.catalog): return null
+		sim.cities[city_id].population = state.cities[city_id].population.duplicate(true)
+		error = "Invalid real estate: " + city_id
+		if not sim.real_estates[city_id].restore_state(sim, state.real_estates[city_id]): return null
+		error = "Invalid city seed: " + city_id
+		var definition: Dictionary = sim.city_definition(city_id)
+		if sim.cities[city_id].generation.seed != str(int(state.seed) + int(definition.seed_offset)): return null
+	sim.city = sim.cities["metro"]
+	sim.real_estate = sim.real_estates["metro"]
+	sim.next_facility_id = state.next_facility_id
+	for f: SimFacility in sim.facilities:
+		if f.id.begins_with("built_") and int(f.id.trim_prefix("built_")) >= sim.next_facility_id: return null
 	var saved_clock: Dictionary = state.clock
+	error = "Invalid clock or company accounts."
 	if not nonnegative(saved_clock.tick) or saved_clock.tick > 365000:
 		return null
 	# Derive calendar from tick instead of accepting impossible dates.
@@ -200,6 +234,7 @@ func restore(state: Dictionary) -> Economy:
 		sim.clock.advance()
 	if sim.clock.snapshot() != saved_clock:
 		return null
+	error = "Invalid company accounts."
 	var seen: Dictionary = {}
 	for item: Variant in state.companies:
 		if not item is Dictionary or not sim.companies.has(str(item.get("id", ""))) or seen.has(item.id):
@@ -211,7 +246,7 @@ func restore(state: Dictionary) -> Economy:
 		template.known_technologies = {}
 		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
 			return null
-		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "depreciation", "retail_revenue", "property_revenue", "property_maintenance", "production_cash", "cash_expenses", "capex", "land_capex", "property_capex", "research_expense", "advertising_expense", "payroll_expense", "equity_purchase_cash", "equity_sale_cash", "equity_issue_cash", "investment_income", "dividend_receipts", "dividends_paid"]:
+		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "import_purchases", "export_revenue", "depreciation", "retail_revenue", "property_revenue", "property_maintenance", "production_cash", "cash_expenses", "capex", "land_capex", "property_capex", "research_expense", "advertising_expense", "payroll_expense", "equity_purchase_cash", "equity_sale_cash", "equity_issue_cash", "investment_income", "dividend_receipts", "dividends_paid"]:
 			if not nonnegative(item[field]):
 				return null
 			owner.set(field, item[field])
@@ -282,7 +317,7 @@ func restore(state: Dictionary) -> Economy:
 		if absi(item.capital) > 100000000000000:
 			return null
 		owner.capital = item.capital
-		if item.opening_cash != owner.opening_cash or item.retail_revenue > item.revenue: return null
+		if item.opening_cash != owner.opening_cash or item.retail_revenue + item.property_revenue + item.export_revenue > item.revenue or item.import_purchases > item.purchases: return null
 		for field: String in item.recorded_accounts:
 			if not owner.accounts().has(field) or not item.recorded_accounts[field] is int: return null
 		owner.recorded_accounts = item.recorded_accounts.duplicate(true)
@@ -302,6 +337,7 @@ func restore(state: Dictionary) -> Economy:
 			previous = entry.month
 			owner.monthly_history.append(entry.duplicate(true))
 		if not _valid_financial_history(owner): return null
+	error = "Invalid facility state."
 	seen.clear()
 	for item: Variant in state.facilities:
 		if not item is Dictionary:
@@ -377,9 +413,10 @@ func restore(state: Dictionary) -> Economy:
 			if not sim.catalog.products.has(product) or not item.last_sources[product] is Array:
 				return null
 			for source: Variant in item.last_sources[product]:
-				if not shape(source, {"supplier": "", "units": 0, "price": 0, "quality": 0, "score": 0.0}) or sim.facility(source.supplier) == null:
+				if not shape(source, {"supplier": "", "units": 0, "price": 0, "quality": 0, "score": 0.0}) or (sim.facility(source.supplier) == null and source.supplier != "import:" + f.city_id):
 					return null
 		f.last_sources = item.last_sources.duplicate(true)
+	error = "Invalid regional shipments."
 	if not _restore_logistics(sim, state.logistics): return null
 	for technology: Variant in state.unlocked_technologies:
 		if not technology is String or not sim.catalog.technologies.has(technology) or technology in sim.unlocked_technologies:
@@ -425,6 +462,7 @@ func restore(state: Dictionary) -> Economy:
 			return null
 		sim.debug_actions.append(action.duplicate(true))
 	for product: String in state.market:
+		error = "Invalid regional markets."
 		if not _valid_market(sim, product, state.market[product]): return null
 	if not nonnegative(state.consumer_units) or not nonnegative(state.consumer_revenue):
 		return null
@@ -451,6 +489,41 @@ func restore(state: Dictionary) -> Economy:
 		for category: String in entry.categories:
 			if not sim.catalog.categories.has(category) or not _valid_category(sim, entry.categories[category]): return null
 		sim.market_history.append(entry.duplicate(true))
+	if state.market_by_city.size() != sim.cities.size() or state.category_market_by_city.size() != sim.cities.size() or state.market_history_by_city.size() != sim.cities.size(): return null
+	for city_id: String in sim.cities:
+		if not state.market_by_city.has(city_id) or not state.category_market_by_city.has(city_id) or not state.market_history_by_city.has(city_id): return null
+		if not state.market_by_city[city_id] is Dictionary or not state.category_market_by_city[city_id] is Dictionary or not state.market_history_by_city[city_id] is Array: return null
+		for product: String in state.market_by_city[city_id]:
+			if not _valid_market(sim, product, state.market_by_city[city_id][product]): return null
+		for category: String in state.category_market_by_city[city_id]:
+			if not sim.catalog.categories.has(category) or not _valid_category(sim, state.category_market_by_city[city_id][category]): return null
+			var units: int = 0
+			var revenue: int = 0
+			var local_units: int = 0
+			var local_revenue: int = 0
+			for product: String in state.market_by_city[city_id]:
+				if sim.catalog.products[product].category != category: continue
+				var product_market: Dictionary = state.market_by_city[city_id][product]
+				units += int(product_market.units)
+				revenue += int(product_market.revenue)
+				local_units += int(product_market.local_units)
+				if sim.catalog.consumer_product(product): local_revenue += int(product_market.local_units) * int(sim.catalog.local_values(product).price)
+			var category_market: Dictionary = state.category_market_by_city[city_id][category]
+			if units != int(category_market.units) or revenue != int(category_market.revenue) or local_units != int(category_market.local_units) or local_revenue != int(category_market.local_revenue): return null
+		if state.market_history_by_city[city_id].size() > 90: return null
+		var previous_date: String = ""
+		for entry: Variant in state.market_history_by_city[city_id]:
+			if not shape(entry, {"date": "", "categories": {}}) or entry.date <= previous_date or entry.date > sim.clock.date_string(): return null
+			for category: String in entry.categories:
+				if not sim.catalog.categories.has(category) or not _valid_category(sim, entry.categories[category]): return null
+			previous_date = entry.date
+	sim.market_by_city = state.market_by_city.duplicate(true)
+	sim.category_market_by_city = state.category_market_by_city.duplicate(true)
+	sim.market_history_by_city = state.market_history_by_city.duplicate(true)
+	ConsumerMarket.aggregate(sim)
+	if sim.market != state.market or sim.category_market != state.category_market: return null
+	error = "Invalid regional trade."
+	if not _restore_regional_trade(sim, state.regional_trade): return null
 	sim.cumulative_consumer_units = state.consumer_units
 	sim.cumulative_consumer_revenue = state.consumer_revenue
 	sim.rng.state = int(state.rng_state)
@@ -463,6 +536,33 @@ func restore(state: Dictionary) -> Economy:
 			return null
 	error = ""
 	return sim
+
+func _restore_regional_trade(sim: Economy, state: Dictionary) -> bool:
+	if not shape(state, sim.regional_trade.snapshot()) or not state.day_tick is int or state.day_tick < -1 or state.day_tick > sim.clock.tick or state.day_tick < sim.clock.tick - 1 or state.history.size() > 90: return false
+	for mode: String in ["import", "export"]:
+		var usage: Dictionary = state.import_used if mode == "import" else state.export_used
+		for key: String in usage:
+			var parts: PackedStringArray = key.split(":")
+			if parts.size() != 2 or not sim.cities.has(parts[0]) or not sim.catalog.products.has(parts[1]) or not nonnegative(usage[key]): return false
+			var cap: int = RegionalTrade.IMPORT_CAP if mode == "import" else sim.regional_trade.export_cap(sim, parts[0], parts[1])
+			if usage[key] > cap: return false
+	var previous_date: String = ""
+	for entry: Variant in state.history:
+		if not shape(entry, {"date": "", "cities": {}}) or entry.date <= previous_date or entry.date > sim.clock.date_string(): return false
+		previous_date = entry.date
+		for city_id: String in entry.cities:
+			if not sim.cities.has(city_id) or not entry.cities[city_id] is Dictionary: return false
+			for product: String in entry.cities[city_id]:
+				var row: Variant = entry.cities[city_id][product]
+				if not sim.catalog.products.has(product) or not shape(row, {"import_units": 0, "import_value": 0, "export_units": 0, "export_value": 0}): return false
+				for value: Variant in row.values():
+					if not nonnegative(value): return false
+	sim.regional_trade.day_tick = state.day_tick
+	sim.regional_trade.import_used = state.import_used.duplicate(true)
+	sim.regional_trade.export_used = state.export_used.duplicate(true)
+	sim.regional_trade.history.clear()
+	for entry: Dictionary in state.history: sim.regional_trade.history.append(entry.duplicate(true))
+	return true
 
 func _valid_category(sim: Economy, row: Variant) -> bool:
 	if not shape(row, {"potential": 0, "units": 0, "revenue": 0, "local_units": 0, "local_revenue": 0, "segments": {}}): return false
@@ -495,7 +595,7 @@ func _valid_financial_history(owner: SimCompany) -> bool:
 		if not shape(row, owner.accounts()) or not shape(row, {"opening_cash": 0, "closing_cash": 0}) or str(row.month) <= previous_month: return false
 		if int(row.opening_cash) != previous_cash or int(row.opening_cash) + int(row.cash) != int(row.closing_cash): return false
 		if int(row.revenue) - int(row.cogs) - int(row.expenses) + int(row.investment_income) + int(row.realized_investment_gain) != int(row.profit): return false
-		if int(row.retail_revenue) + int(row.wholesale_revenue) + int(row.property_revenue) != int(row.revenue): return false
+		if int(row.retail_revenue) + int(row.wholesale_revenue) + int(row.property_revenue) + int(row.export_revenue) != int(row.revenue): return false
 		if int(row.revenue) - int(row.purchases) - int(row.production_cash) - int(row.cash_expenses) - int(row.capex) - int(row.land_capex) - int(row.property_capex) - int(row.equity_purchase_cash) + int(row.equity_sale_cash) + int(row.dividend_receipts) + int(row.capital) - int(row.dividends_paid) != int(row.cash): return false
 		for field: String in totals: totals[field] += int(row[field])
 		previous_cash = int(row.closing_cash)
@@ -516,22 +616,35 @@ func _restore_logistics(sim: Economy, state: Dictionary) -> bool:
 	sim.logistics.config = state.config.duplicate(true)
 	var previous: int = 0
 	for s: Variant in state.shipments:
-		if not shape(s, {"id": 0, "company": "", "source": "", "destination": "", "product": "", "quantity": 0, "value": 0, "quality_points": 0, "departure": 0, "arrival": 0, "transport_cost": 0, "distance": 0, "status": ""}): return false
-		if not sim.companies.has(s.company) or not sim.catalog.products.has(s.product) or s.status not in ["in_transit", "delivered"] or s.id <= previous or s.id >= state.next_id: return false
-		for field: String in ["quantity", "value", "departure", "arrival", "transport_cost", "distance"]:
+		if not shape(s, {"id": 0, "company": "", "source": "", "destination": "", "product": "", "quantity": 0, "value": 0, "quality_points": 0, "departure": 0, "arrival": 0, "transport_cost": 0, "distance": 0, "status": "", "mode": "", "source_city": "", "destination_city": "", "source_port": "", "destination_port": "", "regional_distance": 0}): return false
+		if not sim.companies.has(s.company) or not sim.catalog.products.has(s.product) or s.status not in ["in_transit", "delivered", "exported"] or s.mode not in ["local", "regional", "import", "export"] or s.id <= previous or s.id >= state.next_id: return false
+		for field: String in ["quantity", "value", "departure", "arrival", "transport_cost", "distance", "regional_distance"]:
 			if not nonnegative(s[field]): return false
 		if not nonnegative(s.quality_points) or s.quality_points < s.quantity or s.quality_points > s.quantity * 100: return false
 		if s.quantity < 1 or s.arrival <= s.departure or s.departure > sim.clock.tick: return false
 		var live_source: SimFacility = sim.facility(s.source)
 		var live_destination: SimFacility = sim.facility(s.destination)
+		if not sim.cities.has(s.source_city) or not sim.cities.has(s.destination_city): return false
+		if s.mode == "local" and (s.source_city != s.destination_city or not s.source_port.is_empty() or not s.destination_port.is_empty() or s.regional_distance != 0): return false
+		if s.mode == "regional" and (s.source_city == s.destination_city or s.source_port != sim.cities[s.source_city].port.get("id", "") or s.destination_port != sim.cities[s.destination_city].port.get("id", "") or s.regional_distance != sim.regional_distance(s.source_city, s.destination_city)): return false
 		if live_source != null and sim.catalog.productless_behavior(sim._behavior(live_source)): return false
 		if live_destination != null and sim.catalog.productless_behavior(sim._behavior(live_destination)): return false
-		if s.status == "in_transit":
+		if s.mode in ["import", "export"]:
+			var endpoint: SimFacility = live_destination if s.mode == "import" else live_source
+			if endpoint == null or endpoint.company_id != s.company or endpoint.city_id != s.source_city or endpoint.city_id != s.destination_city or s.source_port != sim.cities[endpoint.city_id].port.get("id", "") or s.destination_port != s.source_port: return false
+			if s.mode == "import" and s.source != "import:" + endpoint.city_id: return false
+			if s.mode == "export" and s.destination != "export:" + endpoint.city_id: return false
+			if s.mode == "import" and s.status not in ["in_transit", "delivered"]: return false
+			if s.mode == "export" and (s.status != "exported" or s.value != 0): return false
+			var trade_quote: Dictionary = sim.regional_trade.quote(sim, endpoint.id, s.product, s.quantity, s.mode)
+			if trade_quote.is_empty() or s.distance != trade_quote.distance or s.transport_cost != trade_quote.freight or s.regional_distance != trade_quote.external_leg or s.arrival != s.departure + trade_quote.lead_days: return false
+			if s.mode == "import" and (s.quality_points != s.quantity * 50 or s.value != s.quantity * trade_quote.price): return false
+		elif s.status == "in_transit":
 			var source: SimFacility = live_source
 			var destination: SimFacility = live_destination
 			if source == null or destination == null or source == destination or destination.company_id != s.company or s.arrival < sim.clock.tick: return false
 			var quote: Dictionary = sim.logistics.quote(sim, s.source, s.destination, s.quantity)
-			if s.distance != quote.distance or s.transport_cost != quote.freight or s.arrival != s.departure + quote.lead_days: return false
+			if s.mode != quote.mode or s.source_city != source.city_id or s.destination_city != destination.city_id or s.regional_distance != quote.regional_leg or s.distance != quote.distance or s.transport_cost != quote.freight or s.arrival != s.departure + quote.lead_days: return false
 		elif s.arrival > sim.clock.tick: return false
 		previous = s.id
 		sim.logistics.shipments.append(s.duplicate(true))
