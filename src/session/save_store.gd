@@ -48,7 +48,7 @@ static func decode(value: Variant) -> Variant:
 	return value
 
 static func fingerprint() -> String:
-	return FileAccess.get_file_as_string(DATA_PATH).sha256_text()
+	return (FileAccess.get_file_as_string(DATA_PATH) + FileAccess.get_file_as_string(CityProfiles.PATH)).sha256_text()
 
 func write_file(path: String, state: Dictionary) -> bool:
 	error = ""
@@ -81,7 +81,7 @@ func read_file(path: String) -> Dictionary:
 		error = "Save slot does not exist."
 		return {}
 	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null or file.get_length() > 16000000:
+	if file == null or file.get_length() > 256000000:
 		error = "Unreadable or oversized save file."
 		return {}
 	var parser: JSON = JSON.new()
@@ -153,7 +153,7 @@ func restore(state: Dictionary) -> Economy:
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
 	error = "Invalid regional header."
-	if not shape(state, sim.snapshot()) or state.schema_version != 20 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 21 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	var legacy: bool = state.cities.size() == 1
 	if legacy and (not state.cities.has("metro") or not state.cities.metro.port.is_empty()): return null
@@ -207,6 +207,7 @@ func restore(state: Dictionary) -> Economy:
 	# Deleted scenario facilities are valid. All live IDs must exist before supplier validation.
 	sim.facilities = restored
 	sim.facilities.sort_custom(func(a: SimFacility, b: SimFacility) -> bool: return a.id < b.id)
+	var restored_profiles: Dictionary = {}
 	error = "Invalid regional maps or real estate."
 	for city_id: String in sim.cities:
 		error = "Invalid map: " + city_id
@@ -214,6 +215,10 @@ func restore(state: Dictionary) -> Economy:
 		for f: SimFacility in sim.facilities:
 			if f.city_id == city_id: local_facilities.append(f)
 		if not sim.cities[city_id].restore(state.cities[city_id], local_facilities, sim.catalog): return null
+		if not legacy:
+			var profile_id: String = str(sim.cities[city_id].profile.id)
+			if restored_profiles.has(profile_id): return null
+			restored_profiles[profile_id] = true
 		sim.cities[city_id].population = state.cities[city_id].population.duplicate(true)
 		error = "Invalid real estate: " + city_id
 		if not sim.real_estates[city_id].restore_state(sim, state.real_estates[city_id]): return null

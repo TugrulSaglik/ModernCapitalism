@@ -4,6 +4,8 @@ extends RefCounted
 # Integer cells and stable facility IDs are authoritative, never scene nodes.
 var id: String = "metro"
 var display_name: String = "Metro City"
+var profile: Dictionary = {}
+var _site_cache: Dictionary = {}
 var width: int = 32
 var depth: int = 24
 var roads: Array[String] = []
@@ -35,7 +37,8 @@ func add_road(x: int, y: int, road_class: String = "local", bridge: bool = false
 	if not _road_set.has(k):
 		_road_set[k] = true
 		roads.append(k)
-	road_classes[k] = road_class if road_class == "major" or road_classes.get(k, "") != "major" else "major"
+	var ranks: Dictionary = {"local": 0, "secondary": 1, "major": 2}
+	if int(ranks.get(road_class, 0)) >= int(ranks.get(road_classes.get(k, "local"), 0)): road_classes[k] = road_class
 	if bridge and k not in bridges: bridges.append(k)
 
 func is_road(x: int, y: int) -> bool:
@@ -53,6 +56,7 @@ func unregister_footprint(object_id: String) -> void:
 		if _occupied[k] == object_id: _occupied.erase(k)
 
 func initialize(facilities: Array[SimFacility], catalog: SimCatalog, seed_value: int = 42, settings: Dictionary = {}) -> bool:
+	_site_cache.clear()
 	roads.clear()
 	bridges.clear()
 	water.clear()
@@ -70,6 +74,7 @@ func initialize(facilities: Array[SimFacility], catalog: SimCatalog, seed_value:
 	next_facility = 1
 	if settings.get("preset", "procedural") != "legacy":
 		return CityGenerator.generate(self, seed_value, settings, facilities, catalog)
+	profile.clear()
 	width = 32
 	depth = 24
 	generation = {"version": 0, "seed": str(seed_value), "settings": {}, "preset": "legacy"}
@@ -202,15 +207,24 @@ func occupy(f: SimFacility, x: int, y: int, definition: Dictionary) -> void:
 	register_footprint(f.id, x, y, int(definition.width), int(definition.depth))
 
 func snapshot() -> Dictionary:
-	return {"id": id, "name": display_name, "width": width, "depth": depth,
+	return {"id": id, "name": display_name, "profile": profile.duplicate(true), "width": width, "depth": depth,
 		"terrain": "grass", "roads": roads.duplicate(), "plots": plots.duplicate(true), "next_facility": next_facility, "port": port.duplicate(true),
 		"water": water.duplicate(), "bridges": bridges.duplicate(), "road_classes": road_classes.duplicate(true), "parcels": parcels.duplicate(true),
 		"districts": districts.duplicate(true), "ambient": ambient.duplicate(true), "generation": generation.duplicate(true), "population": population.duplicate(true)}
 
 # Validate against the immutable map foundation, then reconstruct occupancy.
 func restore(state: Dictionary, facilities: Array[SimFacility], catalog: SimCatalog) -> bool:
-	if not _fields_match(state, snapshot()) or state.id != id or state.name != display_name or state.terrain != "grass" or state.next_facility < 1 or state.next_facility > 1000000 or state.plots.size() != facilities.size():
+	if not _fields_match(state, snapshot()) or state.id != id or state.terrain != "grass" or state.next_facility < 1 or state.next_facility > 1000000 or state.plots.size() != facilities.size():
 		return false
+	if not state.get("profile") is Dictionary: return false
+	if state.generation.get("preset") == "legacy":
+		if not state.profile.is_empty() or state.name != display_name: return false
+	else:
+		if not CityProfiles.valid(state.profile) or not catalog.city_profiles.has(state.profile.id) or state.name != state.profile.display_name: return false
+		if state.profile != catalog.city_profiles[state.profile.id]: return false
+	profile = state.profile.duplicate(true)
+	display_name = state.name
+	_site_cache.clear()
 	if not restore_foundation(state, catalog): return false
 	port = state.port.duplicate(true)
 	plots.clear()
@@ -235,12 +249,72 @@ func touches_water(x: int, y: int) -> bool:
 		if is_water(x + offset.x, y + offset.y): return true
 	return false
 
+# Cache terrain/frontage candidates by footprint; occupancy is checked at use time.
+func site_candidates(w: int, d: int) -> Array[Vector2i]:
+	var cache_key: String = key(w, d)
+	if not _site_cache.has(cache_key):
+		var candidates: Dictionary = {}
+		for road: String in roads:
+			var parts: PackedStringArray = road.split(",")
+			var r: Vector2i = Vector2i(int(parts[0]), int(parts[1]))
+			for dx: int in range(w):
+				candidates[r + Vector2i(-dx, 1)] = true
+				candidates[r + Vector2i(-dx, -d)] = true
+			for dy: int in range(d):
+				candidates[r + Vector2i(1, -dy)] = true
+				candidates[r + Vector2i(-w, -dy)] = true
+		var result: Array[Vector2i] = []
+		for p: Vector2i in candidates:
+			if p.x < 0 or p.y < 0 or p.x + w > width or p.y + d > depth: continue
+			var clear: bool = true
+			for y: int in range(p.y, p.y + d):
+				for x: int in range(p.x, p.x + w):
+					if is_water(x, y) or is_road(x, y): clear = false
+			if clear: result.append(p)
+		result.sort_custom(func(a: Vector2i, b: Vector2i) -> bool: return a.y < b.y if a.y != b.y else a.x < b.x)
+		_site_cache[cache_key] = result
+	return _site_cache[cache_key]
+
 func valid_sites(w: int, d: int) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
-	for y: int in range(depth - d + 1):
-		for x: int in range(width - w + 1):
-			if placement_error(x, y, w, d).is_empty(): result.append(Vector2i(x, y))
+	for p: Vector2i in site_candidates(w, d):
+		if placement_error(p.x, p.y, w, d).is_empty(): result.append(p)
 	return result
+
+func bounded_sites(w: int, d: int, target: Vector2i, limit: int = 480) -> Array[Vector2i]:
+	var candidates: Array[Vector2i] = site_candidates(w, d)
+	# Small spatial buckets keep subsequent AI passes bounded without a full-map scan.
+	var bucket_key: String = "buckets:" + key(w, d)
+	if not _site_cache.has(bucket_key):
+		var buckets: Dictionary = {}
+		for p: Vector2i in candidates:
+			var bucket: Vector2i = Vector2i(p.x / 16, p.y / 16)
+			if not buckets.has(bucket): buckets[bucket] = []
+			buckets[bucket].append(p)
+		_site_cache[bucket_key] = buckets
+	var result: Array[Vector2i] = []
+	var origin: Vector2i = Vector2i(target.x / 16, target.y / 16)
+	var examined: int = 0
+	for radius: int in range(32):
+		for dy: int in range(-radius, radius + 1):
+			for dx: int in range(-radius, radius + 1):
+				if maxi(absi(dx), absi(dy)) != radius: continue
+				for p: Vector2i in _site_cache[bucket_key].get(origin + Vector2i(dx, dy), []):
+					examined += 1
+					if placement_error(p.x, p.y, w, d).is_empty(): result.append(p)
+					if result.size() >= limit or examined >= limit * 8: return result
+	return result
+
+func road_structure_valid() -> bool:
+	for road: String in roads:
+		var p: PackedStringArray = road.split(",")
+		var x: int = int(p[0])
+		var y: int = int(p[1])
+		if is_road(x + 1, y) and is_road(x, y + 1) and is_road(x + 1, y + 1): return false
+	return roads.size() <= (width * depth - water.size()) * 0.12
+
+func population_text(units: int = -1) -> String:
+	return CityProfiles.population_text(int(population.total) if units < 0 else units, profile.is_empty())
 
 func parcel_info(x: int, y: int) -> Dictionary:
 	var result: Dictionary = parcels.get(key(x, y), {}).duplicate(true)
@@ -264,14 +338,13 @@ func recalculate_population() -> void:
 		districts[b.district].capacity += int(b.capacity)
 		weighted += int(b.population) * int(districts[b.district].purchasing_power)
 	if population.total > 0: population.purchasing_power = weighted / int(population.total)
-	for id_value: String in districts:
-		var value: int = 0
-		var count: int = 0
-		for p: Dictionary in parcels.values():
-			if p.district == id_value and p.land_value > 0:
-				value += int(p.land_value)
-				count += 1
-		districts[id_value].average_land_value = value / maxi(1, count)
+	var sums: Dictionary = {}
+	for district_id: String in districts: sums[district_id] = Vector2i.ZERO
+	for p: Dictionary in parcels.values():
+		if p.land_value > 0: sums[p.district] += Vector2i(int(p.land_value), 1)
+	for district_id: String in districts:
+		var total: Vector2i = sums[district_id]
+		districts[district_id].average_land_value = total.x / maxi(1, total.y)
 
 func roads_connected() -> bool:
 	if roads.is_empty(): return false
@@ -301,8 +374,9 @@ func restore_foundation(state: Dictionary, catalog: SimCatalog) -> bool:
 				if y in [6, 13, 20] or x in [1, 30]: expected.append(key(x, y))
 		if state.roads != expected: return false
 	else:
-		if state.generation.preset != "procedural" or state.generation.version != 2 or state.width < 96 or state.width > 192 or state.depth < 72 or state.depth > 144 or state.parcels.size() != state.width * state.depth: return false
+		if state.generation.preset != "procedural" or state.generation.version != 3 or state.width < 192 or state.width > 408 or state.depth < 144 or state.depth > 304 or state.parcels.size() != state.width * state.depth: return false
 		if state.generation.settings != {"width": state.width, "depth": state.depth}: return false
+		if state.generation.get("street_spacing") != CityGenerator.STREET_SPACING: return false
 		if state.generation.get("archetype", "") not in ["coast", "bay", "estuary", "river_city"] or state.generation.get("orientation", "") not in ["north", "south", "east", "west"] or not state.generation.get("centers", null) is Array: return false
 	width = state.width
 	depth = state.depth
@@ -331,6 +405,7 @@ func restore_foundation(state: Dictionary, catalog: SimCatalog) -> bool:
 		if not b is String or not _road_set.has(b) or not _water_set.has(b) or b in bridges: return false
 		bridges.append(b)
 	if not roads_connected(): return false
+	if state.generation.preset != "legacy" and not road_structure_valid(): return false
 	generation = state.generation.duplicate(true)
 	road_classes = state.road_classes.duplicate(true)
 	districts = state.districts.duplicate(true)
@@ -339,12 +414,13 @@ func restore_foundation(state: Dictionary, catalog: SimCatalog) -> bool:
 	ambient.clear()
 	plots.clear()
 	if generation.preset == "legacy": return true
-	if water.is_empty() or water.size() >= width * depth / 2 or districts.size() < 5 or districts.size() > 9 or road_classes.size() != roads.size(): return false
-	if state.generation.centers.size() < 3 or state.generation.centers.size() > 6: return false
+	if water.is_empty() or water.size() >= width * depth / 2 or districts.size() < 5 or districts.size() > 20 or road_classes.size() != roads.size(): return false
+	if state.generation.centers.size() < 3 or state.generation.centers.size() > 12: return false
 	for center: Variant in state.generation.centers:
 		if not _fields_match(center, {"x": 0, "y": 0, "kind": ""}) or center.x < 0 or center.y < 0 or center.x >= width or center.y >= depth or is_water(center.x, center.y) or center.kind not in ["primary", "secondary", "industrial"]: return false
+		if not center.get("radius") is float or not is_finite(center.radius) or center.radius < 1 or center.radius > 100: return false
 	for r: String in roads:
-		if road_classes.get(r) not in ["major", "local"]: return false
+		if road_classes.get(r) not in ["major", "secondary", "local"]: return false
 	for district: Variant in districts.values():
 		if not _fields_match(district, {"name": "", "character": "", "purchasing_power": 0, "population": 0, "capacity": 0, "average_land_value": 0}) or district.purchasing_power < 50 or district.purchasing_power > 200: return false
 	for y: int in range(depth):

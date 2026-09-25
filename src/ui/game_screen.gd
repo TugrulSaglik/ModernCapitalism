@@ -228,7 +228,10 @@ func _active_snapshot() -> Dictionary:
 	var local_facilities: Array[Dictionary] = []
 	for f: SimFacility in session.sim.facilities:
 		if f.city_id == session.active_city: local_facilities.append(f.snapshot())
-	return {"city": session.sim.cities[session.active_city].snapshot(), "companies": company_data, "facilities": local_facilities}
+	var map: CityMap = session.sim.cities[session.active_city]
+	# Rendering needs no copy of the potentially 100,000 authoritative parcels.
+	var view: Dictionary = {"width": map.width, "depth": map.depth, "generation": map.generation, "port": map.port, "plots": map.plots.duplicate(true), "ambient": map.ambient.duplicate(true)}
+	return {"city": view, "companies": company_data, "facilities": local_facilities}
 
 func _metric(parent: HBoxContainer, label_text: String) -> Label:
 	var block: VBoxContainer = VBoxContainer.new()
@@ -440,7 +443,7 @@ func _refresh_property_panel() -> void:
 	var sim: Economy = session.sim
 	var estate: RealEstate = sim.real_estates[session.active_city]
 	var city_info: Dictionary = sim.cities[session.active_city].population
-	var city_line: String = "%s  •  Population %d / housing %d  •  Workforce %d\nJobs %d  •  Employed %d  •  Unemployed %d  •  Purchasing power %d%%" % [sim.cities[session.active_city].display_name, city_info.total, city_info.get("housing_capacity", city_info.capacity), city_info.get("workforce", 0), city_info.get("jobs", 0), city_info.get("employed", 0), city_info.get("unemployed", 0), city_info.purchasing_power]
+	var city_line: String = "%s  •  Population %d / housing %d  •  Workforce %d\nJobs %d  •  Employed %d  •  Unemployed %d  •  Purchasing power %d%%" % [sim.cities[session.active_city].display_name, sim.cities[session.active_city].population_text(int(city_info.total)), sim.cities[session.active_city].population_text(int(city_info.get("housing_capacity", city_info.capacity))), sim.cities[session.active_city].population_text(int(city_info.get("workforce", 0))), sim.cities[session.active_city].population_text(int(city_info.get("jobs", 0))), sim.cities[session.active_city].population_text(int(city_info.get("employed", 0))), sim.cities[session.active_city].population_text(int(city_info.get("unemployed", 0))), city_info.purchasing_power]
 	var type_id: String = str(property_type_choice.get_item_metadata(property_type_choice.selected)) if property_type_choice.selected >= 0 else "apartments"
 	var definition: Dictionary = sim.catalog.property_types[type_id]
 	var b: Dictionary = estate.properties.get(selected_property, {})
@@ -463,7 +466,7 @@ func _refresh_property_panel() -> void:
 		var capacity: int = int(current.residential_capacity) if int(current.residential_capacity) > 0 else int(current.job_capacity)
 		var occupied: int = int(b.population) if int(current.residential_capacity) > 0 else int(b.occupied_jobs)
 		var gross: int = estate.gross_rent(sim, b)
-		detail += "\n%s  •  %s\nOwner  %s\nBuilding basis $%.2f  •  Book value $%.2f\n%s  %d / %d (%d%%)\nMonthly rent $%.2f  •  Maintenance $%.2f\nNet rent $%.2f  •  Accumulated depreciation $%.2f\n" % [str(current.name), str(current.use), owner_name, int(b.building_cost) / 100.0, (int(b.building_cost) - int(b.depreciation)) / 100.0, "Residents" if current.use == "residential" else "Jobs", occupied, capacity, occupied * 100 / maxi(1, capacity), gross / 100.0, (gross * 25 / 100) / 100.0, (gross - gross * 25 / 100) / 100.0, int(b.depreciation) / 100.0]
+		detail += "\n%s  •  %s\nOwner  %s\nBuilding basis $%.2f  •  Book value $%.2f\n%s  %d / %d (%d%%)\nMonthly rent $%.2f  •  Maintenance $%.2f\nNet rent $%.2f  •  Accumulated depreciation $%.2f\n" % [str(current.name), str(current.use), owner_name, int(b.building_cost) / 100.0, (int(b.building_cost) - int(b.depreciation)) / 100.0, "Resident units (×1,000)" if current.use == "residential" else "Job units (×1,000)", occupied, capacity, occupied * 100 / maxi(1, capacity), gross / 100.0, (gross * 25 / 100) / 100.0, (gross - gross * 25 / 100) / 100.0, int(b.depreciation) / 100.0]
 	var land_cost: int = estate.land_cost(sim, session.active_company, x, y, int(definition.width), int(definition.depth))
 	var full_value: int = int(definition.cost)
 	for cell: String in estate.cells(x, y, int(definition.width), int(definition.depth)): full_value += int(sim.cities[session.active_city].parcels.get(cell, {}).get("land_value", 0))
@@ -586,7 +589,7 @@ func refresh() -> void:
 		var regional_shipments: int = 0
 		for shipment: Dictionary in session.sim.logistics.shipments:
 			if shipment.mode == "regional": regional_shipments += 1
-		city_summary.text = "%s  •  Seed %s  •  Residents %d / %d  •  Power %d%%\nCities: %s  •  Port %s  •  Regional shipments %d" % [active_map.display_name, active_map.generation.seed, p.total, p.capacity, p.purchasing_power, ", ".join(PackedStringArray(session.sim.cities.keys())), port_text, regional_shipments]
+		city_summary.text = "%s  •  Seed %s  •  Population %s / %s  •  Power %d%%\nCities: %s  •  Port %s  •  Regional shipments %d" % [active_map.display_name, active_map.generation.seed, active_map.population_text(), active_map.population_text(int(p.capacity)), p.purchasing_power, ", ".join(PackedStringArray(session.sim.cities.keys())), port_text, regional_shipments]
 	if city_diagnostics != null and session.debug_unlocked:
 		var plot: Dictionary = session.sim.cities[session.active_city].plots.get(selected_id, {})
 		var point: Vector2i = city.preview_cell if not city.build_type.is_empty() else Vector2i(int(plot.get("x", 0)), int(plot.get("y", 0)))
@@ -917,6 +920,9 @@ func _refresh_city_selector() -> void:
 			city_selector.add_item(session.sim.cities[city_id].display_name)
 			city_selector.set_item_metadata(city_selector.item_count - 1, city_id)
 	for index: int in range(city_selector.item_count):
+		var map: CityMap = session.sim.cities[str(city_selector.get_item_metadata(index))]
+		city_selector.set_item_text(index, map.display_name)
+		city_selector.set_item_tooltip(index, "%s, %s • Population %s • %d × %d cells" % [map.display_name, map.profile.get("country", ""), map.population_text(), map.width, map.depth])
 		if city_selector.get_item_metadata(index) == session.active_city: city_selector.select(index)
 
 func _build_construction(parent: Node) -> void:

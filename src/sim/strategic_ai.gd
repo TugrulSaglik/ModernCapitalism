@@ -297,17 +297,18 @@ func _property_command(sim, company_id: String, reserved: Dictionary, profile: D
 	var definition: Dictionary = sim.catalog.property_types[type_id]
 	var owner = sim.companies[company_id]
 	var reserve: int = cash_reserve(owner.cash, profile)
-	for y: int in range(city.depth - int(definition.depth) + 1):
-		for x: int in range(city.width - int(definition.width) + 1):
-			if _reserved_overlap(x, y, int(definition.width), int(definition.depth), reserved, city_id): continue
-			var command: Dictionary = {"type": "develop_property", "company": company_id, "city": city_id, "property_type": type_id, "x": x, "y": y}
-			if not sim.property_command_error(command).is_empty(): continue
-			var cost: int = int(definition.cost) + estate.land_cost(sim, company_id, x, y, int(definition.width), int(definition.depth))
-			if owner.cash - cost >= reserve:
-				command["strategic_score"] = housing - people if type_id in ["apartments", "block"] else workforce - jobs
-				command["priority"] = 50
-				return command
-	return {}
+	var center: Dictionary = city.generation.centers[0]
+	for point: Vector2i in city.bounded_sites(int(definition.width), int(definition.depth), Vector2i(int(center.x), int(center.y))):
+		var x: int = point.x
+		var y: int = point.y
+		if _reserved_overlap(x, y, int(definition.width), int(definition.depth), reserved, city_id): continue
+		var command: Dictionary = {"type": "develop_property", "company": company_id, "city": city_id, "property_type": type_id, "x": x, "y": y}
+		if not sim.property_command_error(command).is_empty(): continue
+		var cost: int = int(definition.cost) + estate.land_cost(sim, company_id, x, y, int(definition.width), int(definition.depth))
+		if owner.cash - cost >= reserve:
+			command["strategic_score"] = housing - people if type_id in ["apartments", "block"] else workforce - jobs
+			command["priority"] = 50
+			return command
 	return {}
 
 func _staffing_commands(sim, company_id: String, available_cash: int, profile: Dictionary = DIFFICULTY_PROFILES.standard) -> Array[Dictionary]:
@@ -381,7 +382,7 @@ func _placement_for(sim, company_id: String, type_id: String, product: String, r
 		if str(definition.behavior) in ["production", "storage"]: index = centers.size() - 1
 		elif index == centers.size() - 1: index = 0
 		target = Vector2i(int(centers[index].x), int(centers[index].y))
-	for point: Vector2i in city.valid_sites(int(definition.width), int(definition.depth)):
+	for point: Vector2i in city.bounded_sites(int(definition.width), int(definition.depth), target):
 		if _reserved_overlap(point.x, point.y, int(definition.width), int(definition.depth), reserved, city_id): continue
 		var distance: int = absi(point.x - target.x) + absi(point.y - target.y)
 		var found: bool = false

@@ -4,14 +4,14 @@ Each procedural city has its own `RealEstate` and `CityMap`. Land cells and
 property IDs are scoped by city ID; a Metro parcel and a Harbor parcel with the
 same coordinates are independent. `RealEstate` owns land and economic property
 records. `CityMap` owns geometry, roads, water, parcels, districts and visual
-footprints. Catalog 11 defines five
+footprints. Catalog 12 defines five
 types: house (12 residents, $25,000 construction), apartments (70, $120,000),
 block (150, $300,000), office (100 jobs, $180,000) and commercial (40 jobs,
 $90,000). Each has a catalog footprint and height. Facilities also have catalog
 job counts. The legacy fixed board keeps its 5,000 residents and has no property
 commands.
 
-Milestone 11R enlarges normal maps to 128 × 96 and distributes developable land,
+Milestone 11R2 uses population-scaled metropolitan maps and distributes developable land,
 road frontage and ambient buildings around several urban centers. Parcels retain
 the same ownership, cost basis, construction and accounting rules. Waterfront
 includes river banks; bridges remain water and cannot be owned or developed.
@@ -69,8 +69,20 @@ confirmation. Company → Properties shows the portfolio, vacant owned land and 
 compact summary for the active city, while its property portfolio and asset totals
 cover all cities. Facility construction displays city, building, land and total cost.
 
-Economy schema 20 persists each city's land basis, property records, accumulated depreciation,
+Economy schema 21 persists each city's land basis, property records, accumulated depreciation,
 population/occupancy, fixed baseline jobs, the next property ID and expanded city
 employment. Restore rejects malformed ownership, footprints, capacities, aggregate
-state and accounting. Catalog version is 11; save envelope format remains 2. Old
-schema 19 saves have no migration and are rejected.
+state and accounting. Catalog version is 12; save envelope format remains 2. Old
+schema 20 saves have no migration and are rejected.
+
+## Metropolitan population abstraction (11R2)
+
+Static real-city profiles use rounded UN World Urbanization Prospects 2025 values.
+One simulation resident/job/housing unit represents approximately 1,000 people.
+The city overview scales population, housing and employment consistently; property
+occupancy labels explicitly state simulation units. Consumer demand, rent and
+migration formulas retain their existing integer units and economic behavior.
+Ordinary generated properties target reference population / 1,000 at 80–95%
+occupancy; explicit office/commercial jobs cover roughly half the resident target.
+Compactness controls building mix/concentration and leaves industrial/frontage
+space available for construction. No capacity is derived from cosmetic height.

@@ -52,17 +52,19 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 11R
+## Milestone 11R2
 
-Large-scale procedural cities are implemented. Normal Metro, Harbor and Highland
-maps are **128 × 96** cells (configurable from 96–192 by 72–144). Seeded coast,
-bay, estuary and river-city archetypes vary shoreline orientation, river paths,
-bridges, urban centers, districts, streets and development. The gameplay camera
-starts at neighborhood scale; the minimap covers the whole city. Rendering batches
-static terrain and ambient buildings. The current versions are **economy schema
-20 / catalog 11 / save format 2**, with generator version 2. See
-[city generation](docs/CITY_GENERATION.md). Milestone 12, Modes and complete-game
-production, is next.
+11R2 — Metropolitan city profiles and street-network correction — implemented.
+Normal games select three unique real coastal/port cities from a static 36-profile
+UN World Urbanization Prospects 2025 pool. Population-dependent base maps range
+from **192 × 144 to 384 × 288**, with modest compactness/aspect variation. Generator
+v3 replaces random branches with spaced one-cell arterials, connectors and street
+blocks. Population targets use one simulation unit per 1,000 residents; the UI
+shows real-person scale. MultiMesh rendering, the neighborhood camera, minimap,
+regional economics and the fixed regression board are retained.
+
+Current versions: **economy schema 21 / catalog 12 / save format 2 / generator 3**.
+See [city generation](docs/CITY_GENERATION.md). Milestone 12 remains next.
 
 ## Milestone 11 (historical checkpoint)
 

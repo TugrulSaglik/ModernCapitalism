@@ -1,12 +1,19 @@
 # Regional scale and trade (Milestone 11)
 
-Normal procedural games have three independently generated 128 × 96 cities. The
-catalog defines Metro City (`metro`, offset 0, coordinate 0,0), Harbor City
-(`harbor`, offset 1009, coordinate 100,40) and Highland City (`highland`, offset
-2017, coordinate 45,130). Each uses the session seed plus its offset and keeps
-its generated map, population, districts, property records and public port in
-the economy save. Metro is the primary compatibility alias. The legacy fixed
-board remains Metro only, without an operating port or external trade.
+Normal procedural games select three unique real coastal/port city profiles from
+`data/city_profiles.json`, using a seeded 15M+ / 7–15M / 1–7M population mix.
+UN World Urbanization Prospects 2025 reference populations set metropolitan map
+area and development; one simulation population unit represents 1,000 residents.
+Names/countries are presentation metadata. Internal slots `metro`, `harbor`,
+`highland` retain seed offsets 0/1009/2017 and normalized regional coordinates
+(0,0)/(100,40)/(45,130). Scenario facilities start in the first selected profile.
+The legacy fixed board remains Metro only, without external trade.
+
+Profile latitude/longitude are persisted, but freight deliberately retains existing
+normalized slot distances for this milestone. Using raw world kilometers would
+change lead times and freight materially; Haversine conversion is deferred. Maps,
+ports, estates and selected identities restore exactly without profile reselection.
+See [city generation](CITY_GENERATION.md) for generator v3 and population scaling.
 
 ## Public ports and freight
 
@@ -80,9 +87,9 @@ new city operations bootstrap with imports.
 
 ## Persistence and scope
 
-Economy schema 20 and catalog 11 store all city maps, ports, estates, markets,
+Economy schema 21 and catalog 12 store all city maps, ports, estates, markets,
 trade usage/history, shipment route metadata, global facility ID counter and
 session active city. Save envelope format remains 2. Restore validates city IDs,
-port sites, facility placement, accounts, routes and trade limits. Schema 19
+port sites, facility placement, accounts, routes and trade limits. Schema 20
 saves are rejected under the project's no migration policy. This milestone has
 no countries, currencies, tariffs, company owned ports or world map renderer.

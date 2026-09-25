@@ -6,6 +6,7 @@ var technologies: Dictionary = {}
 var facility_types: Dictionary = {}
 var property_types: Dictionary = {}
 var scenario: Dictionary = {}
+var city_profiles: Dictionary = {}
 var version: int = 0
 var errors: Array[String] = []
 var categories: Dictionary = {}
@@ -34,6 +35,7 @@ func load_data(path: String = "res://data/example_economy.json") -> bool:
 		errors.append("Invalid catalog JSON: " + path)
 		return false
 	var root: Dictionary = parser.data
+	if not load_profiles(JSON.parse_string(FileAccess.get_file_as_string(CityProfiles.PATH))): return false
 	if not root.get("staff_roles") is Array:
 		errors.append("Staff roles required")
 		return false
@@ -316,3 +318,24 @@ func local_values(product: String) -> Dictionary:
 	var config: Dictionary = market_config(product)
 	return {"product": product, "price": int(round(float(products[product].reference_price) * float(config.local_price_multiplier))),
 		"quality": int(config.local_quality), "brand": int(config.local_brand)}
+
+func load_profiles(root: Variant) -> bool:
+	city_profiles.clear()
+	if not root is Dictionary or not root.get("profiles") is Array:
+		errors.append("City profile pool required")
+		return false
+	var names: Dictionary = {}
+	for p: Variant in root.profiles:
+		if not CityProfiles.valid(p):
+			errors.append("Malformed city profile")
+			continue
+		var identity: String = p.display_name + ":" + p.country
+		if city_profiles.has(p.id) or names.has(identity):
+			errors.append("Duplicate city profile")
+			continue
+		p.reference_population_2025 = int(p.reference_population_2025)
+		p.population_year = int(p.population_year)
+		city_profiles[p.id] = p
+		names[identity] = true
+	if city_profiles.size() < 30 or CityProfiles.select(city_profiles, 42).size() != 3: errors.append("City pool requires 30 profiles and all selection strata")
+	return errors.is_empty()

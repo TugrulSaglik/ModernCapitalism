@@ -1,18 +1,26 @@
 # Technical architecture
 
-## Milestone 11R city foundation
+## Milestone 11R2 metropolitan foundation
 
-`CityGenerator` version 2 creates 128 × 96 maps by default, with supported
-dimensions 96–192 by 72–144. `CityMap` owns authoritative water, bridge and road
-cells, center metadata, districts, parcels, ambient footprints and economic plots.
-Its derived road/water/occupancy indexes keep placement and route checks practical
-without adding fields to the save. Bridges are water cells with a traversable road
-deck. Port water is validated against an external map edge. Generation uses a
-separate seeded RNG and never runs during restore. Static terrain and ambient
-facades are rendered with MultiMesh; property picking resolves a clicked cell
-against authoritative occupancy. The camera starts at an owned facility or the
-primary center, at neighborhood scale. See [city generation](CITY_GENERATION.md).
-Economy schema is 20; catalog 11 and save envelope 2 remain.
+`CityProfiles` validates and selects static UN WUP 2025 identities from the catalog.
+`Economy` assigns a seeded major/large/medium mix to its three internal slots.
+`CityMap.profile` persists the complete identity; loading hydrates it without
+selection. `CityGenerator` v3 derives metropolitan dimensions, center/district
+counts and development targets from population and compactness. One population
+unit represents 1,000 residents; economic demand and migration stay in those units.
+
+Roads use an eight-cell planning graph: a sparse arterial backbone and redundant
+links, secondary neighborhood axes, then local blocks. All roads/bridges are one
+cell wide; no 2×2 road squares are permitted. Coverage targets 5–10% with a 12%
+ceiling. Frontage/footprint indexes and bounded spatial AI searches avoid repeated
+full-map placement scans. District aggregation is a single parcel pass. Terrain
+and ambient MultiMesh rendering remain; the minimap caches static terrain and UI
+visual snapshots exclude parcels. The camera starts at size 50.
+
+Economy schema 21 / catalog 12 / save format 2 / generator 3. Profiles join the
+catalog fingerprint; saved maps retain exact roads, terrain, properties and
+Milestone 10/11 state. The legacy board is unchanged. See
+[city generation](CITY_GENERATION.md) for dimensions, data provenance and limits.
 
 ## Milestone 11 regional architecture (historical checkpoint)
 

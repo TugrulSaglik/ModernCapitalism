@@ -611,10 +611,12 @@ func _properties(sim: Economy, owner: SimCompany) -> void:
 	_set_report("Properties", "Owned portfolio and city growth", "Land and buildings are carried at cost; rent estimates use current property value and occupancy.")
 	var p: Dictionary = sim.cities[session.active_city].population
 	_section("CITY OVERVIEW")
-	add_row("Population", str(p.total))
-	add_row("Housing capacity", str(p.get("housing_capacity", p.capacity)))
-	add_row("Workforce / jobs", "%d / %d" % [int(p.get("workforce", 0)), int(p.get("jobs", 0))])
-	add_row("Employed / unemployed", "%d / %d" % [int(p.get("employed", 0)), int(p.get("unemployed", 0))])
+	var map: CityMap = sim.cities[session.active_city]
+	add_row("City", map.display_name + ", " + str(map.profile.get("country", "")))
+	add_row("Population", map.population_text())
+	add_row("Housing capacity", map.population_text(int(p.get("housing_capacity", p.capacity))))
+	add_row("Workforce / jobs", "%s / %s" % [map.population_text(int(p.get("workforce", 0))), map.population_text(int(p.get("jobs", 0)))])
+	add_row("Employed / unemployed", "%s / %s" % [map.population_text(int(p.get("employed", 0))), map.population_text(int(p.get("unemployed", 0)))])
 	add_row("Purchasing power", "%d%%" % int(p.purchasing_power))
 	_section("PORTFOLIO")
 	var gross_total: int = 0

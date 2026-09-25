@@ -34,12 +34,13 @@
 | 10 — City growth and property (implemented) | Growth/migration, land acquisition, apartment/office development, rent, redevelopment and employment links | 5–8 |
 | 11 — Regional scale and trade (implemented) | Three independent cities, public ports, city markets, inter-city freight, imports/exports and regional AI | 4–10 |
 | 11R — Large-scale procedural city generation (implemented) | 128 × 96 maps, terrain archetypes, rivers/bridges, urban centers, spatial districts, hierarchical roads, batched rendering and neighborhood camera | 11 |
-| 12 — Modes and complete-game production (next) | Tutorial campaign, full sandbox setup, catalog breadth, finished art/audio/accessibility/tutorial presentation and final balancing | 1–11R |
+| 11R2 — Metropolitan city profiles and street-network correction — implemented | 36 real-city profiles, population-scaled maps, spaced one-cell street blocks and bounded AI site search | 11R |
+| 12 — Modes and complete-game production (next) | Tutorial campaign, full sandbox setup, catalog breadth, finished art/audio/accessibility/tutorial presentation and final balancing | 1–11R2 |
 
 Milestone 11 adds the [regional trade model](REGIONAL_TRADE.md) to the
 [real-estate model](REAL_ESTATE.md). Milestone 11R adds the
-[large-city generator](CITY_GENERATION.md). Current versions are economy schema 20,
-catalog 11, save format 2. Milestone 12, Modes and complete-game production,
+[large-city generator](CITY_GENERATION.md). Current versions are economy schema 21,
+catalog 12, save format 2. Milestone 12, Modes and complete-game production,
 is next.
 
 Milestone 5 replaces the fixed starting board in normal games without changing the

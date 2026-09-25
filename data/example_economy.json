@@ -1,5 +1,5 @@
 {
-  "version": 11,
+  "version": 12,
   "staff_roles": [
     {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000, "effect": "operations_capacity_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
     {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000, "effect": "advertising_progress_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
