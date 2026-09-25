@@ -153,7 +153,7 @@ func restore(state: Dictionary) -> Economy:
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
 	error = "Invalid regional header."
-	if not shape(state, sim.snapshot()) or state.schema_version != 19 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 20 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	var legacy: bool = state.cities.size() == 1
 	if legacy and (not state.cities.has("metro") or not state.cities.metro.port.is_empty()): return null

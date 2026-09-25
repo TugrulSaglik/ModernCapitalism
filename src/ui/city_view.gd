@@ -30,6 +30,9 @@ var parcel_overlay: Node3D
 var property_structures: Node3D
 var property_buildings: Dictionary = {}
 var selected_property: String = ""
+var ambient_state: Dictionary = {}
+var overlay_state: Dictionary = {}
+var property_marker: MeshInstance3D
 
 func build(state: Dictionary) -> void:
 	var palette: Array[Color] = [Color("699eaf"), Color("c99563"), Color("927cbb"), Color("51bda0"), Color("dc7b80")]
@@ -54,21 +57,31 @@ func build(state: Dictionary) -> void:
 	map_depth = int(map.depth)
 	max_zoom = maxf(65.0, maxf(map_width, map_depth) * CELL * 1.5)
 	_box(self, Vector3(0, -0.25, 0), Vector3(map.width * CELL, 0.5, map.depth * CELL), Color("738672"))
+	var water_cells: Array[Vector3] = []
+	var shore_cells: Array[Vector3] = []
+	var road_cells: Array[Vector3] = []
+	var bridge_cells: Array[Vector3] = []
+	var bank_cells: Array[Vector3] = []
+	var city_map: CityMap = session.sim.cities[session.active_city]
 	for y: int in range(map.depth):
 		for x: int in range(map.width):
-			var road: bool = CityMap.key(x, y) in map.roads
 			var pos: Vector3 = cell_position(x, y)
-			if CityMap.key(x, y) in map.water:
-				var shore: bool = x > 0 and CityMap.key(x - 1, y) not in map.water
-				_box(self, pos + Vector3(0, 0.02, 0), Vector3(CELL, 0.04, CELL), Color("549caf") if shore else Color("3c819c"))
-			elif session.sim.cities[session.active_city].touches_water(x, y):
-				_box(self, pos + Vector3(0, 0.01, 0), Vector3(CELL, 0.02, CELL), Color("b0ac82"))
-			if road:
-				_box(self, pos + Vector3(0, 0.015, 0), Vector3(CELL, 0.03, CELL), Color("394953"))
-			if road and map.road_classes.get(CityMap.key(x, y), "") == "major" and x % 2 == 0:
-				_box(self, pos + Vector3(0, 0.045, 0), Vector3(0.5, 0.025, 0.045), Color("c9c7a7"))
+			if city_map.is_water(x, y):
+				if city_map.touches_road(x, y) or (x > 0 and not city_map.is_water(x - 1, y)): shore_cells.append(pos)
+				else: water_cells.append(pos)
+			elif city_map.touches_water(x, y): bank_cells.append(pos)
+			if city_map.is_road(x, y):
+				if CityMap.key(x, y) in city_map.bridges: bridge_cells.append(pos)
+				else: road_cells.append(pos)
+	_batch_boxes(self, water_cells, Vector3(CELL, 0.04, CELL), Color("3c819c"), 0.02)
+	_batch_boxes(self, shore_cells, Vector3(CELL, 0.04, CELL), Color("549caf"), 0.02)
+	_batch_boxes(self, bank_cells, Vector3(CELL, 0.02, CELL), Color("b0ac82"), 0.01)
+	_batch_boxes(self, road_cells, Vector3(CELL, 0.03, CELL), Color("394953"), 0.035)
+	_batch_boxes(self, bridge_cells, Vector3(CELL, 0.13, CELL), Color("756d63"), 0.13)
 	property_structures = Node3D.new()
 	add_child(property_structures)
+	property_marker = _box(self, Vector3.ZERO, Vector3.ONE, Color("ffe190"))
+	property_marker.hide()
 	parcel_overlay = Node3D.new()
 	add_child(parcel_overlay)
 	_refresh_parcel_overlay()
@@ -99,8 +112,18 @@ func build(state: Dictionary) -> void:
 	preview.hide()
 	camera = Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	camera.size = 45.0 if map.generation.preset == "legacy" else maxf(map_width, map_depth) * CELL * 0.94
+	camera.size = 45.0 if map.generation.preset == "legacy" else 50.0
 	add_child(camera)
+	var initial: Vector2i = Vector2i(int(map_width / 2), int(map_depth / 2))
+	if map.generation.preset == "procedural" and not map.generation.get("centers", []).is_empty():
+		var center: Dictionary = map.generation.centers[0]
+		initial = Vector2i(int(center.x), int(center.y))
+	for f: Dictionary in state.facilities:
+		if str(f.company) == session.active_company and map.plots.has(str(f.id)):
+			var plot: Dictionary = map.plots[str(f.id)]
+			initial = Vector2i(int(plot.x) + int(plot.width) / 2, int(plot.y) + int(plot.depth) / 2)
+			break
+	focus = cell_position(initial.x, initial.y)
 	_update_camera()
 	camera.make_current()
 
@@ -109,12 +132,13 @@ func cell_position(x: float, y: float) -> Vector3:
 
 func sync(state: Dictionary) -> void:
 	var map: Dictionary = state.get("city", state.get("cities", {}).get(session.active_city, {}))
-	if property_structures != null:
+	if property_structures != null and map.ambient != ambient_state:
 		for child: Node in property_structures.get_children():
 			property_structures.remove_child(child)
 			child.queue_free()
 		property_buildings.clear()
 		_build_ambient(map)
+		ambient_state = map.ambient.duplicate(true)
 	for child: Node in structures.get_children():
 		structures.remove_child(child)
 		child.queue_free()
@@ -176,13 +200,16 @@ func sync(state: Dictionary) -> void:
 		buildings[f.id] = {"body": body, "mesh": band, "color": colors[f.company], "label": label, "outline": outline}
 	select(selected)
 	select_property(selected_property)
-	_refresh_parcel_overlay()
+	if map.ambient != overlay_state.get("ambient", {}) or map.plots != overlay_state.get("plots", {}):
+		_refresh_parcel_overlay()
+		overlay_state = {"ambient": map.ambient.duplicate(true), "plots": map.plots.duplicate(true)}
 
 func _refresh_parcel_overlay() -> void:
 	if parcel_overlay == null: return
 	for child: Node in parcel_overlay.get_children():
 		parcel_overlay.remove_child(child)
 		child.queue_free()
+	var positions: Array[Vector3] = []
 	for k: String in session.sim.cities[session.active_city].parcels:
 		var p: Dictionary = session.sim.cities[session.active_city].parcels[k]
 		if p.terrain == "land" and p.road_access:
@@ -190,53 +217,48 @@ func _refresh_parcel_overlay() -> void:
 			var x: int = int(coordinates[0])
 			var y: int = int(coordinates[1])
 			if session.sim.cities[session.active_city].placement_error(x, y, 1, 1).is_empty():
-				_box(parcel_overlay, cell_position(x, y) + Vector3(0, 0.07, 0), Vector3(CELL * 0.88, 0.04, CELL * 0.88), Color("82bca0"))
+				positions.append(cell_position(x, y))
+	_batch_boxes(parcel_overlay, positions, Vector3(CELL * 0.88, 0.04, CELL * 0.88), Color("82bca0"), 0.07)
 
 func _build_ambient(map: Dictionary) -> void:
 	var tones: Array[Color] = [Color("c4b49b"), Color("bec0b4"), Color("b2b7bc"), Color("d2c5af"), Color("a8b6ac")]
+	var groups: Dictionary = {}
 	for b: Dictionary in map.ambient.values():
-		var body: StaticBody3D = StaticBody3D.new()
-		body.set_meta("property_id", str(b.id))
-		property_structures.add_child(body)
-		var center: Vector3 = cell_position(b.x + (b.width - 1) / 2.0, b.y + (b.depth - 1) / 2.0)
-		var h: float = 0.65 + int(b.height) * 0.65
-		var sx: float = b.width * CELL - 0.65
-		var sz: float = b.depth * CELL - 0.65
-		var color: Color = tones[b.tone]
-		if b.kind == "office": color = Color("839ba5")
-		var facade: MeshInstance3D = _box(body, center + Vector3(0, h / 2, 0), Vector3(sx, h, sz), color)
-		_box(body, center + Vector3(0, h, 0), Vector3(sx + 0.1, 0.15, sz + 0.1), Color("707a7b") if b.kind != "house" else Color("946d59"))
-		if b.roof == 1 and b.kind == "house":
-			var roof: MeshInstance3D = MeshInstance3D.new()
-			var prism: PrismMesh = PrismMesh.new()
-			prism.size = Vector3(sx + 0.12, 0.65, sz + 0.12)
-			roof.mesh = prism
-			roof.material_override = _material(Color("946d59").darkened(b.tone * 0.035))
-			roof.position = center + Vector3(0, h + 0.32, 0)
-			body.add_child(roof)
-		if b.kind == "house":
-			_box(body, center + Vector3(sx * 0.28, 0.35, sz / 2 + 0.04), Vector3(0.32, 0.7, 0.06), Color("756653"))
-			# Saved tone/orientation choose deterministic garden details.
-			if b.tone % 2 == 0:
-				var tree: Vector3 = center + Vector3(-sx / 2 - 0.13, 0, sz / 2 + 0.08)
-				_box(body, tree + Vector3(0, 0.3, 0), Vector3(0.12, 0.6, 0.12), Color("756653"))
-				_box(body, tree + Vector3(0, 0.85, 0), Vector3(0.58, 0.8, 0.58), Color("5c8468"))
-		for floor_index: int in range(int(b.height)):
-			var window_y: float = 0.55 + floor_index * 0.65
-			if b.kind in ["apartments", "block"]:
-				for window: int in range(3):
-					_box(body, center + Vector3((window - 1) * sx * 0.27, window_y, sz / 2 + 0.025), Vector3(sx * 0.16, 0.27, 0.04), Color("526975"))
-			else:
-				_box(body, center + Vector3(0, window_y, sz / 2 + 0.025), Vector3(sx * 0.65, 0.22, 0.04), Color("526975"))
-			if b.orientation == 1:
-				_box(body, center + Vector3(sx / 2 + 0.025, window_y, 0), Vector3(0.04, 0.22, sz * 0.65), Color("526975"))
-		var collision: CollisionShape3D = CollisionShape3D.new()
-		var shape: BoxShape3D = BoxShape3D.new()
-		shape.size = Vector3(sx, h, sz)
-		collision.position = center + Vector3(0, h / 2, 0)
-		collision.shape = shape
-		body.add_child(collision)
-		property_buildings[str(b.id)] = {"facade": facade, "color": color}
+		var group: String = str(b.kind) + ":" + str(b.tone)
+		if not groups.has(group): groups[group] = []
+		groups[group].append(b)
+		property_buildings[str(b.id)] = b
+	for group: String in groups:
+		var buildings_in_group: Array = groups[group]
+		var first: Dictionary = buildings_in_group[0]
+		var positions: Array[Vector3] = []
+		var roofs: Array[Vector3] = []
+		var visual_scale: float = 1.0 + int(first.tone) * 0.09 if first.kind in ["block", "office"] else 1.0
+		var h: float = 0.65 + int(first.height) * 0.65 * visual_scale
+		var sx: float = int(first.width) * CELL - 0.65
+		var sz: float = int(first.depth) * CELL - 0.65
+		for b: Dictionary in buildings_in_group:
+			var center: Vector3 = cell_position(b.x + (b.width - 1) / 2.0, b.y + (b.depth - 1) / 2.0)
+			positions.append(center)
+			roofs.append(center)
+		var color: Color = Color("839ba5") if first.kind == "office" else tones[int(first.tone)]
+		_batch_boxes(property_structures, positions, Vector3(sx, h, sz), color, h / 2.0)
+		_batch_boxes(property_structures, roofs, Vector3(sx + 0.1, 0.15, sz + 0.1), Color("946d59") if first.kind == "house" else Color("707a7b"), h)
+
+func _batch_boxes(parent: Node3D, positions: Array[Vector3], size_value: Vector3, color: Color, height: float) -> void:
+	if positions.is_empty(): return
+	var mesh: BoxMesh = BoxMesh.new()
+	mesh.size = size_value
+	var instances: MultiMesh = MultiMesh.new()
+	instances.transform_format = MultiMesh.TRANSFORM_3D
+	instances.mesh = mesh
+	instances.instance_count = positions.size()
+	for i: int in range(positions.size()):
+		instances.set_instance_transform(i, Transform3D(Basis.IDENTITY, positions[i] + Vector3(0, height, 0)))
+	var node: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	node.multimesh = instances
+	node.material_override = _material(color)
+	parent.add_child(node)
 
 func focus_cell(x: float, y: float) -> void:
 	focus = cell_position(clampf(x, 0, map_width - 1), clampf(y, 0, map_depth - 1))
@@ -267,9 +289,14 @@ func select(id: String) -> void:
 
 func select_property(id: String) -> void:
 	selected_property = id
-	for key: String in property_buildings:
-		var record: Dictionary = property_buildings[key]
-		record.facade.material_override.albedo_color = record.color.lightened(0.18) if key == id else record.color
+	if property_marker == null: return
+	if not property_buildings.has(id):
+		property_marker.hide()
+		return
+	var b: Dictionary = property_buildings[id]
+	property_marker.mesh.size = Vector3(int(b.width) * CELL + 0.15, 0.12, int(b.depth) * CELL + 0.15)
+	property_marker.position = cell_position(b.x + (b.width - 1) / 2.0, b.y + (b.depth - 1) / 2.0) + Vector3(0, 0.13, 0)
+	property_marker.show()
 
 func begin_placement(type_id: String, product: String) -> void:
 	build_type = type_id
@@ -313,6 +340,21 @@ func _pointer_preview(point: Vector2) -> void:
 	var ground: Variant = Plane(Vector3.UP, 0).intersects_ray(camera.project_ray_origin(point), camera.project_ray_normal(point))
 	if ground != null:
 		update_preview(int(floor(ground.x / CELL + map_width / 2.0)), int(floor(ground.z / CELL + map_depth / 2.0)))
+
+func _property_at_ray(origin: Vector3, direction: Vector3) -> String:
+	var map: CityMap = session.sim.cities[session.active_city]
+	for level: int in range(14):
+		var height: float = 6.5 - level * 0.5
+		var point: Variant = Plane(Vector3.UP, height).intersects_ray(origin, direction)
+		if point == null: continue
+		var x: int = int(floor(point.x / CELL + map_width / 2.0))
+		var y: int = int(floor(point.z / CELL + map_depth / 2.0))
+		var id: String = str(map.parcel_info(x, y).occupant)
+		if not property_buildings.has(id): continue
+		var b: Dictionary = property_buildings[id]
+		var scale: float = 1.0 + int(b.tone) * 0.09 if b.kind in ["block", "office"] else 1.0
+		if height <= 0.65 + int(b.height) * 0.65 * scale: return id
+	return ""
 
 func _unhandled_input(event: InputEvent) -> void:
 	if input_blocked.is_valid() and input_blocked.call():
@@ -359,9 +401,15 @@ func _unhandled_input(event: InputEvent) -> void:
 				facility_selected.emit(str(hit.collider.get_meta("facility_id")))
 			elif not hit.is_empty() and hit.collider.has_meta("port_id"):
 				port_selected.emit()
-			elif not hit.is_empty() and hit.collider.has_meta("property_id"):
-				property_selected.emit(str(hit.collider.get_meta("property_id")))
 			else:
+				var property_id: String = _property_at_ray(origin, camera.project_ray_normal(event.position))
+				if not property_id.is_empty():
+					property_selected.emit(property_id)
+					return
 				var ground: Variant = Plane(Vector3.UP, 0).intersects_ray(origin, camera.project_ray_normal(event.position))
 				if ground != null:
-					parcel_selected.emit(int(floor(ground.x / CELL + map_width / 2.0)), int(floor(ground.z / CELL + map_depth / 2.0)))
+					var cx: int = int(floor(ground.x / CELL + map_width / 2.0))
+					var cy: int = int(floor(ground.z / CELL + map_depth / 2.0))
+					var occupant: String = str(session.sim.cities[session.active_city].parcel_info(cx, cy).occupant)
+					if occupant.begins_with("ambient_") or occupant.begins_with("property_"): property_selected.emit(occupant)
+					else: parcel_selected.emit(cx, cy)

@@ -118,6 +118,7 @@ func demolish(sim: Economy, id: String) -> void:
 	company.daily_expenses += loss
 	properties.erase(id)
 	sim.cities[city_id].ambient.erase(id)
+	sim.cities[city_id].unregister_footprint(id)
 	recalculate(sim, true)
 
 func redevelop(sim: Economy, id: String, type_id: String) -> String:
@@ -136,6 +137,7 @@ func _visual(sim: Economy, b: Dictionary) -> void:
 		"capacity": int(definition.residential_capacity), "population": int(b.population),
 		"height": int(definition.height), "tone": int(previous.get("tone", 1)),
 		"roof": int(previous.get("roof", 0)), "orientation": int(previous.get("orientation", 0)), "owner": str(b.owner)}
+	sim.cities[city_id].register_footprint(str(b.id), int(b.x), int(b.y), int(b.width), int(b.depth))
 
 func land_assets(owner: String) -> int:
 	var amount: int = 0

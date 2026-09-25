@@ -579,6 +579,7 @@ func _demolish(f: SimFacility) -> void:
 	owner.daily_expenses += loss
 	facilities.erase(f)
 	cities[f.city_id].plots.erase(f.id)
+	cities[f.city_id].unregister_footprint(f.id)
 	for other: SimFacility in facilities:
 		for product: String in other.suppliers.keys():
 			if other.suppliers[product] == f.id:
@@ -1047,7 +1048,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 19, "cities": city_data, "real_estates": estate_data, "next_facility_id": next_facility_id, "market_by_city": market_by_city.duplicate(true), "category_market_by_city": category_market_by_city.duplicate(true), "market_history_by_city": market_history_by_city.duplicate(true), "regional_trade": regional_trade.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version,
+	return {"schema_version": 20, "cities": city_data, "real_estates": estate_data, "next_facility_id": next_facility_id, "market_by_city": market_by_city.duplicate(true), "category_market_by_city": category_market_by_city.duplicate(true), "market_history_by_city": market_history_by_city.duplicate(true), "regional_trade": regional_trade.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version,
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

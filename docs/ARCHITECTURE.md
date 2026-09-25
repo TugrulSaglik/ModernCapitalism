@@ -1,6 +1,20 @@
 # Technical architecture
 
-## Milestone 11 regional architecture
+## Milestone 11R city foundation
+
+`CityGenerator` version 2 creates 128 × 96 maps by default, with supported
+dimensions 96–192 by 72–144. `CityMap` owns authoritative water, bridge and road
+cells, center metadata, districts, parcels, ambient footprints and economic plots.
+Its derived road/water/occupancy indexes keep placement and route checks practical
+without adding fields to the save. Bridges are water cells with a traversable road
+deck. Port water is validated against an external map edge. Generation uses a
+separate seeded RNG and never runs during restore. Static terrain and ambient
+facades are rendered with MultiMesh; property picking resolves a clicked cell
+against authoritative occupancy. The camera starts at an owned facility or the
+primary center, at neighborhood scale. See [city generation](CITY_GENERATION.md).
+Economy schema is 20; catalog 11 and save envelope 2 remain.
+
+## Milestone 11 regional architecture (historical checkpoint)
 
 `Economy.cities` and `Economy.real_estates` own one authoritative map and estate
 per city. `sim.city` and `sim.real_estate` are compatibility references to Metro.
@@ -325,7 +339,7 @@ The HUD reads these records and does not own any economic state. Save restoratio
 validates shipment endpoints, timing, route quotes, assets and histories before
 replacing the live economy.
 
-## Procedural city and land (Milestone 5 foundation)
+## Procedural city and land (Milestone 5 historical foundation)
 
 Economy owns CityMap; CityGenerator fills it before any rendering. GameSession.start
 accepts optional city settings after mode, and Economy.initialize accepts them after

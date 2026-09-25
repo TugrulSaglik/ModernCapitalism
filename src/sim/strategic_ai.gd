@@ -374,11 +374,16 @@ func _placement_for(sim, company_id: String, type_id: String, product: String, r
 	var definition: Dictionary = sim.catalog.facility_types[type_id]
 	var city: CityMap = sim.cities[city_id]
 	var sites: Array[Dictionary] = []
+	var centers: Array = city.generation.get("centers", [])
+	var target: Vector2i = Vector2i(city.width / 2, city.depth / 2)
+	if not centers.is_empty():
+		var index: int = int(company_id.hash() & 0x7fffffff) % centers.size()
+		if str(definition.behavior) in ["production", "storage"]: index = centers.size() - 1
+		elif index == centers.size() - 1: index = 0
+		target = Vector2i(int(centers[index].x), int(centers[index].y))
 	for point: Vector2i in city.valid_sites(int(definition.width), int(definition.depth)):
 		if _reserved_overlap(point.x, point.y, int(definition.width), int(definition.depth), reserved, city_id): continue
-		var command: Dictionary = {"type": "build_facility", "company": company_id, "city": city_id, "archetype": type_id, "product": product, "x": point.x, "y": point.y}
-		if not sim.construction_error(command).is_empty(): continue
-		var distance: int = 0
+		var distance: int = absi(point.x - target.x) + absi(point.y - target.y)
 		var found: bool = false
 		for f in sim.facilities:
 			if f.company_id != company_id or f.city_id != city_id or not city.plots.has(f.id): continue
@@ -386,12 +391,16 @@ func _placement_for(sim, company_id: String, type_id: String, product: String, r
 			var d: int = absi(point.x - int(plot.x)) + absi(point.y - int(plot.y))
 			if not found or d < distance: distance = d
 			found = true
-		sites.append({"point": point, "distance": distance if found else 0})
+		sites.append({"point": point, "distance": distance})
 	sites.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if a.distance != b.distance: return int(a.distance) < int(b.distance)
 		if a.point.y != b.point.y: return int(a.point.y) < int(b.point.y)
 		return int(a.point.x) < int(b.point.x))
-	return Vector2i(-1, -1) if sites.is_empty() else sites[0].point
+	for i: int in range(mini(240, sites.size())):
+		var point: Vector2i = sites[i].point
+		var command: Dictionary = {"type": "build_facility", "company": company_id, "city": city_id, "archetype": type_id, "product": product, "x": point.x, "y": point.y}
+		if sim.construction_error(command).is_empty(): return point
+	return Vector2i(-1, -1)
 
 func _reserved_overlap(x: int, y: int, width: int, depth: int, reserved: Dictionary, city_id: String) -> bool:
 	for cy: int in range(y, y + depth):

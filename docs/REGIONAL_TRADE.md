@@ -1,6 +1,6 @@
 # Regional scale and trade (Milestone 11)
 
-Normal procedural games have three independently generated 48 × 36 cities. The
+Normal procedural games have three independently generated 128 × 96 cities. The
 catalog defines Metro City (`metro`, offset 0, coordinate 0,0), Harbor City
 (`harbor`, offset 1009, coordinate 100,40) and Highland City (`highland`, offset
 2017, coordinate 45,130). Each uses the session seed plus its offset and keeps
@@ -10,8 +10,9 @@ board remains Metro only, without an operating port or external trade.
 
 ## Public ports and freight
 
-Each procedural city reserves the first eligible waterfront, road accessible
-cell in stable row/column order after scenario facilities are placed. The
+Each procedural city reserves a waterfront site near its principal urban center
+before arterial planning. Arterials then connect the port to developed centers.
+The supporting sea, estuary or river water connects to a map edge. The
 `port_<city>` marker is public infrastructure. It blocks ordinary land purchase
 and construction and is visible on the map and minimap. Ports have no owner,
 inventory, fee, construction command, fleet or schedule.
@@ -79,9 +80,9 @@ new city operations bootstrap with imports.
 
 ## Persistence and scope
 
-Economy schema 19 and catalog 11 store all city maps, ports, estates, markets,
+Economy schema 20 and catalog 11 store all city maps, ports, estates, markets,
 trade usage/history, shipment route metadata, global facility ID counter and
 session active city. Save envelope format remains 2. Restore validates city IDs,
-port sites, facility placement, accounts, routes and trade limits. Schema 18
+port sites, facility placement, accounts, routes and trade limits. Schema 19
 saves are rejected under the project's no migration policy. This milestone has
 no countries, currencies, tariffs, company owned ports or world map renderer.

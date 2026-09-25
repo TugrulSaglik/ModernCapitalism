@@ -18,8 +18,8 @@ func _draw() -> void:
 		for x: int in range(map.width):
 			var k: String = CityMap.key(x, y)
 			var color: Color = Color("789077")
-			if k in map.water: color = Color("3c819c")
-			elif k in map.roads: color = Color("364651")
+			if map.is_water(x, y): color = Color("3c819c")
+			if map.is_road(x, y): color = Color("756d63") if k in map.bridges else Color("364651")
 			draw_rect(Rect2(Vector2(4, 4) + Vector2(x, y) * cell, cell + Vector2(0.2, 0.2)), color)
 	for b: Dictionary in map.ambient.values():
 		draw_rect(Rect2(Vector2(4, 4) + Vector2(b.x, b.y) * cell, Vector2(b.width, b.depth) * cell), Color("c2b69e"))
@@ -30,6 +30,8 @@ func _draw() -> void:
 	if not map.port.is_empty():
 		draw_rect(Rect2(Vector2(4, 4) + Vector2(int(map.port.x), int(map.port.y)) * cell, cell * 1.4), Color("f4c86a"))
 	var focus_point: Vector2 = Vector2(city.focus.x / CityView.CELL + (map.width - 1) / 2.0, city.focus.z / CityView.CELL + (map.depth - 1) / 2.0)
+	var viewport_cells: Vector2 = Vector2(city.camera.size * 1.25 / CityView.CELL, city.camera.size * 0.85 / CityView.CELL)
+	draw_rect(Rect2(Vector2(4, 4) + (focus_point - viewport_cells / 2.0) * cell, viewport_cells * cell), Color.WHITE, false, 1.0)
 	draw_circle(Vector2(4, 4) + focus_point * cell, 3.0, Color.WHITE, false, 1.0)
 
 func _gui_input(event: InputEvent) -> void:

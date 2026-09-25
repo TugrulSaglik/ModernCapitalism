@@ -11,6 +11,12 @@ $90,000). Each has a catalog footprint and height. Facilities also have catalog
 job counts. The legacy fixed board keeps its 5,000 residents and has no property
 commands.
 
+Milestone 11R enlarges normal maps to 128 × 96 and distributes developable land,
+road frontage and ambient buildings around several urban centers. Parcels retain
+the same ownership, cost basis, construction and accounting rules. Waterfront
+includes river banks; bridges remain water and cannot be owned or developed.
+Visual height variation does not change catalog capacity.
+
 Every owned buildable cell stores its company and historical acquisition basis.
 Road, water and public port cells cannot be owned. Existing scenario facilities start with their
 footprint owned at zero basis. `buy_land` charges current parcel land value for
@@ -63,8 +69,8 @@ confirmation. Company → Properties shows the portfolio, vacant owned land and 
 compact summary for the active city, while its property portfolio and asset totals
 cover all cities. Facility construction displays city, building, land and total cost.
 
-Economy schema 19 persists each city's land basis, property records, accumulated depreciation,
+Economy schema 20 persists each city's land basis, property records, accumulated depreciation,
 population/occupancy, fixed baseline jobs, the next property ID and expanded city
 employment. Restore rejects malformed ownership, footprints, capacities, aggregate
 state and accounting. Catalog version is 11; save envelope format remains 2. Old
-schema 18 saves have no migration and are rejected.
+schema 19 saves have no migration and are rejected.

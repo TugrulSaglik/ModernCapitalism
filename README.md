@@ -52,7 +52,19 @@ technology and quality even after a product category has been unlocked.
 Engine: Godot 4
 Language: Typed GDScript
 
-## Milestone 11
+## Milestone 11R
+
+Large-scale procedural cities are implemented. Normal Metro, Harbor and Highland
+maps are **128 × 96** cells (configurable from 96–192 by 72–144). Seeded coast,
+bay, estuary and river-city archetypes vary shoreline orientation, river paths,
+bridges, urban centers, districts, streets and development. The gameplay camera
+starts at neighborhood scale; the minimap covers the whole city. Rendering batches
+static terrain and ambient buildings. The current versions are **economy schema
+20 / catalog 11 / save format 2**, with generator version 2. See
+[city generation](docs/CITY_GENERATION.md). Milestone 12, Modes and complete-game
+production, is next.
+
+## Milestone 11 (historical checkpoint)
 
 Milestone 11 is implemented. Procedural sandbox games now simulate Metro, Harbor
 and Highland as one region. The city selector changes the active map and build
@@ -60,10 +72,8 @@ location; companies, corporate finance and accounting remain regional. Each city
 has independent population, real estate and consumer demand, plus a public port.
 Port routed freight connects cities and the external import/export market. The
 Company → Markets location selector and Trade tab expose regional activity.
-StrategicAI can expand across cities. Current versions are **economy schema 19 /
+StrategicAI can expand across cities. At that checkpoint versions were **economy schema 19 /
 catalog 11 / save format 2**. See [regional trade](docs/REGIONAL_TRADE.md).
-
-Milestone 12, Modes and complete-game production, is next.
 
 ## Milestone 10 (historical checkpoint)
 
