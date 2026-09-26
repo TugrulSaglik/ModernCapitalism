@@ -1,5 +1,15 @@
 # Real estate and city growth (Milestone 10)
 
+## Current production build (Milestone 12)
+
+Economy schema 22, catalog 13, save format 2 and CityGenerator 3. The title screen
+owns new-session setup; GameSession validates a structured setup and stores mode
+and tutorial progress. Economy remains authoritative for seed, era, difficulty,
+selected city identities, player display name and opening capital. Manual setup
+chooses exactly three unique profiles. Preferences use a separate ConfigFile.
+Older milestone sections below retain their historical version context.
+See [production architecture and validation](MILESTONE12.md).
+
 Each procedural city has its own `RealEstate` and `CityMap`. Land cells and
 property IDs are scoped by city ID; a Metro parcel and a Harbor parcel with the
 same coordinates are independent. `RealEstate` owns land and economic property

@@ -115,7 +115,15 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 	next_facility_id = 1
 	var legacy: bool = city_settings.get("preset", "procedural") == "legacy"
 	var selected_profiles: Array[Dictionary] = []
-	if not legacy: selected_profiles = CityProfiles.select(catalog.city_profiles, seed_value)
+	if not legacy:
+		if city_settings.has("profiles"):
+			if not city_settings.profiles is Array or city_settings.profiles.size() != 3: return false
+			var seen_profiles: Dictionary = {}
+			for id: Variant in city_settings.profiles:
+				if not id is String or not catalog.city_profiles.has(id) or seen_profiles.has(id): return false
+				seen_profiles[id] = true
+				selected_profiles.append(catalog.city_profiles[id].duplicate(true))
+		else: selected_profiles = CityProfiles.select(catalog.city_profiles, seed_value)
 	var profile_index: int = 0
 	for definition: Dictionary in catalog.scenario.regional_cities:
 		var city_id: String = str(definition.id)
@@ -130,7 +138,9 @@ func initialize(seed_value: int = 42, era: int = 2022, data_path: String = "res:
 		var local_facilities: Array[SimFacility] = []
 		for f: SimFacility in facilities:
 			if f.city_id == city_id: local_facilities.append(f)
-		if not map.initialize(local_facilities, catalog, seed_value + int(definition.seed_offset), city_settings): return false
+		var map_settings: Dictionary = city_settings.duplicate(true)
+		map_settings.erase("profiles")
+		if not map.initialize(local_facilities, catalog, seed_value + int(definition.seed_offset), map_settings): return false
 		cities[city_id] = map
 	for f: SimFacility in facilities:
 		if not cities.has(f.city_id): return false
@@ -1056,7 +1066,7 @@ func snapshot() -> Dictionary:
 	var facility_data: Array[Dictionary] = []
 	for f: SimFacility in facilities:
 		facility_data.append(f.snapshot())
-	return {"schema_version": 21, "cities": city_data, "real_estates": estate_data, "next_facility_id": next_facility_id, "market_by_city": market_by_city.duplicate(true), "category_market_by_city": category_market_by_city.duplicate(true), "market_history_by_city": market_history_by_city.duplicate(true), "regional_trade": regional_trade.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version,
+	return {"schema_version": 22, "cities": city_data, "real_estates": estate_data, "next_facility_id": next_facility_id, "market_by_city": market_by_city.duplicate(true), "category_market_by_city": category_market_by_city.duplicate(true), "market_history_by_city": market_history_by_city.duplicate(true), "regional_trade": regional_trade.snapshot(), "equity_market": equity_market.snapshot(), "difficulty": difficulty, "category_market": category_market.duplicate(true), "market_history": market_history.duplicate(true), "logistics": logistics.snapshot(), "catalog_version": catalog.version,
 		"scenario": str(catalog.scenario.id), "starting_year": starting_year,
 		"seed": str(initial_seed), "rng_state": str(rng.state), "clock": clock.snapshot(),
 		"companies": company_data, "facilities": facility_data,

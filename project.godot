@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="ModernCapitalism"
-run/main_scene="res://scenes/game.tscn"
+run/main_scene="res://scenes/title.tscn"
+config/version="1.0.0"
 config/features=PackedStringArray("4.7")
+
+[autoload]
+
+UIService="*res://src/ui/ui_service.gd"
 
 [display]
 

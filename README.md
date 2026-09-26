@@ -1,323 +1,91 @@
 # ModernCapitalism
 
-A personal business simulation game inspired by classic economic management games.
+A business simulation about building companies, connecting supply chains and
+competing across procedural metropolitan cities. Start in 2012 or 2022, develop
+products, manage cash and grow a regional business.
 
-## Core concept
+![City gameplay](docs/images/city-gameplay.png)
+![Sandbox setup](docs/images/sandbox-setup.png)
+![Guided tutorial](docs/images/tutorial.png)
 
-The player creates and manages companies operating across retail, manufacturing,
-research, logistics, and other industries in a simulated economy.
+## Features
 
-The game should emphasize:
-
-- Supply chains
-- Manufacturing
-- Retail
-- Product quality
-- Brand value
-- Pricing
-- Research and development
-- Competition between firms
-- Consumer demand
-- Corporate finance
-- Technology progression
+- Company management with income, balance sheet, cash flow and market reports
+- 68 products: electronics, appliances, industrial inputs, food, beverages,
+  apparel, furniture, personal care and automobiles
+- Manufacturing, multi-product retail, warehouses and road-routed logistics
+- Technology unlocks, quality/process R&D, brands and advertising
+- Headquarters, staffing and payroll-funded management effects
+- Stock market, dividends, share issuance and corporate control
+- Property investment, rent, employment and city growth
+- Regional sourcing, imports and exports through public ports
+- Data-driven StrategicAI with three fixed difficulty settings
+- Three cities selected from 36 real metropolitan profiles, with seeded streets
+  and population-scaled maps up to the 384×288 base tier
+- Original UI sounds, persistent volume/mute, bounded UI scale, high contrast
+  and optional tooltips
 
 ## Game modes
 
-### Tutorial
+**Sandbox** — Name your company, choose an era and difficulty, enter a seed,
+select three cities or let the seed choose, and start with $100,000–$1,000,000.
+The default is $200,000. Difficulty changes AI policy, not economic rules.
 
-A guided scenario that teaches the major game systems progressively.
+**Tutorial** — Twelve compact objectives teach the same real simulation, from
+your first sale through production, logistics, R&D, staffing, property and trade.
+It starts paused in a fixed 2022 region with $1,000,000. Save progress at any step
+or skip the guide and continue playing.
 
-### Sandbox
+## Running / Building
 
-A configurable free-play mode with difficulty and simulation settings.
+Open `project.godot` with **Godot 4.7.2** and press **F5**, or run:
 
-## Starting eras
+```powershell
+godot --headless --path . --editor --quit
+godot --path .
+```
 
-### 2012
+For a Windows x86_64 release, install matching export templates and run:
 
-The game begins with technology appropriate to 2012.
+```powershell
+./tools/export_windows.ps1 -Godot godot -Zip
+```
 
-More advanced technologies and product categories must become available through
-technological progress and research as the simulation advances.
+The executable and ZIP go into ignored `dist/`. See [release instructions](docs/RELEASING.md)
+for focused validation and packaging. Saves use three slots under Godot's
+application user-data directory. Preferences persist separately from games.
 
-### 2022
+## Controls
 
-Modern product categories and technologies are already available at the start.
-
-Research remains important because companies can continuously improve product
-technology and quality even after a product category has been unlocked.
+| Control | Action |
+| --- | --- |
+| Middle-mouse drag | Pan the city |
+| Mouse wheel | Zoom |
+| Left click | Select facility/property or place a building |
+| Right click / Escape | Cancel placement; Escape also closes dialogs |
+| Space | Pause/resume |
+| 1 / 2 / 3 / 4 | 1× / 2× / 4× / Max simulation speed |
+| Minimap click | Move camera |
+| Company / Build / Menu | Reports, construction, save/load/settings/title |
 
 ## Technology
 
-Engine: Godot 4
-Language: Typed GDScript
+Godot 4 and typed GDScript. Deterministic integer inventory and accounting live
+independently of graphics. Catalog definitions are JSON; both game modes share
+the same simulation. City properties use batched procedural geometry.
 
-## Milestone 11R2
+## Documentation
 
-11R2 — Metropolitan city profiles and street-network correction — implemented.
-Normal games select three unique real coastal/port cities from a static 36-profile
-UN World Urbanization Prospects 2025 pool. Population-dependent base maps range
-from **192 × 144 to 384 × 288**, with modest compactness/aspect variation. Generator
-v3 replaces random branches with spaced one-cell arterials, connectors and street
-blocks. Population targets use one simulation unit per 1,000 residents; the UI
-shows real-person scale. MultiMesh rendering, the neighborhood camera, minimap,
-regional economics and the fixed regression board are retained.
+[Architecture](docs/ARCHITECTURE.md) · [Economy](docs/ECONOMY.md) ·
+[Technology](docs/TECHNOLOGY.md) · [Corporate finance](docs/CORPORATE_FINANCE.md) ·
+[Real estate](docs/REAL_ESTATE.md) · [Regional trade](docs/REGIONAL_TRADE.md) ·
+[City generation](docs/CITY_GENERATION.md) · [Development history](docs/DEVELOPMENT_HISTORY.md)
 
-Current versions: **economy schema 21 / catalog 12 / save format 2 / generator 3**.
-See [city generation](docs/CITY_GENERATION.md). Milestone 12 remains next.
+## Project status
 
-## Milestone 11 (historical checkpoint)
-
-Milestone 11 is implemented. Procedural sandbox games now simulate Metro, Harbor
-and Highland as one region. The city selector changes the active map and build
-location; companies, corporate finance and accounting remain regional. Each city
-has independent population, real estate and consumer demand, plus a public port.
-Port routed freight connects cities and the external import/export market. The
-Company → Markets location selector and Trade tab expose regional activity.
-StrategicAI can expand across cities. At that checkpoint versions were **economy schema 19 /
-catalog 11 / save format 2**. See [regional trade](docs/REGIONAL_TRADE.md).
-
-## Milestone 10 (historical checkpoint)
-
-Milestone 10 is implemented. Procedural cities now have company-owned land at cost,
-acquirable ambient buildings, residential/office/commercial development and
-redevelopment, gradual monthly migration, aggregate employment, rent, maintenance,
-and building depreciation. Facilities automatically acquire unowned land when
-constructed. Property activity flows through company accounts and statements;
-StrategicAI may make one conservative property investment instead of a facility
-investment in its monthly capital pass. City selection and the Company → Properties
-tab expose land, occupancy, costs, rent and city growth. Current versions are
-**economy schema 18 / catalog 10 / save format 2** at that checkpoint. See [real-estate rules](docs/REAL_ESTATE.md).
-
-Milestone 11 supersedes the single-city scope described here.
-
-## Milestone 9 (historical checkpoint)
-
-Milestone 9 is implemented. The Company → Finance tab now shows deterministic
-public securities, share portfolios, cost basis, capital structure and recent daily
-prices. Player Electronics starts private; Circuit Supply, Orion, Nova and Metro
-start public with 400,000 founder shares and 600,000 public-float shares each.
-Corporate cash can buy and sell float shares, issue new shares, and pay immediate
-dividends. Ownership above 50% grants control; the managed-company selector lets
-players run controlled subsidiaries and suppresses their autonomous StrategicAI.
-Financial statements carry investments at cost and classify investment and capital
-cash flows separately. Current versions are **economy schema 17 / catalog 9 / save
-format 2**. See [corporate finance rules](docs/CORPORATE_FINANCE.md).
-
-
-## Milestone 8D
-
-Milestone 8 is complete. Each session now has a fixed **Relaxed**, **Standard** or
-**Competitive** difficulty that changes only StrategicAI policy: retained reserve,
-opportunity threshold, retailer cap, warehouse timing and pre-hire payroll runway.
-Prices, costs, demand, research, staff effects, starting cash and every other economic
-rule remain identical. Standard preserves the Milestone 8C baseline. Settings shows
-the current immutable difficulty and selects the next sandbox difficulty; saves and
-slot summaries preserve it exactly. At that checkpoint versions were **economy schema
-16 / catalog 9 / save format 2**. The deterministic five-case balance matrix is documented in
-[balancing](docs/BALANCING.md).
-
-## Milestone 8B3
-
-Milestones **8B1, 8B2 and 8B3 are implemented**. Companies can construct one
-Corporate headquarters and hire aggregate operations, marketing, R&D and finance
-managers up to its capacity of eight. Complete daily payroll is processed before
-advertising. Only a staffed company whose payroll was fully funded and whose HQ is
-configured as operating receives the bounded management effects: operations raises
-production/retail daily throughput, marketing raises funded advertising progress,
-R&D raises funded research work, and finance lowers ordinary facility overhead.
-Suspension still leaves payroll due but disables every effect. At that checkpoint,
-saves used **economy schema 15 / catalog 9 / format 2**.
-
-## Milestone 8A2B
-
-Players can set a daily advertising budget for each public consumer product from
-Company → Markets. Fully funded daily spending is expensed immediately and retained
-progress raises the existing company-product market-presence brand with transparent
-diminishing returns. Public products now track consecutive days without actual funded
-advertising: after 30 grace days, brand loses one point at each following 30-day
-interval, down to zero. Funded spending resets inactivity without erasing retained
-progress. On the existing weekly decision tick, AI companies advertise commercially
-active products configured in their retail facilities while their brand is below
-Local. Their daily budgets target one point per 30 funded days and share a deterministic
-cash cap; there is no ROI or market-entry strategy. Brand remains seller state rather
-than inventory provenance; Local and product quality are unchanged. Current saves:
-**economy schema 13 / catalog 6 / format 2**.
-
-## Milestone 7B3B
-
-R&D now also supports repeatable company/product process-efficiency projects through
-level 5. Each level reduces conversion cash for future production by 5%, up to 25%,
-without changing recipes, capacity or physical quality. Actual reduced cash is
-capitalized into new inventory and later flows through COGS; existing inventory and
-shipments are never repriced. At that checkpoint saves used **economy schema 11 / catalog 6 /
-format 2**. See [technology and project rules](docs/TECHNOLOGY.md),
-[the cost and accounting formula](docs/ECONOMY.md#milestone-7b3b-repeatable-process-efficiency-rd),
-and [validation](docs/VALIDATION.md).
-
-## Milestone 7B3A (historical checkpoint)
-
-R&D now supports repeatable company/product quality projects through level 5.
-Each completed level improves only newly manufactured goods; existing factory,
-transit, warehouse and retail inventory keeps its physical pooled quality. Projects
-share the funded 7A scheduler, accounting and stop/resume behavior. Current saves:
-**economy schema 10 / catalog 5 / format 2**. See
-[technology and project rules](docs/TECHNOLOGY.md),
-[the manufacturing formula](docs/ECONOMY.md#milestone-7b3a-repeatable-product-quality-rd),
-and [validation](docs/VALIDATION.md). Process efficiency is implemented by 7B3B above.
-
-## Milestone 7B2 (historical checkpoint)
-
-Public consumer goods now compete with a synthetic **Local** offer as well as
-the separate no-purchase option. Company/product brand is static and read-only.
-Company → Markets compares Local and realized market averages, corporate prices,
-stocked quality, brands, sales and shares. Shares include Local purchases.
-Current saves: **economy schema 9 / catalog 4 / format 2**; older saves are incompatible.
-See [model and formulas](docs/ECONOMY.md#milestone-7b2-local-market-and-brand-foundation)
-and [validation](docs/VALIDATION.md). Focused tests: tests/milestone7b2_tests.gd;
-two-frame programmatic workflow: tests/local_market_smoke.gd.
-Product-quality improvement and process efficiency are superseded by 7B3A/7B3B
-above; advertising remains deferred.
-
-## Milestone 7B1 (historical checkpoint)
-
-Manufactured goods now carry integer pooled quality through components, warehouses,
-shipments and retail. Consumer and supplier offers use actual stocked product
-quality. Stores do not change goods quality. Saves use **economy schema 8 / catalog 3
-/ format 2**; older schemas are incompatible. [Quality rules](docs/ECONOMY.md#milestone-7b1-product-quality-provenance).
-Run `tests/milestone7b1_tests.gd` for focused checks and `tests/quality_smoke.gd`
-for two programmatic rendered frames. Local/brand is superseded by 7B2 above; continuous R&D remains deferred.
-
-## Milestone 7A (historical checkpoint)
-
-Company knowledge is now separate from public technology. Starting knowledge is
-2012/2022 era-appropriate; later public technologies require company research for
-manufacturing. Retailers may buy/resell public finished goods without recipe knowledge.
-Build an **R&D center** under Corporate, select it, and assign or stop research in
-the R&D inspector. Stopped progress is retained. Projects cost money daily and
-completion unlocks the owner's recipes. Nova has a scenario R&D center and a simple
-deterministic research policy. Continuous quality/process improvements remain Milestone 7B3.
-
-At the 7A checkpoint saves used **economy schema 7 / catalog version 3 / format 2**; older saves are
-incompatible. See [technology and R&D rules](docs/TECHNOLOGY.md) and
-[validation](docs/VALIDATION.md). Focused checks and three rendered screenshots:
-
-```powershell
-& $godot --headless --path . --log-file .godot/m7a-tests.log --script res://tests/milestone7a_tests.gd
-& $godot --headless --path . --log-file .godot/m7a-long.log --script res://tests/milestone7a_tests.gd -- --long-only
-& $godot --path . --log-file .godot/m7a-visual.log --script res://tests/research_smoke.gd
-```
-
-## Milestone 6 foundation
-
-Consumer markets now use three income-sensitive segments and category competition.
-The catalog has 26 products/components. Stores manage several product lines with
-independent prices and suppliers; factories can switch compatible recipes without
-converting existing inventory. **Company** opens Income Statement, Balance Sheet,
-Cash Flow, Markets, History and Companies tabs. The persistent TTM/monthly HUD
-reads the same financial history. At that milestone saves used economy schema 6 / format 2; old saves
-are intentionally incompatible.
-
-See [Milestone 6 rules and controls](docs/MILESTONE6.md) and
-[validation](docs/VALIDATION.md). Programmatic rendered validation:
-
-```powershell
-& $godot --path . --log-file .godot/m6-visual.log --script res://tests/market_smoke.gd
-```
-
-## Milestone 5 foundation
-
-Sandbox now starts a deterministic **48 × 36 procedural coastal city**. Settings
-lets you enter a numeric city/game seed or choose a random seed before starting
-2012 or 2022. Streets, business sites, residential density and ambient buildings
-come from that seed. Residents and district purchasing power scale consumer
-markets. Land values and waterfront/port candidates are stored for future use;
-land purchases, rent and operating ports are not implemented.
-
-The compact minimap shows water, roads, development and business ownership;
-click it to navigate. Middle-drag, wheel zoom and selection remain available.
-Construction excludes water and ambient properties. Sandbox Debug adds city
-statistics, selected-site metadata and a vacant-frontage overlay.
-
-Implemented: the deterministic daily economy from Milestone 1 plus a continuous
-game session with pause, 1x, 2x, 4x and Max speeds; player price, operation, stock
-target and supplier commands; ranked and manually selectable suppliers; versioned
-atomic save/load with deterministic continuation; and a playable management host.
-The main scene presents an orthographic isometric city, selectable facilities,
-facility and company information, sandbox settings, and a session-scoped Debug
-panel. Starting years 2012 and 2022 continue to use the same data-driven public
-technology gates.
-
-Milestone 3 adds a deterministic city grid, roads and occupied footprints; six
-data-defined construction choices; placement previews; immediate paused
-construction; and owned-facility demolition. Shops, factories and warehouses
-have distinct procedural silhouettes and ownership colors. City and economy
-restore together using schema 5 / save format 2 (older schemas are rejected).
-
-Milestone 4 adds road-routed shipments with delivery dates, freight, in-transit
-inventory, warehouse capacity and replenishment targets. Supplier rankings include
-landed cost and lead time. Construction creates a fixed asset depreciated over
-3,650 days. Cash, trailing-12-month profit and monthly history stay in the bottom HUD.
-
-Use **Build**, choose a facility and product, then click a green site touching a
-road. Red previews explain invalid sites. Right-click or Escape cancels. Select
-an owned facility to manage or demolish it. Demolition requires confirmation,
-writes off inventory and remaining fixed-asset book value, and pays no refund.
-Select an owned facility to transfer stock to another owned site. Warehouse targets
-order goods automatically. The inspector shows shipment status, routes, freight,
-ETAs and free capacity. Middle-mouse drag pans the city.
-
-Open `project.godot` in Godot 4 (tested with **4.7.2**) and press **F5**. Game time
-runs continuously at one simulated day per real second at 1x. The legacy economic
-debug scene remains available through **F6**. Rendering and UI are hosts only; no
-city node is required for an economic calculation.
-
-### Command line (PowerShell, from repository root)
-
-Use your installed Godot console executable. On this machine:
-
-```powershell
-$godot = 'C:\Tools\Godot\Godot_v4.7.2-stable_win64_console.exe'
-# Register classes on a fresh checkout (opening the editor also does this).
-& $godot --headless --path . --editor --quit
-# Run the management game.
-& $godot --path .
-# Complete automated harness, including construction, persistence and long runs.
-./tests/run_tests.ps1 -Godot $godot
-# Direct Godot-native harness (also works outside Windows).
-& $godot --headless --path . --script res://tests/run_tests.gd
-# Longer headless scenario; output is a state snapshot followed by a summary.
-& $godot --headless --path . --script res://src/headless.gd -- --days=3650 --era=2012 --seed=42
-# Load the legacy debug scene and exercise its 30-day advance.
-& $godot --path . --script res://tests/debug_smoke.gd
-# Load the real game scene, exercise management integration, and capture a frame.
-& $godot --path . --script res://tests/game_smoke.gd
-# Repeatable construction workflow and eight rendered screenshots.
-& $godot --path . --log-file .godot/m3-visual.log --script res://tests/construction_smoke.gd
-# End-to-end logistics, finance and input workflow with six rendered screenshots.
-& $godot --path . --log-file .godot/m4-visual.log --script res://tests/logistics_smoke.gd
-# Generated-city end-to-end flow and nine rendered screenshots, including two seeds.
-& $godot --path . --log-file .godot/m5-visual.log --script res://tests/city_smoke.gd
-```
-
-The PowerShell wrapper fails on nonzero exit codes, failed assertions and Godot
-script errors. Debug smoke saves a screenshot under ignored `.godot/` when run
-with rendering. In a restricted environment, pass `--log-file .godot/run.log`
-to avoid attempts to write the default user log directory.
-
-### Design documentation
-
-- [Game design](docs/GAME_DESIGN.md)
-- [Architecture and extension seams](docs/ARCHITECTURE.md)
-- [Economic rules and accounting](docs/ECONOMY.md)
-- [Technology and starting eras](docs/TECHNOLOGY.md)
-- [Product taxonomy and supply chains](docs/PRODUCT_CHAINS.md)
-- [Full-project roadmap](docs/ROADMAP.md)
-- [Validation results and limitations](docs/VALIDATION.md)
-
-Screenshots are written to `.godot/m3-screenshots/`,
-`.godot/m4-screenshots/` and `.godot/m5-screenshots/`.
-The old fixed board is retained only as an explicit regression fixture.
-Milestone 6 screenshots are in `.godot/m6-screenshots/`. R&D screenshots are in `.godot/m7a-screenshots/`.
-Strategic AI, session difficulty and the Milestone 8 balance checkpoint are complete;
-Corporate Finance, city growth, and regional trade are implemented.
+Milestone 12 completes the primary game roadmap. Current versions: economy
+schema **22**, catalog **13**, save format **2**, CityGenerator **3**.
+Saves from previous catalog/schema versions are incompatible.
+See [Milestone 12 validation](docs/MILESTONE12.md) for measured results and
+release-environment limitations. Optional extensions are listed separately in
+the [completed roadmap](docs/ROADMAP.md).

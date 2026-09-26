@@ -13,6 +13,36 @@ var active_company: String = "player"
 var active_city: String = "metro"
 var debug_unlocked: bool = false
 var message: String = ""
+var tutorial: TutorialController = TutorialController.new()
+
+func start_setup(config: Dictionary, game_mode: String = "sandbox") -> bool:
+	var catalog: SimCatalog = SimCatalog.new()
+	if not catalog.load_data(): return false
+	message = SessionSetup.error(config, catalog.city_profiles)
+	if not message.is_empty() or game_mode not in ["sandbox", "tutorial"]: return false
+	if game_mode == "tutorial" and config != SessionSetup.tutorial():
+		message = "Tutorial requires the fixed setup."
+		return false
+	var cities: Dictionary = {}
+	if not config.city_profiles.is_empty(): cities.profiles = config.city_profiles.duplicate()
+	if not start(config.era, config.seed, game_mode, cities, config.difficulty):
+		message = "Could not initialize the selected cities."
+		return false
+	var owner: SimCompany = sim.companies[player_company]
+	owner.display_name = config.company_name.strip_edges()
+	owner.cash = config.starting_capital
+	owner.capital = owner.cash
+	owner.opening_cash = owner.cash
+	sim.equity_market.initialize(sim.companies, sim.clock.date_string())
+	time.set_speed(0)
+	return true
+
+func setup_summary() -> String:
+	var names: PackedStringArray = []
+	for map: CityMap in sim.cities.values():
+		names.append(map.display_name + " — " + str(map.profile.get("country", "")))
+	return "%s • %d • %s • Seed %d\n%s" % [mode.capitalize(), sim.starting_year, sim.difficulty.capitalize(), sim.initial_seed, " / ".join(names)]
+
 
 func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox", city_settings: Dictionary = {}, difficulty: String = "standard") -> bool:
 	if game_mode not in ["sandbox", "tutorial"]:
@@ -24,6 +54,7 @@ func start(era: int = 2022, seed_value: int = 42, game_mode: String = "sandbox",
 	active_company = player_company
 	active_city = "metro"
 	mode = game_mode
+	tutorial = TutorialController.new()
 	time = TimeController.new()
 	debug_unlocked = false
 	message = "Session started. Commands take effect on the next day."
@@ -84,7 +115,7 @@ func debug_action(action: String, amount: int = 0) -> bool:
 
 func snapshot() -> Dictionary:
 	_refresh_active_company()
-	return {"mode": mode, "player_company": player_company, "active_company": active_company, "active_city": active_city, "time": time.snapshot(), "economy": sim.snapshot()}
+	return {"tutorial": tutorial.snapshot(), "mode": mode, "player_company": player_company, "active_company": active_company, "active_city": active_city, "time": time.snapshot(), "economy": sim.snapshot()}
 
 func select_city(city_id: String) -> bool:
 	if not sim.cities.has(city_id):
@@ -137,7 +168,15 @@ func load_game(path: String) -> bool:
 	if not candidate.cities.has(state.active_city):
 		message = "Invalid active city."
 		return false
+	var guide: TutorialController = TutorialController.new()
+	if not state.get("tutorial") is Dictionary or not guide.restore(state.tutorial):
+		message = "Invalid tutorial progress."
+		return false
+	if state.mode == "sandbox" and guide.snapshot() != TutorialController.new().snapshot():
+		message = "Unexpected tutorial state in sandbox."
+		return false
 	sim = candidate
+	tutorial = guide
 	mode = state.mode
 	player_company = state.player_company
 	active_company = state.active_company

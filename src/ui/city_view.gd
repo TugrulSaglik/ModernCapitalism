@@ -148,7 +148,7 @@ func sync(state: Dictionary) -> void:
 		var p: Dictionary = map.plots[f.id]
 		var definition: Dictionary = session.sim.catalog.facility_types[f.type] if session != null else {}
 		var style: String = str(definition.get("style", "shop"))
-		var height: float = 2.6 if style == "factory" else (2.9 if style == "department" else 1.5)
+		var height: float = 6.0 if style == "office" else 3.2 if style == "automobile" else 2.6 if style == "factory" else 2.9 if style == "department" else 2.2 if style == "research" else 1.5
 		var size_value: Vector3 = Vector3(p.width * CELL - 0.5, height, p.depth * CELL - 0.5)
 		var center: Vector3 = cell_position(p.x + (p.width - 1) / 2.0, p.y + (p.depth - 1) / 2.0)
 		var body: StaticBody3D = StaticBody3D.new()
@@ -164,7 +164,7 @@ func sync(state: Dictionary) -> void:
 			_box(outline, Vector3(side * (size_value.x / 2.0 + 0.2), -height / 2.0 + 0.03, 0), Vector3(0.12, 0.08, size_value.z + 0.5), Color("ffe190"))
 			_box(outline, Vector3(0, -height / 2.0 + 0.03, side * (size_value.z / 2.0 + 0.2)), Vector3(size_value.x + 0.5, 0.08, 0.12), Color("ffe190"))
 		var band: MeshInstance3D = _box(body, Vector3(0, height / 2.0 - 0.3, size_value.z / 2.0 + 0.025), Vector3(size_value.x, 0.35, 0.08), colors[f.company])
-		if style in ["shop", "department"]:
+		if style in ["shop", "department", "dealer"]:
 			for ix: int in range(int(p.width)):
 				_box(body, Vector3(-size_value.x / 2.0 + 0.55 + ix * 1.25, -0.12, size_value.z / 2.0 + 0.04), Vector3(0.85, height * 0.48, 0.06), Color("325c70"))
 			_box(body, Vector3(0, height / 2.0 - 0.55, size_value.z / 2.0 + 0.3), Vector3(size_value.x + 0.15, 0.12, 0.75), colors[f.company])
@@ -172,7 +172,7 @@ func sync(state: Dictionary) -> void:
 			for ix: int in range(int(p.width)):
 				_box(body, Vector3(-size_value.x / 2.0 + 0.65 + ix * 1.2, 0, size_value.z / 2.0 + 0.04), Vector3(0.8, 0.8, 0.06), Color("4f8295"))
 			_box(body, Vector3(0, height / 2.0 + 0.25, 0), Vector3(1.4, 0.45, 0.9), Color("b6ccd5"))
-		elif style == "factory":
+		elif style in ["factory", "automobile"]:
 			for ix: int in range(2):
 				_box(body, Vector3(-1.2 + ix * 1.6, height / 2.0 + 0.4, 0), Vector3(1.1, 0.7, 1.4), Color("93a4aa"))
 			_box(body, Vector3(size_value.x / 2.0 - 0.6, height / 2.0 + 1.1, -0.8), Vector3(0.5, 2.2, 0.5), Color("ac8876"))
@@ -182,6 +182,15 @@ func sync(state: Dictionary) -> void:
 			for ix: int in range(3):
 				_box(body, Vector3(-2 + ix * 2, -0.1, size_value.z / 2.0 + 0.04), Vector3(1.4, 1.15, 0.12), Color("485f70"))
 				_box(body, Vector3(-2 + ix * 2, -height / 2.0 + 0.05, size_value.z / 2.0 + 0.2), Vector3(1.55, 0.12, 0.45), Color("d4b870"))
+		if style == "office":
+			for level: int in range(5):
+				_box(body, Vector3(0,-height/2+0.7+level, size_value.z/2+0.035), Vector3(size_value.x*0.9,0.55,0.08), Color("477689"))
+			_box(body, Vector3(0,height/2+0.5,0), Vector3(1.4,1.0,1.4), colors[f.company])
+		if style in ["dealer", "automobile"]:
+			for i: int in range(3):
+				_box(body, Vector3(-2+i*2,-height/2+0.28,size_value.z/2+0.1), Vector3(1.3,0.45,0.65), [Color("506b82"),Color("b7b9ad"),Color("9b695e")][i])
+		if style == "department":
+			_box(body, Vector3(0,height/2+0.45,0), Vector3(size_value.x*0.65,0.8,size_value.z*0.65), Color("a2b5b9"))
 		var collision: CollisionShape3D = CollisionShape3D.new()
 		var shape: BoxShape3D = BoxShape3D.new()
 		shape.size = size_value
@@ -221,29 +230,8 @@ func _refresh_parcel_overlay() -> void:
 	_batch_boxes(parcel_overlay, positions, Vector3(CELL * 0.88, 0.04, CELL * 0.88), Color("82bca0"), 0.07)
 
 func _build_ambient(map: Dictionary) -> void:
-	var tones: Array[Color] = [Color("c4b49b"), Color("bec0b4"), Color("b2b7bc"), Color("d2c5af"), Color("a8b6ac")]
-	var groups: Dictionary = {}
-	for b: Dictionary in map.ambient.values():
-		var group: String = str(b.kind) + ":" + str(b.tone)
-		if not groups.has(group): groups[group] = []
-		groups[group].append(b)
-		property_buildings[str(b.id)] = b
-	for group: String in groups:
-		var buildings_in_group: Array = groups[group]
-		var first: Dictionary = buildings_in_group[0]
-		var positions: Array[Vector3] = []
-		var roofs: Array[Vector3] = []
-		var visual_scale: float = 1.0 + int(first.tone) * 0.09 if first.kind in ["block", "office"] else 1.0
-		var h: float = 0.65 + int(first.height) * 0.65 * visual_scale
-		var sx: float = int(first.width) * CELL - 0.65
-		var sz: float = int(first.depth) * CELL - 0.65
-		for b: Dictionary in buildings_in_group:
-			var center: Vector3 = cell_position(b.x + (b.width - 1) / 2.0, b.y + (b.depth - 1) / 2.0)
-			positions.append(center)
-			roofs.append(center)
-		var color: Color = Color("839ba5") if first.kind == "office" else tones[int(first.tone)]
-		_batch_boxes(property_structures, positions, Vector3(sx, h, sz), color, h / 2.0)
-		_batch_boxes(property_structures, roofs, Vector3(sx + 0.1, 0.15, sz + 0.1), Color("946d59") if first.kind == "house" else Color("707a7b"), h)
+	for record: Dictionary in map.ambient.values(): property_buildings[str(record.id)] = record
+	AmbientDetails.build(property_structures, map.ambient, cell_position, _material)
 
 func _batch_boxes(parent: Node3D, positions: Array[Vector3], size_value: Vector3, color: Color, height: float) -> void:
 	if positions.is_empty(): return
@@ -316,6 +304,8 @@ func update_preview(x: int, y: int) -> void:
 	preview.mesh.size = Vector3(definition.width * CELL - 0.08, 0.16, definition.depth * CELL - 0.08)
 	preview.position = cell_position(x + (definition.width - 1) / 2.0, y + (definition.depth - 1) / 2.0) + Vector3(0, 0.25, 0)
 	preview.material_override.albedo_color = Color("67ffb8") if preview_error.is_empty() else Color("ff6170")
+	if get_node("/root/UIService").preferences.high_contrast:
+		preview.material_override.albedo_color = Color("eaff8a") if preview_error.is_empty() else Color("ff75ba")
 	preview.material_override.no_depth_test = true
 	preview.show()
 	var info: Dictionary = session.sim.cities[session.active_city].parcel_info(x, y)

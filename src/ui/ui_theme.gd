@@ -21,7 +21,7 @@ const SPACE_3 := 12
 const SPACE_4 := 16
 const SPACE_5 := 24
 
-static func build() -> Theme:
+static func build(high_contrast: bool = false) -> Theme:
 	var theme := Theme.new()
 	_theme_typography(theme)
 	_theme_spacing(theme)
@@ -30,6 +30,18 @@ static func build() -> Theme:
 	_theme_inputs(theme)
 	_theme_tabs(theme)
 	_theme_scrollbars(theme)
+	if high_contrast:
+		for type_name: String in theme.get_type_list():
+			for color_name: String in theme.get_color_list(type_name):
+				if "font" in color_name or color_name == "default_color":
+					theme.set_color(color_name, type_name, Color.WHITE)
+			for style_name: String in theme.get_stylebox_list(type_name):
+				var style: StyleBoxFlat = theme.get_stylebox(style_name, type_name) as StyleBoxFlat
+				if style != null:
+					style.bg_color = style.bg_color.darkened(0.5)
+					style.border_color = Color.WHITE if style_name in ["focus", "pressed", "tab_selected"] else Color("8299aa")
+		for variation: String in ["NegativeLabel", "WarningLabel", "PositiveLabel"]:
+			theme.set_font_size("font_size", variation, 16)
 	return theme
 
 static func _theme_typography(theme: Theme) -> void:

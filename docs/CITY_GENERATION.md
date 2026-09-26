@@ -1,7 +1,17 @@
 # Metropolitan city generation (Milestone 11R2)
 
+## Current production build (Milestone 12)
+
+Economy schema 22, catalog 13, save format 2 and CityGenerator 3. The title screen
+owns new-session setup; GameSession validates a structured setup and stores mode
+and tutorial progress. Economy remains authoritative for seed, era, difficulty,
+selected city identities, player display name and opening capital. Manual setup
+chooses exactly three unique profiles. Preferences use a separate ConfigFile.
+Older milestone sections below retain their historical version context.
+See [production architecture and validation](MILESTONE12.md).
+
 11R2 — Metropolitan city profiles and street-network correction — implemented.
-Milestone 12 remains next.
+Milestone 12 adds detailed batched ambient components without changing generator geometry.
 
 ## Static real-city profiles
 

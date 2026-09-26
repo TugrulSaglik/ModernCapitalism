@@ -1,10 +1,38 @@
 {
-  "version": 12,
+  "version": 13,
   "staff_roles": [
-    {"id": "operations_manager", "name": "Operations manager", "daily_salary": 5000, "effect": "operations_capacity_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
-    {"id": "marketing_manager", "name": "Marketing manager", "daily_salary": 5000, "effect": "advertising_progress_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
-    {"id": "research_manager", "name": "R&D manager", "daily_salary": 6000, "effect": "research_rate_percent", "effect_per_staff": 10, "effect_cap_percent": 30},
-    {"id": "finance_manager", "name": "Finance manager", "daily_salary": 5500, "effect": "facility_overhead_reduction_percent", "effect_per_staff": 5, "effect_cap_percent": 15}
+    {
+      "id": "operations_manager",
+      "name": "Operations manager",
+      "daily_salary": 5000,
+      "effect": "operations_capacity_percent",
+      "effect_per_staff": 10,
+      "effect_cap_percent": 30
+    },
+    {
+      "id": "marketing_manager",
+      "name": "Marketing manager",
+      "daily_salary": 5000,
+      "effect": "advertising_progress_percent",
+      "effect_per_staff": 10,
+      "effect_cap_percent": 30
+    },
+    {
+      "id": "research_manager",
+      "name": "R&D manager",
+      "daily_salary": 6000,
+      "effect": "research_rate_percent",
+      "effect_per_staff": 10,
+      "effect_cap_percent": 30
+    },
+    {
+      "id": "finance_manager",
+      "name": "Finance manager",
+      "daily_salary": 5500,
+      "effect": "facility_overhead_reduction_percent",
+      "effect_per_staff": 5,
+      "effect_cap_percent": 15
+    }
   ],
   "process_efficiency_research": {
     "max_level": 5,
@@ -63,6 +91,62 @@
       "id": "smart_home",
       "year": 2018,
       "prerequisites": [
+        "electronics"
+      ],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "materials",
+      "year": 2000,
+      "prerequisites": [],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "food_processing",
+      "year": 2000,
+      "prerequisites": [],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "textile_manufacturing",
+      "year": 2000,
+      "prerequisites": [],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "woodworking",
+      "year": 2000,
+      "prerequisites": [],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "advanced_materials",
+      "year": 2010,
+      "prerequisites": [
+        "materials"
+      ],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "automotive",
+      "year": 2000,
+      "prerequisites": [
+        "materials"
+      ],
+      "research_work": 600,
+      "research_cost": 2500
+    },
+    {
+      "id": "electric_vehicles",
+      "year": 2018,
+      "prerequisites": [
+        "automotive",
         "electronics"
       ],
       "research_work": 600,
@@ -413,14 +497,633 @@
       "daily_demand": 20,
       "inputs": {},
       "base_quality": 50
+    },
+    {
+      "id": "steel",
+      "name": "Steel (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 800,
+      "conversion_cost": 420,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "plastic",
+      "name": "Plastic (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 300,
+      "conversion_cost": 140,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "glass",
+      "name": "Glass (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 350,
+      "conversion_cost": 180,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "rubber",
+      "name": "Rubber (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 400,
+      "conversion_cost": 200,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "chemicals",
+      "name": "Chemicals (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 450,
+      "conversion_cost": 200,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "fabric",
+      "name": "Fabric (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 700,
+      "conversion_cost": 350,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "lumber",
+      "name": "Lumber (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 1000,
+      "conversion_cost": 500,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "paper",
+      "name": "Paper (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 250,
+      "conversion_cost": 110,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "packaging",
+      "name": "Packaging (lot)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 700,
+      "conversion_cost": 100,
+      "daily_demand": 0,
+      "inputs": {
+        "paper": 1,
+        "plastic": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "grain",
+      "name": "Grain (case)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 300,
+      "conversion_cost": 140,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "flour",
+      "name": "Flour (case)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 600,
+      "conversion_cost": 100,
+      "daily_demand": 0,
+      "inputs": {
+        "grain": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "milk",
+      "name": "Milk (case)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 500,
+      "conversion_cost": 240,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "coffee_beans",
+      "name": "Coffee beans (case)",
+      "category": "materials",
+      "technology": "materials",
+      "reference_price": 600,
+      "conversion_cost": 300,
+      "daily_demand": 0,
+      "inputs": {},
+      "base_quality": 50
+    },
+    {
+      "id": "bread",
+      "name": "Bread (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 1800,
+      "conversion_cost": 200,
+      "daily_demand": 30,
+      "inputs": {
+        "flour": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "breakfast_cereal",
+      "name": "Breakfast cereal (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 2300,
+      "conversion_cost": 250,
+      "daily_demand": 30,
+      "inputs": {
+        "grain": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "cheese",
+      "name": "Cheese (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 2400,
+      "conversion_cost": 300,
+      "daily_demand": 30,
+      "inputs": {
+        "milk": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "yogurt",
+      "name": "Yogurt (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 1800,
+      "conversion_cost": 200,
+      "daily_demand": 30,
+      "inputs": {
+        "milk": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "snacks",
+      "name": "Snacks (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 1800,
+      "conversion_cost": 200,
+      "daily_demand": 30,
+      "inputs": {
+        "flour": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "pasta",
+      "name": "Pasta (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 2400,
+      "conversion_cost": 250,
+      "daily_demand": 30,
+      "inputs": {
+        "flour": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "biscuits",
+      "name": "Biscuits (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 2400,
+      "conversion_cost": 250,
+      "daily_demand": 30,
+      "inputs": {
+        "flour": 1,
+        "milk": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "ice_cream",
+      "name": "Ice cream (case)",
+      "category": "food",
+      "technology": "food_processing",
+      "reference_price": 2700,
+      "conversion_cost": 350,
+      "daily_demand": 30,
+      "inputs": {
+        "milk": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "coffee",
+      "name": "Coffee (case)",
+      "category": "beverages",
+      "technology": "food_processing",
+      "reference_price": 2400,
+      "conversion_cost": 300,
+      "daily_demand": 30,
+      "inputs": {
+        "coffee_beans": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "bottled_drink",
+      "name": "Bottled drink (case)",
+      "category": "beverages",
+      "technology": "food_processing",
+      "reference_price": 1700,
+      "conversion_cost": 300,
+      "daily_demand": 30,
+      "inputs": {
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "fruit_juice",
+      "name": "Fruit juice (case)",
+      "category": "beverages",
+      "technology": "food_processing",
+      "reference_price": 1900,
+      "conversion_cost": 500,
+      "daily_demand": 30,
+      "inputs": {
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "shirt",
+      "name": "Shirt",
+      "category": "apparel",
+      "technology": "textile_manufacturing",
+      "reference_price": 4000,
+      "conversion_cost": 600,
+      "daily_demand": 30,
+      "inputs": {
+        "fabric": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "jeans",
+      "name": "Jeans",
+      "category": "apparel",
+      "technology": "textile_manufacturing",
+      "reference_price": 6000,
+      "conversion_cost": 900,
+      "daily_demand": 30,
+      "inputs": {
+        "fabric": 3,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "jacket",
+      "name": "Jacket",
+      "category": "apparel",
+      "technology": "textile_manufacturing",
+      "reference_price": 9500,
+      "conversion_cost": 1600,
+      "daily_demand": 30,
+      "inputs": {
+        "fabric": 4,
+        "plastic": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "sneakers",
+      "name": "Sneakers",
+      "category": "apparel",
+      "technology": "textile_manufacturing",
+      "reference_price": 7500,
+      "conversion_cost": 1000,
+      "daily_demand": 30,
+      "inputs": {
+        "fabric": 2,
+        "rubber": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "chair",
+      "name": "Chair",
+      "category": "furniture",
+      "technology": "woodworking",
+      "reference_price": 10000,
+      "conversion_cost": 1800,
+      "daily_demand": 30,
+      "inputs": {
+        "lumber": 2,
+        "fabric": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "table",
+      "name": "Table",
+      "category": "furniture",
+      "technology": "woodworking",
+      "reference_price": 18000,
+      "conversion_cost": 3000,
+      "daily_demand": 30,
+      "inputs": {
+        "lumber": 4,
+        "steel": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "sofa",
+      "name": "Sofa",
+      "category": "furniture",
+      "technology": "woodworking",
+      "reference_price": 45000,
+      "conversion_cost": 7000,
+      "daily_demand": 30,
+      "inputs": {
+        "lumber": 4,
+        "fabric": 6,
+        "rubber": 3
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "bed",
+      "name": "Bed",
+      "category": "furniture",
+      "technology": "woodworking",
+      "reference_price": 35000,
+      "conversion_cost": 5000,
+      "daily_demand": 30,
+      "inputs": {
+        "lumber": 5,
+        "steel": 2
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "mattress",
+      "name": "Mattress",
+      "category": "furniture",
+      "technology": "woodworking",
+      "reference_price": 23000,
+      "conversion_cost": 4000,
+      "daily_demand": 30,
+      "inputs": {
+        "fabric": 4,
+        "rubber": 4
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "cabinet",
+      "name": "Cabinet",
+      "category": "furniture",
+      "technology": "woodworking",
+      "reference_price": 28000,
+      "conversion_cost": 4500,
+      "daily_demand": 30,
+      "inputs": {
+        "lumber": 6,
+        "glass": 2
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "soap",
+      "name": "Soap (case)",
+      "category": "personal_care",
+      "technology": "advanced_materials",
+      "reference_price": 2400,
+      "conversion_cost": 300,
+      "daily_demand": 30,
+      "inputs": {
+        "chemicals": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "shampoo",
+      "name": "Shampoo (case)",
+      "category": "personal_care",
+      "technology": "advanced_materials",
+      "reference_price": 3200,
+      "conversion_cost": 400,
+      "daily_demand": 30,
+      "inputs": {
+        "chemicals": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "toothpaste",
+      "name": "Toothpaste (case)",
+      "category": "personal_care",
+      "technology": "advanced_materials",
+      "reference_price": 2500,
+      "conversion_cost": 350,
+      "daily_demand": 30,
+      "inputs": {
+        "chemicals": 1,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "cosmetics",
+      "name": "Cosmetics (case)",
+      "category": "personal_care",
+      "technology": "advanced_materials",
+      "reference_price": 6000,
+      "conversion_cost": 1000,
+      "daily_demand": 30,
+      "inputs": {
+        "chemicals": 3,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "cleaning_product",
+      "name": "Cleaning product (case)",
+      "category": "personal_care",
+      "technology": "advanced_materials",
+      "reference_price": 2900,
+      "conversion_cost": 350,
+      "daily_demand": 30,
+      "inputs": {
+        "chemicals": 2,
+        "packaging": 1
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "compact_car",
+      "name": "Compact car",
+      "category": "automotive",
+      "technology": "automotive",
+      "reference_price": 1600000,
+      "conversion_cost": 500000,
+      "daily_demand": 5,
+      "inputs": {
+        "steel": 80,
+        "glass": 12,
+        "rubber": 12,
+        "plastic": 20,
+        "motor": 4,
+        "electronics": 4
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "suv",
+      "name": "Suv",
+      "category": "automotive",
+      "technology": "automotive",
+      "reference_price": 2400000,
+      "conversion_cost": 800000,
+      "daily_demand": 5,
+      "inputs": {
+        "steel": 110,
+        "glass": 16,
+        "rubber": 18,
+        "plastic": 30,
+        "motor": 6,
+        "electronics": 6
+      },
+      "base_quality": 50
+    },
+    {
+      "id": "electric_vehicle",
+      "name": "Electric vehicle",
+      "category": "automotive",
+      "technology": "electric_vehicles",
+      "reference_price": 3000000,
+      "conversion_cost": 850000,
+      "daily_demand": 5,
+      "inputs": {
+        "steel": 90,
+        "glass": 14,
+        "rubber": 16,
+        "plastic": 24,
+        "motor": 5,
+        "battery": 120,
+        "electronics": 12
+      },
+      "base_quality": 50
     }
   ],
   "property_types": [
-    {"id": "house", "name": "House", "use": "residential", "width": 2, "depth": 2, "cost": 2500000, "residential_capacity": 12, "job_capacity": 0, "height": 1},
-    {"id": "apartments", "name": "Apartments", "use": "residential", "width": 2, "depth": 2, "cost": 12000000, "residential_capacity": 70, "job_capacity": 0, "height": 3},
-    {"id": "block", "name": "Residential block", "use": "residential", "width": 3, "depth": 2, "cost": 30000000, "residential_capacity": 150, "job_capacity": 0, "height": 5},
-    {"id": "office", "name": "Office", "use": "office", "width": 2, "depth": 2, "cost": 18000000, "residential_capacity": 0, "job_capacity": 100, "height": 4},
-    {"id": "commercial", "name": "Commercial", "use": "commercial", "width": 2, "depth": 2, "cost": 9000000, "residential_capacity": 0, "job_capacity": 40, "height": 2}
+    {
+      "id": "house",
+      "name": "House",
+      "use": "residential",
+      "width": 2,
+      "depth": 2,
+      "cost": 2500000,
+      "residential_capacity": 12,
+      "job_capacity": 0,
+      "height": 1
+    },
+    {
+      "id": "apartments",
+      "name": "Apartments",
+      "use": "residential",
+      "width": 2,
+      "depth": 2,
+      "cost": 12000000,
+      "residential_capacity": 70,
+      "job_capacity": 0,
+      "height": 3
+    },
+    {
+      "id": "block",
+      "name": "Residential block",
+      "use": "residential",
+      "width": 3,
+      "depth": 2,
+      "cost": 30000000,
+      "residential_capacity": 150,
+      "job_capacity": 0,
+      "height": 5
+    },
+    {
+      "id": "office",
+      "name": "Office",
+      "use": "office",
+      "width": 2,
+      "depth": 2,
+      "cost": 18000000,
+      "residential_capacity": 0,
+      "job_capacity": 100,
+      "height": 4
+    },
+    {
+      "id": "commercial",
+      "name": "Commercial",
+      "use": "commercial",
+      "width": 2,
+      "depth": 2,
+      "cost": 9000000,
+      "residential_capacity": 0,
+      "job_capacity": 40,
+      "height": 2
+    }
   ],
   "facility_types": [
     {
@@ -637,7 +1340,49 @@
         "air_conditioner",
         "robot_vacuum",
         "detergent",
-        "cookware"
+        "cookware",
+        "steel",
+        "plastic",
+        "glass",
+        "rubber",
+        "chemicals",
+        "fabric",
+        "lumber",
+        "paper",
+        "packaging",
+        "grain",
+        "flour",
+        "milk",
+        "coffee_beans",
+        "bread",
+        "breakfast_cereal",
+        "cheese",
+        "yogurt",
+        "snacks",
+        "pasta",
+        "biscuits",
+        "ice_cream",
+        "coffee",
+        "bottled_drink",
+        "fruit_juice",
+        "shirt",
+        "jeans",
+        "jacket",
+        "sneakers",
+        "chair",
+        "table",
+        "sofa",
+        "bed",
+        "mattress",
+        "cabinet",
+        "soap",
+        "shampoo",
+        "toothpaste",
+        "cosmetics",
+        "cleaning_product",
+        "compact_car",
+        "suv",
+        "electric_vehicle"
       ]
     },
     {
@@ -670,15 +1415,285 @@
       "capacity": 1,
       "staff_capacity": 8,
       "products": [],
-      "description": "Company headquarters with capacity for eight aggregate staff. Management effects arrive in Milestone 8B3."
+      "description": "Company headquarters for eight staff with payroll-funded management effects."
+    },
+    {
+      "id": "materials_plant",
+      "name": "Materials plant",
+      "category": "Industrial",
+      "behavior": "production",
+      "style": "factory",
+      "cost": 3000000,
+      "capacity": 100,
+      "overhead": 4000,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "steel",
+        "plastic",
+        "glass",
+        "rubber",
+        "chemicals",
+        "fabric",
+        "lumber",
+        "paper",
+        "packaging",
+        "grain",
+        "flour",
+        "milk",
+        "coffee_beans"
+      ],
+      "description": "Compatible products share ordinary production, sourcing and logistics."
+    },
+    {
+      "id": "food_factory",
+      "name": "Food factory",
+      "category": "Industrial",
+      "behavior": "production",
+      "style": "factory",
+      "cost": 2500000,
+      "capacity": 100,
+      "overhead": 3500,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "bread",
+        "breakfast_cereal",
+        "cheese",
+        "yogurt",
+        "snacks",
+        "pasta",
+        "biscuits",
+        "ice_cream",
+        "coffee",
+        "bottled_drink",
+        "fruit_juice"
+      ],
+      "description": "Compatible products share ordinary production, sourcing and logistics."
+    },
+    {
+      "id": "textile_factory",
+      "name": "Textile factory",
+      "category": "Industrial",
+      "behavior": "production",
+      "style": "factory",
+      "cost": 3000000,
+      "capacity": 45,
+      "overhead": 4500,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "shirt",
+        "jeans",
+        "jacket",
+        "sneakers"
+      ],
+      "description": "Compatible products share ordinary production, sourcing and logistics."
+    },
+    {
+      "id": "furniture_factory",
+      "name": "Furniture factory",
+      "category": "Industrial",
+      "behavior": "production",
+      "style": "factory",
+      "cost": 4000000,
+      "capacity": 20,
+      "overhead": 6000,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "chair",
+        "table",
+        "sofa",
+        "bed",
+        "mattress",
+        "cabinet"
+      ],
+      "description": "Compatible products share ordinary production, sourcing and logistics."
+    },
+    {
+      "id": "chemical_plant",
+      "name": "Personal & household goods plant",
+      "category": "Industrial",
+      "behavior": "production",
+      "style": "factory",
+      "cost": 3500000,
+      "capacity": 70,
+      "overhead": 4500,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "soap",
+        "shampoo",
+        "toothpaste",
+        "cosmetics",
+        "cleaning_product"
+      ],
+      "description": "Compatible products share ordinary production, sourcing and logistics."
+    },
+    {
+      "id": "automobile_factory",
+      "name": "Automobile factory",
+      "category": "Industrial",
+      "behavior": "production",
+      "style": "automobile",
+      "cost": 15000000,
+      "capacity": 2,
+      "overhead": 20000,
+      "width": 6,
+      "depth": 4,
+      "jobs": 20,
+      "products": [
+        "compact_car",
+        "suv",
+        "electric_vehicle"
+      ],
+      "description": "Compatible products share ordinary production, sourcing and logistics."
+    },
+    {
+      "id": "supermarket",
+      "name": "Supermarket",
+      "category": "Retail",
+      "behavior": "retail",
+      "style": "department",
+      "cost": 2500000,
+      "capacity": 100,
+      "overhead": 3500,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "bread",
+        "breakfast_cereal",
+        "cheese",
+        "yogurt",
+        "snacks",
+        "pasta",
+        "biscuits",
+        "ice_cream",
+        "coffee",
+        "bottled_drink",
+        "fruit_juice",
+        "soap",
+        "shampoo",
+        "toothpaste",
+        "cosmetics",
+        "cleaning_product"
+      ],
+      "description": "Manage assortment, prices and suppliers for this sector.",
+      "slots": 8,
+      "categories": [
+        "food",
+        "beverages",
+        "personal_care"
+      ]
+    },
+    {
+      "id": "clothing_store",
+      "name": "Clothing store",
+      "category": "Retail",
+      "behavior": "retail",
+      "style": "shop",
+      "cost": 2000000,
+      "capacity": 45,
+      "overhead": 4500,
+      "width": 3,
+      "depth": 2,
+      "jobs": 20,
+      "products": [
+        "shirt",
+        "jeans",
+        "jacket",
+        "sneakers"
+      ],
+      "description": "Manage assortment, prices and suppliers for this sector.",
+      "slots": 8,
+      "categories": [
+        "apparel"
+      ]
+    },
+    {
+      "id": "furniture_store",
+      "name": "Furniture store",
+      "category": "Retail",
+      "behavior": "retail",
+      "style": "shop",
+      "cost": 3000000,
+      "capacity": 25,
+      "overhead": 6000,
+      "width": 4,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "chair",
+        "table",
+        "sofa",
+        "bed",
+        "mattress",
+        "cabinet"
+      ],
+      "description": "Manage assortment, prices and suppliers for this sector.",
+      "slots": 8,
+      "categories": [
+        "furniture"
+      ]
+    },
+    {
+      "id": "car_dealership",
+      "name": "Car dealership",
+      "category": "Retail",
+      "behavior": "retail",
+      "style": "dealer",
+      "cost": 7000000,
+      "capacity": 3,
+      "overhead": 10000,
+      "width": 5,
+      "depth": 3,
+      "jobs": 20,
+      "products": [
+        "compact_car",
+        "suv",
+        "electric_vehicle"
+      ],
+      "description": "Manage assortment, prices and suppliers for this sector.",
+      "slots": 8,
+      "categories": [
+        "automotive"
+      ]
     }
   ],
   "scenario": {
     "id": "device_competition",
     "regional_cities": [
-      {"id": "metro", "name": "Metro City", "seed_offset": 0, "x": 0, "y": 0, "external_trade_distance": 80},
-      {"id": "harbor", "name": "Harbor City", "seed_offset": 1009, "x": 100, "y": 40, "external_trade_distance": 40},
-      {"id": "highland", "name": "Highland City", "seed_offset": 2017, "x": 45, "y": 130, "external_trade_distance": 110}
+      {
+        "id": "metro",
+        "name": "Metro City",
+        "seed_offset": 0,
+        "x": 0,
+        "y": 0,
+        "external_trade_distance": 80
+      },
+      {
+        "id": "harbor",
+        "name": "Harbor City",
+        "seed_offset": 1009,
+        "x": 100,
+        "y": 40,
+        "external_trade_distance": 40
+      },
+      {
+        "id": "highland",
+        "name": "Highland City",
+        "seed_offset": 2017,
+        "x": 45,
+        "y": 130,
+        "external_trade_distance": 110
+      }
     ],
     "starting_years": [
       2012,
@@ -1040,6 +2055,62 @@
       "purchase_frequency": 1.0,
       "income_sensitivity": 0.7,
       "technology": "electronics"
+    },
+    {
+      "id": "materials",
+      "name": "Industrial materials",
+      "daily_demand": 0,
+      "technology": "materials",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 0.4
+    },
+    {
+      "id": "food",
+      "name": "Food",
+      "daily_demand": 180,
+      "technology": "food_processing",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 0.25
+    },
+    {
+      "id": "beverages",
+      "name": "Beverages",
+      "daily_demand": 90,
+      "technology": "food_processing",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 0.35
+    },
+    {
+      "id": "apparel",
+      "name": "Apparel",
+      "daily_demand": 75,
+      "technology": "textile_manufacturing",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 0.6
+    },
+    {
+      "id": "furniture",
+      "name": "Furniture",
+      "daily_demand": 35,
+      "technology": "woodworking",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 0.7
+    },
+    {
+      "id": "personal_care",
+      "name": "Personal care",
+      "daily_demand": 100,
+      "technology": "materials",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 0.35
+    },
+    {
+      "id": "automotive",
+      "name": "Automotive",
+      "daily_demand": 30,
+      "technology": "automotive",
+      "purchase_frequency": 1.0,
+      "income_sensitivity": 1.0
     }
   ],
   "segments": [

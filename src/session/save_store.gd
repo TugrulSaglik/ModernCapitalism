@@ -113,6 +113,11 @@ func inspect_file(path: String) -> Dictionary:
 	var candidate: Economy = restore(state.economy)
 	if candidate == null:
 		return {"state": "unreadable", "reason": error}
+	var guide: TutorialController = TutorialController.new()
+	if not state.get("tutorial") is Dictionary or not guide.restore(state.tutorial) or not state.get("active_company") is String or state.active_company not in candidate.equity_market.controlled_group(state.player_company) or not candidate.cities.has(state.get("active_city", "")):
+		return {"state":"unreadable", "reason":"Invalid session or tutorial state."}
+	if state.mode == "sandbox" and guide.snapshot() != TutorialController.new().snapshot():
+		return {"state":"unreadable", "reason":"Unexpected tutorial state in sandbox."}
 	var company_name: String = "Player company"
 	if candidate.companies.has(state.player_company): company_name = candidate.companies[state.player_company].display_name
 	var absolute: String = ProjectSettings.globalize_path(path)
@@ -153,7 +158,7 @@ func restore(state: Dictionary) -> Economy:
 	if not sim.initialize(int(state.seed), int(state.starting_year), DATA_PATH, {"preset": "legacy"}, state.difficulty):
 		return null
 	error = "Invalid regional header."
-	if not shape(state, sim.snapshot()) or state.schema_version != 21 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
+	if not shape(state, sim.snapshot()) or state.schema_version != 22 or state.difficulty != sim.difficulty or state.catalog_version != sim.catalog.version or state.scenario != sim.catalog.scenario.id or not str(state.rng_state).is_valid_int():
 		return null
 	var legacy: bool = state.cities.size() == 1
 	if legacy and (not state.cities.has("metro") or not state.cities.metro.port.is_empty()): return null
@@ -249,8 +254,12 @@ func restore(state: Dictionary) -> Economy:
 		var template: Dictionary = owner.snapshot()
 		template["inventory_assets"] = 0
 		template.known_technologies = {}
-		if not shape(item, template) or item.name != owner.display_name or item.ai != owner.ai:
+		if not shape(item, template) or (item.id != "player" and item.name != owner.display_name) or item.name.strip_edges().is_empty() or item.name.length() > 48 or "\n" in item.name or "\r" in item.name or item.ai != owner.ai:
 			return null
+		if item.id == "player":
+			if item.opening_cash not in SessionSetup.CAPITAL: return null
+			owner.opening_cash = item.opening_cash
+			owner.display_name = item.name
 		for field: String in ["cash", "revenue", "cogs", "expenses", "daily_revenue", "daily_cogs", "daily_expenses", "freight", "purchases", "import_purchases", "export_revenue", "depreciation", "retail_revenue", "property_revenue", "property_maintenance", "production_cash", "cash_expenses", "capex", "land_capex", "property_capex", "research_expense", "advertising_expense", "payroll_expense", "equity_purchase_cash", "equity_sale_cash", "equity_issue_cash", "investment_income", "dividend_receipts", "dividends_paid"]:
 			if not nonnegative(item[field]):
 				return null

@@ -12,6 +12,13 @@ class WorkspaceScroll:
 	func _get_minimum_size() -> Vector2:
 		return Vector2(410, 0)
 
+var tutorial_panel: VBoxContainer
+var tutorial_text: Label
+var tutorial_ack: Button
+var tutorial_last_step: int = -1
+var research_signature: String = ""
+var return_confirmation: ConfirmationDialog
+
 var session: GameSession = Session.new()
 var city: CityView
 var inspector: FacilityPanel
@@ -46,7 +53,6 @@ var build_reason: Label
 var demolition: ConfirmationDialog
 var profit_chart: ProfitChart
 var city_settings: Dictionary = {}
-var city_seed: SpinBox
 var city_summary: Label
 var city_diagnostics: Label
 var minimap: CityMinimap
@@ -54,14 +60,9 @@ var app_menu: AcceptDialog
 var save_browser: SaveBrowser
 var overwrite_confirmation: ConfirmationDialog
 var load_confirmation: ConfirmationDialog
-var new_session_confirmation: ConfirmationDialog
 var application_pause: bool = false
 var pending_slot: int = 0
-var pending_era: int = 0
-var pending_difficulty: String = "standard"
 var current_difficulty: Label
-var new_sandbox_difficulty: OptionButton
-var difficulty_description: Label
 var status_override: String = ""
 var status_kind: String = "normal"
 var build_category: Label
@@ -82,7 +83,8 @@ var selected_parcel: Vector2i = Vector2i(-1, -1)
 var property_pending: Dictionary = {}
 
 func _ready() -> void:
-	theme = UITheme.build()
+	_apply_preferences()
+	get_node("/root/UIService").preferences_changed.connect(_apply_preferences)
 	var backdrop: ColorRect = ColorRect.new()
 	backdrop.color = UITheme.BACKGROUND
 	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -91,7 +93,7 @@ func _ready() -> void:
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--save-dir="):
 			save_directory = argument.trim_prefix("--save-dir=")
-	session.start(2022, 42, "sandbox", city_settings)
+	if session.sim == null: session.start(2022, 42, "sandbox", city_settings)
 	var margin: MarginContainer = MarginContainer.new()
 	margin.name = "ShellMargin"
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -134,13 +136,14 @@ func _ready() -> void:
 	var management_host: VBoxContainer = VBoxContainer.new()
 	management_host.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	inspector_scroll.add_child(management_host)
+	_build_tutorial_panel(management_host)
 	management_host.add_child(inspector)
 	_build_property_panel(management_host)
 	# FacilityPanel owns its internal management scroll; give it the content height
 	# while this shell-level scroll constrains the panel to the workspace viewport.
 	inspector.custom_minimum_size.y = inspector.tabs.get_combined_minimum_size().y + UITheme.SPACE_3 * 2
 	inspector.command_requested.connect(func(command: Dictionary) -> void:
-		session.submit(command)
+		_submit_with_audio(command)
 		refresh())
 	_build_construction(management_host)
 	_build_bottom_hud(column)
@@ -171,11 +174,16 @@ func _build_top_shell(parent: VBoxContainer) -> void:
 	identity.add_child(game_name)
 	company_name_label = Label.new()
 	company_name_label.theme_type_variation = "SectionLabel"
+	company_name_label.clip_text = true
+	company_name_label.custom_minimum_size.x = 180
 	identity.add_child(company_name_label)
 	managed_company_selector = OptionButton.new()
 	managed_company_selector.name = "ManagedCompanySelector"
 	managed_company_selector.tooltip_text = "Select a company controlled by your corporate group."
-	identity.add_child(managed_company_selector)
+	managed_company_selector.fit_to_longest_item = false
+	managed_company_selector.custom_minimum_size.x = 190
+	managed_company_selector.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(managed_company_selector)
 	managed_company_selector.item_selected.connect(func(index: int) -> void:
 		if session.select_company(str(managed_company_selector.get_item_metadata(index))):
 			city.cancel_placement()
@@ -184,7 +192,10 @@ func _build_top_shell(parent: VBoxContainer) -> void:
 	city_selector = OptionButton.new()
 	city_selector.name = "ActiveCitySelector"
 	city_selector.tooltip_text = "Choose the city to view and build in."
-	identity.add_child(city_selector)
+	city_selector.fit_to_longest_item = false
+	city_selector.custom_minimum_size.x = 145
+	city_selector.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(city_selector)
 	city_selector.item_selected.connect(func(index: int) -> void:
 		if session.select_city(str(city_selector.get_item_metadata(index))):
 			selected_id = ""
@@ -195,12 +206,14 @@ func _build_top_shell(parent: VBoxContainer) -> void:
 			refresh())
 	for item: Array in [["Company", _show_company, "Open company reports and management."], ["Build", _show_construction, "Open construction and choose a facility."]]:
 		var navigation: Button = _button(row, str(item[0]), item[1])
+		navigation.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		navigation.theme_type_variation = "NavigationButton"
 		navigation.tooltip_text = str(item[2])
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(spacer)
 	var menu_button: Button = _button(row, "Menu", _show_menu)
+	menu_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	menu_button.name = "MenuButton"
 	menu_button.tooltip_text = "Pause simulation advancement and open Save, Load or Settings."
 
@@ -340,6 +353,7 @@ func select_facility(id: String) -> void:
 		if facility_list != null and facility_list.item_count > 0: facility_list.select(0)
 		return
 	selected_id = id
+	if session.mode == "tutorial" and session.sim._behavior(session.sim.facility(id)) == "retail" and session.sim.facility(id).company_id == "player": session.tutorial.observe("retail")
 	city.select(id)
 	inspector.bind(session, id)
 	inspector.visible = construction == null or not construction.visible
@@ -372,7 +386,7 @@ func _build_property_panel(parent: Node) -> void:
 	property_type_choice.item_selected.connect(func(_index: int) -> void: _refresh_property_panel())
 	property_action = _button(property_panel, "Develop property", _property_develop)
 	property_buy_land = _button(property_panel, "Buy this land cell", func() -> void:
-		var accepted: bool = session.submit({"type": "buy_land", "x": selected_parcel.x, "y": selected_parcel.y, "width": 1, "depth": 1})
+		var accepted: bool = _submit_with_audio({"type": "buy_land", "x": selected_parcel.x, "y": selected_parcel.y, "width": 1, "depth": 1})
 		_set_status(session.message, "success" if accepted else "error")
 		_refresh_property_panel())
 	property_acquire = _button(property_panel, "Acquire existing property", _property_acquire)
@@ -509,7 +523,7 @@ func _confirm_property(command: Dictionary, question: String) -> void:
 
 func _apply_property_command(command: Dictionary) -> void:
 	var id: String = selected_property
-	var accepted: bool = session.submit(command)
+	var accepted: bool = _submit_with_audio(command)
 	if accepted:
 		city.sync(_active_snapshot())
 		if command.type == "develop_property" or command.type == "redevelop_property":
@@ -549,11 +563,18 @@ func _input(event: InputEvent) -> void:
 	refresh()
 
 func refresh() -> void:
+	_refresh_tutorial()
+	var signature: String = str(session.sim.companies.player.product_quality_levels) + str(session.sim.companies.player.process_efficiency_levels) + str(session.sim.companies.player.known_technologies)
+	if not research_signature.is_empty() and signature != research_signature: get_node("/root/UIService").play("research")
+	research_signature = signature
+	var workspace: Control = find_child("WorkspaceInspectorScroll", true, false)
+	if workspace != null: workspace.visible = inspector.visible or construction.visible or property_panel.visible or tutorial_panel.visible
 	session._refresh_active_company()
 	_refresh_city_selector()
 	if city.buildings.keys() != session.sim.cities[session.active_city].plots.keys() or city.property_buildings.keys() != session.sim.cities[session.active_city].ambient.keys():
 		var restore_property: String = selected_property
 		var restore_parcel: Vector2i = selected_parcel
+		get_node("/root/UIService").play("construction")
 		city.sync(_active_snapshot())
 		_refresh_facility_list()
 		if not restore_property.is_empty() and session.sim.real_estates[session.active_city].properties.has(restore_property): select_property(restore_property)
@@ -645,7 +666,7 @@ func _build_dialogs() -> void:
 	overview.add_child(reports)
 	reports.session = session
 	reports.command_requested.connect(func(command: Dictionary) -> void:
-		session.submit(command)
+		_submit_with_audio(command)
 		refresh())
 	_build_application_menu()
 	save_browser = Browser.new()
@@ -665,51 +686,14 @@ func _build_dialogs() -> void:
 	city_summary = Label.new()
 	column.add_child(city_summary)
 	var current_heading: Label = Label.new()
-	current_heading.text = "CURRENT DIFFICULTY"
+	current_heading.text = "CURRENT SESSION (fixed at start)"
 	current_heading.theme_type_variation = "MetaLabel"
 	column.add_child(current_heading)
 	current_difficulty = Label.new()
 	current_difficulty.name = "CurrentDifficulty"
 	current_difficulty.theme_type_variation = "SectionTitleLabel"
 	column.add_child(current_difficulty)
-	var difficulty_heading: Label = Label.new()
-	difficulty_heading.text = "NEW SANDBOX DIFFICULTY"
-	difficulty_heading.theme_type_variation = "MetaLabel"
-	column.add_child(difficulty_heading)
-	new_sandbox_difficulty = OptionButton.new()
-	new_sandbox_difficulty.name = "NewSandboxDifficulty"
-	for difficulty_id: String in StrategicAI.DIFFICULTY_IDS:
-		new_sandbox_difficulty.add_item(session.sim.strategic_ai.difficulty_display_name(difficulty_id))
-		new_sandbox_difficulty.set_item_metadata(new_sandbox_difficulty.item_count - 1, difficulty_id)
-	column.add_child(new_sandbox_difficulty)
-	difficulty_description = Label.new()
-	difficulty_description.name = "DifficultyDescription"
-	difficulty_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(difficulty_description)
-	var difficulty_note: Label = Label.new()
-	difficulty_note.name = "DifficultyRulesNote"
-	difficulty_note.text = "Difficulty changes AI strategy, not economic rules or hidden bonuses."
-	difficulty_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	difficulty_note.theme_type_variation = "MetaLabel"
-	column.add_child(difficulty_note)
-	new_sandbox_difficulty.item_selected.connect(func(_index: int) -> void: _update_difficulty_description())
-	var seed_row: HBoxContainer = HBoxContainer.new()
-	column.add_child(seed_row)
-	city_seed = SpinBox.new()
-	city_seed.min_value = 0
-	city_seed.max_value = 2147483647
-	city_seed.value = 42
-	city_seed.prefix = "City seed"
-	city_seed.custom_minimum_size.x = 260
-	seed_row.add_child(city_seed)
-	_button(seed_row, "Random seed", func() -> void:
-		var random: RandomNumberGenerator = RandomNumberGenerator.new()
-		random.randomize()
-		city_seed.value = random.randi_range(0, 2147483647))
-	var row: HBoxContainer = HBoxContainer.new()
-	column.add_child(row)
-	_button(row, "New sandbox 2012", func() -> void: _confirm_new_session(2012))
-	_button(row, "New sandbox 2022", func() -> void: _confirm_new_session(2022))
+	column.add_child(PreferencesPanel.new())
 	var debug_row: HBoxContainer = HBoxContainer.new()
 	debug_row.name = "DebugRow"
 	column.add_child(debug_row)
@@ -764,12 +748,6 @@ func _build_dialogs() -> void:
 		_load(pending_slot)
 		if save_browser.visible: save_browser.hide()
 		_show_menu(false))
-	new_session_confirmation = ConfirmationDialog.new()
-	new_session_confirmation.title = "Start new sandbox"
-	settings.add_child(new_session_confirmation)
-	new_session_confirmation.confirmed.connect(func() -> void:
-		new_session_confirmation.hide()
-		_new_session(pending_era, pending_difficulty))
 
 func _build_application_menu() -> void:
 	app_menu = AcceptDialog.new()
@@ -792,6 +770,12 @@ func _build_application_menu() -> void:
 	_button(column, "Save Game", func() -> void: _show_save_browser("save"))
 	_button(column, "Load Game", func() -> void: _show_save_browser("load"))
 	_button(column, "Settings", _show_settings)
+	return_confirmation = ConfirmationDialog.new()
+	return_confirmation.title = "Return to Title"
+	return_confirmation.dialog_text = "Return to Title? Unsaved progress will be lost."
+	add_child(return_confirmation)
+	return_confirmation.confirmed.connect(func() -> void: get_tree().change_scene_to_file("res://scenes/title.tscn"))
+	_button(column, "Return to Title", func() -> void: return_confirmation.popup_centered())
 	app_menu.canceled.connect(_resume_game)
 	app_menu.close_requested.connect(_resume_game)
 
@@ -803,7 +787,7 @@ func _show_menu(begin_pause: bool = true) -> void:
 	refresh()
 
 func _resume_game() -> void:
-	for dialog: Window in [app_menu, save_browser, settings, overwrite_confirmation, load_confirmation, new_session_confirmation]:
+	for dialog: Window in [app_menu, save_browser, settings, overwrite_confirmation, load_confirmation, return_confirmation]:
 		if dialog != null: dialog.hide()
 	application_pause = false
 	refresh()
@@ -846,32 +830,11 @@ func _summary_line(summary: Dictionary) -> String:
 	if str(summary.get("state", "")) != "valid": return str(summary.get("reason", "Existing data"))
 	return "%s • %s" % [summary.get("company", "Player company"), summary.get("date", "Unknown date")]
 
-func _new_session(era: int, difficulty: String = "standard") -> void:
-	city_seed.apply()
-	if not session.start(era, int(city_seed.value), "sandbox", city_settings, difficulty): return
-	_build_city()
-	city.cancel_placement()
-	select_facility("20_player")
-	debug_entry.clear()
-	debug_panel.hide()
-	settings.hide()
-	_set_status("Started a new %d %s sandbox." % [era, session.sim.strategic_ai.difficulty_display_name(difficulty)], "success")
-	_show_menu(false)
-	refresh()
-
-func _confirm_new_session(era: int) -> void:
-	pending_era = era
-	pending_difficulty = _selected_difficulty()
-	new_session_confirmation.dialog_text = "Start a new %d %s sandbox?\n\nUnsaved progress in the current session will be lost." % [era, session.sim.strategic_ai.difficulty_display_name(pending_difficulty)]
-	new_session_confirmation.popup_centered()
-
 func _show_settings() -> void:
 	application_pause = true
 	if app_menu != null: app_menu.hide()
-	city_seed.value = int(session.sim.cities[session.active_city].generation.seed)
 	current_difficulty.text = session.sim.strategic_ai.difficulty_display_name(session.sim.difficulty)
-	_select_difficulty(session.sim.difficulty)
-	_update_difficulty_description()
+	current_difficulty.text = session.setup_summary()
 	debug_entry.get_parent().visible = session.mode == "sandbox"
 	debug_panel.visible = session.mode == "sandbox" and session.debug_unlocked
 	settings.popup_centered()
@@ -887,6 +850,7 @@ func _debug(action: String, amount: int = 0) -> void:
 	refresh()
 
 func _show_company() -> void:
+	if session.mode == "tutorial": session.tutorial.observe("overview")
 	_update_company()
 	reports.size = Vector2(760, 510)
 	overview.size = Vector2i(800, 650)
@@ -896,7 +860,7 @@ func _update_company() -> void:
 	reports.refresh()
 
 func world_input_blocked() -> bool:
-	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition, property_confirm, app_menu, save_browser, overwrite_confirmation, load_confirmation, new_session_confirmation])
+	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition, property_confirm, app_menu, save_browser, overwrite_confirmation, load_confirmation, return_confirmation])
 
 func _refresh_facility_list() -> void:
 	facility_list.clear()
@@ -990,7 +954,7 @@ func _build_construction(parent: Node) -> void:
 	demolition.title = "Demolish owned facility"
 	add_child(demolition)
 	demolition.confirmed.connect(func() -> void:
-		session.submit({"type": "demolish_facility", "facility": selected_id})
+		_submit_with_audio({"type": "demolish_facility", "facility": selected_id})
 		refresh())
 	inspector.demolition_requested.connect(func() -> void:
 		var facility: SimFacility = session.sim.facility(selected_id)
@@ -1040,8 +1004,9 @@ func _begin_preview() -> void:
 
 func _place(x: int, y: int) -> void:
 	var next_id: String = "built_%06d" % session.sim.next_facility_id
-	var accepted: bool = session.submit({"type": "build_facility", "archetype": city.build_type, "product": city.build_product, "x": x, "y": y})
+	var accepted: bool = _submit_with_audio({"type": "build_facility", "archetype": city.build_type, "product": city.build_product, "x": x, "y": y})
 	if accepted:
+		get_node("/root/UIService").play("construction")
 		city.sync(_active_snapshot())
 		_refresh_facility_list()
 		city.cancel_placement()
@@ -1051,21 +1016,6 @@ func _place(x: int, y: int) -> void:
 		build_reason.text = session.message
 		_set_status(session.message, "error")
 	refresh()
-
-func _selected_difficulty() -> String:
-	if new_sandbox_difficulty == null or new_sandbox_difficulty.selected < 0: return "standard"
-	return str(new_sandbox_difficulty.get_item_metadata(new_sandbox_difficulty.selected))
-
-func _select_difficulty(difficulty: String) -> void:
-	for index: int in range(new_sandbox_difficulty.item_count):
-		if str(new_sandbox_difficulty.get_item_metadata(index)) == difficulty:
-			new_sandbox_difficulty.select(index)
-			return
-
-func _update_difficulty_description() -> void:
-	if difficulty_description == null: return
-	var profile: Dictionary = session.sim.strategic_ai.difficulty_profile(_selected_difficulty())
-	difficulty_description.text = str(profile.get("description", ""))
 
 func _update_placement_feedback(reason: String) -> void:
 	if build_reason == null: return
@@ -1103,8 +1053,8 @@ func _handle_escape() -> void:
 	if load_confirmation != null and load_confirmation.visible:
 		load_confirmation.hide()
 		return
-	if new_session_confirmation != null and new_session_confirmation.visible:
-		new_session_confirmation.hide()
+	if return_confirmation != null and return_confirmation.visible:
+		return_confirmation.hide()
 		return
 	if save_browser != null and save_browser.visible:
 		_return_to_menu()
@@ -1122,3 +1072,53 @@ func _handle_escape() -> void:
 		_resume_game()
 		return
 	_show_menu()
+
+func _apply_preferences() -> void:
+	theme = UITheme.build(get_node("/root/UIService").preferences.high_contrast)
+
+func _submit_with_audio(command: Dictionary) -> bool:
+	var ok: bool = session.submit(command)
+	get_node("/root/UIService").play("success" if ok else "error")
+	return ok
+
+func _build_tutorial_panel(parent: Node) -> void:
+	tutorial_panel = VBoxContainer.new()
+	parent.add_child(tutorial_panel)
+	tutorial_text = Label.new()
+	tutorial_text.custom_minimum_size.x = 380
+	tutorial_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tutorial_panel.add_child(tutorial_text)
+	tutorial_ack = _button(tutorial_panel, "Understood", func() -> void:
+		session.tutorial.observe("controls")
+		refresh())
+	_button(tutorial_panel, "Previous explanation", func() -> void:
+		var previous: Dictionary = TutorialController.STEPS[maxi(0, session.tutorial.step - 1)]
+		var help: AcceptDialog = AcceptDialog.new()
+		help.title = str(previous.title)
+		help.dialog_text = str(previous.instruction) + "\n\n" + str(previous.hint)
+		add_child(help)
+		help.confirmed.connect(help.queue_free)
+		help.close_requested.connect(help.queue_free)
+		help.popup_centered(Vector2i(560, 220)))
+	_button(tutorial_panel, "Skip Tutorial", func() -> void:
+		session.tutorial.skipped = true
+		refresh())
+
+func _refresh_tutorial() -> void:
+	if tutorial_panel == null: return
+	tutorial_panel.visible = session.mode == "tutorial" and not session.tutorial.complete()
+	if not tutorial_panel.visible: return
+	if session.tutorial.evaluate(session.sim):
+		get_node("/root/UIService").play("tutorial")
+		if session.tutorial.complete():
+			tutorial_panel.hide()
+			var done: AcceptDialog = AcceptDialog.new()
+			done.title = "Tutorial complete"
+			done.dialog_text = "Your company is ready. Continue playing freely, or return to Title for a new Sandbox."
+			add_child(done)
+			done.confirmed.connect(done.queue_free)
+			done.popup_centered()
+			return
+	var step: Dictionary = session.tutorial.current()
+	tutorial_text.text = "TUTORIAL • Step %d / %d\n\n%s\n\n%s\n\nHint: %s" % [session.tutorial.step + 1, TutorialController.STEPS.size(), step.title, step.instruction, step.hint]
+	tutorial_ack.visible = session.tutorial.step == 0
