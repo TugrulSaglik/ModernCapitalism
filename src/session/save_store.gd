@@ -50,10 +50,14 @@ static func decode(value: Variant) -> Variant:
 static func fingerprint() -> String:
 	return (FileAccess.get_file_as_string(DATA_PATH) + FileAccess.get_file_as_string(CityProfiles.PATH)).sha256_text()
 
-func write_file(path: String, state: Dictionary) -> bool:
+func write_file(path: String, state: Dictionary, metadata: Dictionary = {}) -> bool:
 	error = ""
 	var envelope: Dictionary = {"format": "ModernCapitalism", "version": FORMAT_VERSION,
 		"catalog_hash": fingerprint(), "engine": Engine.get_version_info().string, "session": state}
+	envelope["metadata"] = metadata.duplicate(true)
+	return _write_envelope(path, envelope)
+
+func _write_envelope(path: String, envelope: Dictionary) -> bool:
 	var absolute: String = ProjectSettings.globalize_path(path)
 	if DirAccess.make_dir_recursive_absolute(absolute.get_base_dir()) != OK:
 		error = "Cannot create save directory."
@@ -69,16 +73,16 @@ func write_file(path: String, state: Dictionary) -> bool:
 	if result != OK:
 		error = "Save write failed; previous save retained."
 		return false
-	# Rename within the same directory: previous slot survives an incomplete write.
+	# Rename within the same directory: previous save survives an incomplete write.
 	if DirAccess.rename_absolute(absolute + ".tmp", absolute) != OK:
-		error = "Cannot replace save slot; temporary file retained."
+		error = "Cannot replace save file; temporary file retained."
 		return false
 	return true
 
-func read_file(path: String) -> Dictionary:
+func read_envelope(path: String) -> Dictionary:
 	error = ""
 	if not FileAccess.file_exists(path):
-		error = "Save slot does not exist."
+		error = "Save file does not exist."
 		return {}
 	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
 	if file == null or file.get_length() > 256000000:
@@ -92,15 +96,97 @@ func read_file(path: String) -> Dictionary:
 	if not decoded is Dictionary or decoded.get("format") != "ModernCapitalism" or decoded.get("version") != FORMAT_VERSION or decoded.get("catalog_hash") != fingerprint() or decoded.get("engine") != Engine.get_version_info().string or not decoded.get("session") is Dictionary:
 		error = "Incompatible save format, engine or catalog."
 		return {}
-	return decoded.session
+	return decoded
 
-# Read-only presentation summary for the three-slot browser. This validates with
+func read_file(path: String) -> Dictionary:
+	return read_envelope(path).get("session", {})
+
+static func default_directory() -> String:
+	for argument: String in OS.get_cmdline_user_args():
+		if argument.begins_with("--save-dir="): return argument.trim_prefix("--save-dir=")
+	return "user://saves"
+
+static func safe_filename(filename: String) -> bool:
+	return not filename.is_empty() and filename == filename.get_file() and not "/" in filename and not "\\" in filename and not ":" in filename and filename.ends_with(".json")
+
+static func fallback_label(filename: String) -> String:
+	if filename in ["slot_1.json", "slot_2.json", "slot_3.json"]: return "Legacy Slot " + filename.substr(5, 1)
+	return "Saved game — " + filename.get_basename().replace("_", " ")
+
+func unique_filename(directory: String) -> String:
+	var stamp: String = Time.get_datetime_string_from_system().replace("-", "").replace(":", "").replace("T", "_")
+	var suffix: int = 1
+	while true:
+		var filename: String = "save_%s_%03d.json" % [stamp, suffix]
+		if not FileAccess.file_exists(directory.path_join(filename)) and not FileAccess.file_exists(directory.path_join(filename + ".tmp")): return filename
+		suffix += 1
+	return ""
+
+func save_named(directory: String, filename: String, state: Dictionary, label: String) -> bool:
+	if not safe_filename(filename):
+		error = "Invalid save filename."
+		return false
+	var path: String = directory.path_join(filename)
+	var metadata: Dictionary = {}
+	if FileAccess.file_exists(path):
+		var existing: Dictionary = read_envelope(path)
+		if existing.get("metadata") is Dictionary: metadata = existing.metadata.duplicate(true)
+	var now: String = Time.get_datetime_string_from_system()
+	metadata["label"] = label.strip_edges().left(100)
+	metadata["created_at"] = metadata.get("created_at", now)
+	metadata["modified_at"] = now
+	return write_file(path, state, metadata)
+
+func rename_save(directory: String, filename: String, label: String) -> bool:
+	if not safe_filename(filename) or label.strip_edges().is_empty():
+		error = "Enter a save name."
+		return false
+	var path: String = directory.path_join(filename)
+	var envelope: Dictionary = read_envelope(path)
+	if envelope.is_empty(): return false
+	var metadata: Dictionary = envelope.get("metadata", {}) if envelope.get("metadata", {}) is Dictionary else {}
+	metadata["label"] = label.strip_edges().left(100)
+	metadata["modified_at"] = Time.get_datetime_string_from_system()
+	envelope["metadata"] = metadata
+	# Preserve the exact decoded session; do not restore or reserialize an economy.
+	return _write_envelope(path, envelope)
+
+func delete_save(directory: String, filename: String) -> bool:
+	error = ""
+	if not safe_filename(filename):
+		error = "Invalid save filename."
+		return false
+	if DirAccess.remove_absolute(ProjectSettings.globalize_path(directory.path_join(filename))) != OK:
+		error = "Could not delete this save."
+		return false
+	return true
+
+func discover(directory: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	var folder: DirAccess = DirAccess.open(directory)
+	if folder == null: return result
+	for filename: String in folder.get_files():
+		if not safe_filename(filename): continue
+		var path: String = directory.path_join(filename)
+		var summary: Dictionary = inspect_file(path)
+		summary["filename"] = filename
+		summary["modified_unix"] = FileAccess.get_modified_time(path)
+		summary["modified"] = Time.get_datetime_string_from_unix_time(int(summary.modified_unix), true)
+		if not summary.has("label") or str(summary.label).strip_edges().is_empty(): summary["label"] = fallback_label(filename)
+		result.append(summary)
+	result.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.modified_unix == b.modified_unix: return str(a.filename) > str(b.filename)
+		return a.modified_unix > b.modified_unix)
+	return result
+
+# Read-only presentation summary for the save browser. This validates with
 # the same envelope and simulation restoration paths used by a real load without
 # mutating the running GameSession.
 func inspect_file(path: String) -> Dictionary:
 	if not FileAccess.file_exists(path):
 		return {"state": "empty", "reason": "Empty"}
-	var state: Dictionary = read_file(path)
+	var envelope: Dictionary = read_envelope(path)
+	var state: Dictionary = envelope.get("session", {})
 	if state.is_empty():
 		var kind: String = "incompatible" if error.begins_with("Incompatible") else "unreadable"
 		return {"state": kind, "reason": error}
@@ -124,6 +210,8 @@ func inspect_file(path: String) -> Dictionary:
 	var modified_unix: int = int(FileAccess.get_modified_time(absolute))
 	return {
 		"state": "valid",
+		"label": str(envelope.metadata.get("label", "")) if envelope.get("metadata") is Dictionary else "",
+		"city": candidate.cities[str(state.active_city)].display_name,
 		"company": company_name,
 		"date": candidate.clock.date_string(),
 		"starting_year": int(state.economy.starting_year),

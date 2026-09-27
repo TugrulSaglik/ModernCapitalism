@@ -194,15 +194,8 @@ func show_load() -> void:
 	if browser != null: browser.queue_free()
 	browser = SaveBrowser.new()
 	add_child(browser)
-	var summaries: Dictionary = {}
-	for slot: int in range(1, 4): summaries[slot] = SaveStore.new().inspect_file("user://saves/slot_%d.json" % slot)
-	browser.configure("load", summaries)
-	browser.slot_requested.connect(func(_mode: String, slot: int, _summary: Dictionary) -> void:
-		var session: GameSession = GameSession.new()
-		if session.load_game("user://saves/slot_%d.json" % slot): enter_game(session)
-		else:
-			browser.title = session.message
-			get_node("/root/UIService").play("error"))
+	browser.configure("load", SaveStore.default_directory())
+	browser.game_loaded.connect(func() -> void: enter_game(browser.session))
 	browser.popup_centered()
 
 func enter_game(session: GameSession) -> void:

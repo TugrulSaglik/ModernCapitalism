@@ -161,6 +161,15 @@ static func _theme_scrollbars(theme: Theme) -> void:
 		theme.set_stylebox("grabber_highlight", type_name, _box(TEXT_MUTED, Color.TRANSPARENT, 0, 3, 0))
 		theme.set_stylebox("grabber_pressed", type_name, _box(ACCENT.darkened(0.2), Color.TRANSPARENT, 0, 3, 0))
 		theme.set_constant("scroll_size", type_name, 8)
+		# Scrollbar thickness comes from style minimum sizes, not scroll_size.
+		for style_name: String in ["scroll", "scroll_focus", "grabber", "grabber_highlight", "grabber_pressed"]:
+			var style: StyleBoxFlat = theme.get_stylebox(style_name, type_name) as StyleBoxFlat
+			if type_name == "VScrollBar":
+				style.content_margin_left = 6
+				style.content_margin_right = 6
+			else:
+				style.content_margin_top = 6
+				style.content_margin_bottom = 6
 
 static func _tab_box(fill: Color, border: Color, _font: Color) -> StyleBoxFlat:
 	var style := _box(fill, border, 0, 3, SPACE_2)

@@ -643,7 +643,7 @@ func _properties(sim: Economy, owner: SimCompany) -> void:
 			var gross: int = estate.gross_rent(sim, b)
 			gross_total += gross
 			var row: TreeItem = table.create_item(table.get_root())
-			var values: Array[String] = [id, sim.cities[city_id].display_name, str(definition.name), str(b.district), money(land_basis), money(int(b.building_cost) - int(b.depreciation)), "%d / %d" % [occupied, capacity], money(gross), money(gross - gross * 25 / 100)]
+			var values: Array[String] = [DisplayLabels.property_label(sim, city_id, b), sim.cities[city_id].display_name, str(definition.name), DisplayLabels.district(sim.cities[city_id], str(b.district)), money(land_basis), money(int(b.building_cost) - int(b.depreciation)), "%s / %s" % [sim.cities[city_id].population_text(occupied), sim.cities[city_id].population_text(capacity)], money(gross), money(gross - gross * 25 / 100)]
 			for column: int in range(values.size()): row.set_text(column, values[column])
 		for cell: String in estate.land:
 			var holding: Dictionary = estate.land[cell]
@@ -697,8 +697,8 @@ func _trade_report(sim: Economy, owner: SimCompany) -> void:
 	var sources: Array[Dictionary] = []
 	for f: SimFacility in sim.facilities:
 		if f.company_id != owner.id or f.city_id != city_id: continue
-		if sim.can_receive(f, product) and not sim.regional_trade.quote(sim, f.id, product, 1, "import").is_empty(): destinations.append({"id": f.id, "name": f.id + " • " + sim.catalog.facility_types[f.type_id].name})
-		if f.inventory.quantity(product) > 0 and not sim.regional_trade.quote(sim, f.id, product, 1, "export").is_empty(): sources.append({"id": f.id, "name": f.id + " • " + str(f.inventory.quantity(product)) + " units"})
+		if sim.can_receive(f, product) and not sim.regional_trade.quote(sim, f.id, product, 1, "import").is_empty(): destinations.append({"id": f.id, "name": DisplayLabels.facility(sim, f)})
+		if f.inventory.quantity(product) > 0 and not sim.regional_trade.quote(sim, f.id, product, 1, "export").is_empty(): sources.append({"id": f.id, "name": DisplayLabels.facility(sim, f) + " • " + str(f.inventory.quantity(product)) + " units"})
 	var destination: String = _rebuild_choices(import_destination, destinations, "")
 	var source: String = _rebuild_choices(export_source, sources, "")
 	if destination.is_empty(): import_quote_details.text = "No compatible destination facility in this city."
@@ -838,7 +838,7 @@ func _market(sim: Economy) -> void:
 			var share: float = float(sold) / int(market.units) if realized else 0.0
 			var company: SimCompany = sim.companies[facility.company_id]
 			var offer: TreeItem = _tree_row(corporate_offers, [
-				"%s%s • %s • %s" % [company.display_name, " • YOU" if company.id == session.active_company else "", sim.catalog.facility_types[facility.type_id].name, facility.id],
+				"%s%s • %s • %s" % [company.display_name, " • YOU" if company.id == session.active_company else "", sim.catalog.facility_types[facility.type_id].name, DisplayLabels.facility_location(sim, facility)],
 				money(facility.line_price(product)), facility.inventory.quality_text(product), str(company.brand(product)), str(sold), "%.1f%%" % (share * 100.0) if realized else "—"
 			], [facility.id, facility.line_price(product), facility.inventory.quality(product), company.brand(product), sold, share])
 			if company.id == session.active_company:

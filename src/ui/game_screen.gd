@@ -58,10 +58,7 @@ var city_diagnostics: Label
 var minimap: CityMinimap
 var app_menu: AcceptDialog
 var save_browser: SaveBrowser
-var overwrite_confirmation: ConfirmationDialog
-var load_confirmation: ConfirmationDialog
 var application_pause: bool = false
-var pending_slot: int = 0
 var current_difficulty: Label
 var status_override: String = ""
 var status_kind: String = "normal"
@@ -112,10 +109,16 @@ func _ready() -> void:
 	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	body.add_child(left)
 	_build_context_bar(left)
+	var workspace: Control = Control.new()
+	workspace.name = "CityWorkspace"
+	workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	workspace.clip_contents = true
+	left.add_child(workspace)
 	var container: SubViewportContainer = SubViewportContainer.new()
+	container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	container.stretch = true
 	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	left.add_child(container)
+	workspace.add_child(container)
 	city_viewport = SubViewport.new()
 	city_viewport.size = Vector2i(800, 650)
 	city_viewport.msaa_3d = Viewport.MSAA_4X
@@ -123,7 +126,7 @@ func _ready() -> void:
 	container.add_child(city_viewport)
 	_build_city()
 	var legend: Label = Label.new()
-	legend.text = "CONTROLS  Middle drag: pan  •  Wheel: zoom  •  Click: inspect  •  Esc: cancel / close\nOWNERSHIP  Teal: player  •  Blue: components  •  Tan: Orion  •  Purple: Nova  •  Coral: rival"
+	legend.text = "CONTROLS  Middle drag: pan  •  Wheel: zoom  •  Click: inspect  •  Right click: clear/cancel  •  Esc: menu\nOWNERSHIP  Teal: player  •  Blue: components  •  Tan: Orion  •  Purple: Nova  •  Coral: rival"
 	legend.theme_type_variation = "MetaLabel"
 	left.add_child(legend)
 	inspector = Inspector.new()
@@ -148,8 +151,12 @@ func _ready() -> void:
 	_build_construction(management_host)
 	_build_bottom_hud(column)
 	minimap = CityMinimap.new()
-	minimap.position = Vector2(22, 455)
-	add_child(minimap)
+	workspace.add_child(minimap)
+	minimap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	minimap.offset_left = 12
+	minimap.offset_right = 180
+	minimap.offset_top = -138
+	minimap.offset_bottom = -12
 	minimap.city = city
 	minimap.map = session.sim.cities[session.active_city]
 	minimap.tooltip_text = "Click the minimap to move the city camera."
@@ -227,6 +234,7 @@ func _build_context_bar(parent: VBoxContainer) -> void:
 	label.custom_minimum_size.x = 70
 	row.add_child(label)
 	facility_list = OptionButton.new()
+	facility_list.fit_to_longest_item = false
 	facility_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	facility_list.tooltip_text = "Select and focus a facility in the city."
 	row.add_child(facility_list)
@@ -328,6 +336,9 @@ func _build_city() -> void:
 	city.property_selected.connect(select_property)
 	city.parcel_selected.connect(select_parcel)
 	city.port_selected.connect(_select_port)
+	city.context_cleared.connect(func() -> void:
+		select_facility("")
+		refresh())
 	city.placement_requested.connect(_place)
 	city.placement_changed.connect(func(reason: String) -> void:
 		_update_placement_feedback(reason))
@@ -409,7 +420,7 @@ func select_property(id: String) -> void:
 	selected_parcel = Vector2i(int(b.x), int(b.y))
 	city.select_property(id)
 	property_panel.show()
-	facility_list.set_item_text(0, "%s • %s" % [str(session.sim.catalog.property_types[str(b.type)].name), id])
+	facility_list.set_item_text(0, DisplayLabels.property_label(session.sim, session.active_city, b))
 	_refresh_property_panel()
 
 func select_parcel(x: int, y: int) -> void:
@@ -426,7 +437,7 @@ func select_parcel(x: int, y: int) -> void:
 	construction.hide()
 	selected_parcel = Vector2i(x, y)
 	property_panel.show()
-	facility_list.set_item_text(0, "Parcel %d,%d • %s" % [x, y, str(info.get("district", ""))])
+	facility_list.set_item_text(0, DisplayLabels.parcel_label(session.sim.cities[session.active_city], x, y))
 	_refresh_property_panel()
 
 func _select_port() -> void:
@@ -457,7 +468,7 @@ func _refresh_property_panel() -> void:
 	var sim: Economy = session.sim
 	var estate: RealEstate = sim.real_estates[session.active_city]
 	var city_info: Dictionary = sim.cities[session.active_city].population
-	var city_line: String = "%s  •  Population %d / housing %d  •  Workforce %d\nJobs %d  •  Employed %d  •  Unemployed %d  •  Purchasing power %d%%" % [sim.cities[session.active_city].display_name, sim.cities[session.active_city].population_text(int(city_info.total)), sim.cities[session.active_city].population_text(int(city_info.get("housing_capacity", city_info.capacity))), sim.cities[session.active_city].population_text(int(city_info.get("workforce", 0))), sim.cities[session.active_city].population_text(int(city_info.get("jobs", 0))), sim.cities[session.active_city].population_text(int(city_info.get("employed", 0))), sim.cities[session.active_city].population_text(int(city_info.get("unemployed", 0))), city_info.purchasing_power]
+	var city_line: String = "%s  •  Population %s / Housing %s  •  Workforce %s\nJobs %s  •  Employed %s  •  Unemployed %s  •  Purchasing power %d%%" % [sim.cities[session.active_city].display_name, sim.cities[session.active_city].population_text(int(city_info.total)), sim.cities[session.active_city].population_text(int(city_info.get("housing_capacity", city_info.capacity))), sim.cities[session.active_city].population_text(int(city_info.get("workforce", 0))), sim.cities[session.active_city].population_text(int(city_info.get("jobs", 0))), sim.cities[session.active_city].population_text(int(city_info.get("employed", 0))), sim.cities[session.active_city].population_text(int(city_info.get("unemployed", 0))), city_info.purchasing_power]
 	var type_id: String = str(property_type_choice.get_item_metadata(property_type_choice.selected)) if property_type_choice.selected >= 0 else "apartments"
 	var definition: Dictionary = sim.catalog.property_types[type_id]
 	var b: Dictionary = estate.properties.get(selected_property, {})
@@ -468,23 +479,40 @@ func _refresh_property_panel() -> void:
 		y = int(b.y)
 	var parcel: Dictionary = sim.cities[session.active_city].parcel_info(x, y)
 	var land_owner: String = str(estate.land.get(CityMap.key(x, y), {}).get("owner", ""))
-	var owner_name: String = "Outside sector" if b.is_empty() or str(b.owner).is_empty() else str(sim.companies[str(b.owner)].display_name)
+	var owner_name: String = "Unowned" if b.is_empty() or str(b.owner).is_empty() else str(sim.companies[str(b.owner)].display_name)
 	var road_access: bool = bool(parcel.get("road_access", false))
 	if not b.is_empty():
 		for cell: String in b.land_cells:
 			var parts: PackedStringArray = cell.split(",")
 			road_access = road_access or sim.cities[session.active_city].touches_road(int(parts[0]), int(parts[1]))
-	var detail: String = "LOCATION  %d, %d  •  %s\nLand value $%.2f per cell  •  Road access %s  •  Waterfront %s\nLand owner  %s\n" % [x, y, str(parcel.get("district", "")), int(parcel.get("land_value", 0)) / 100.0, "Yes" if road_access else "No", "Yes" if parcel.get("waterfront", false) else "No", "Unowned" if land_owner.is_empty() else str(sim.companies[land_owner].display_name)]
+	var detail: String = "LOCATION  %d, %d  •  %s\nSelected cell land value: $%.2f  •  Road access %s  •  Waterfront %s\nLand owner  %s\n" % [x, y, DisplayLabels.district(sim.cities[session.active_city], str(parcel.get("district", ""))), int(parcel.get("land_value", 0)) / 100.0, "Yes" if road_access else "No", "Yes" if parcel.get("waterfront", false) else "No", "Unowned" if land_owner.is_empty() else str(sim.companies[land_owner].display_name)]
 	if not b.is_empty():
 		var current: Dictionary = sim.catalog.property_types[str(b.type)]
 		var capacity: int = int(current.residential_capacity) if int(current.residential_capacity) > 0 else int(current.job_capacity)
 		var occupied: int = int(b.population) if int(current.residential_capacity) > 0 else int(b.occupied_jobs)
 		var gross: int = estate.gross_rent(sim, b)
-		detail += "\n%s  •  %s\nOwner  %s\nBuilding basis $%.2f  •  Book value $%.2f\n%s  %d / %d (%d%%)\nMonthly rent $%.2f  •  Maintenance $%.2f\nNet rent $%.2f  •  Accumulated depreciation $%.2f\n" % [str(current.name), str(current.use), owner_name, int(b.building_cost) / 100.0, (int(b.building_cost) - int(b.depreciation)) / 100.0, "Resident units (×1,000)" if current.use == "residential" else "Job units (×1,000)", occupied, capacity, occupied * 100 / maxi(1, capacity), gross / 100.0, (gross * 25 / 100) / 100.0, (gross - gross * 25 / 100) / 100.0, int(b.depreciation) / 100.0]
+		detail += "\n%s  •  %s\nOwner  %s\nBuilding basis $%.2f  •  Book value $%.2f\n%s  %s / %s (%d%%)\nMonthly rent $%.2f  •  Maintenance $%.2f\nNet rent $%.2f  •  Accumulated depreciation $%.2f\n" % [str(current.name), str(current.use), owner_name, int(b.building_cost) / 100.0, (int(b.building_cost) - int(b.depreciation)) / 100.0, "Residents" if current.use == "residential" else "Jobs", sim.cities[session.active_city].population_text(occupied), sim.cities[session.active_city].population_text(capacity), occupied * 100 / maxi(1, capacity), gross / 100.0, (gross * 25 / 100) / 100.0, (gross - gross * 25 / 100) / 100.0, int(b.depreciation) / 100.0]
+	var map: CityMap = sim.cities[session.active_city]
+	var project_cells: Array[String] = estate.cells(x, y, int(definition.width), int(definition.depth))
 	var land_cost: int = estate.land_cost(sim, session.active_company, x, y, int(definition.width), int(definition.depth))
+	var additional_cells: int = 0
+	var prices: Dictionary = {}
 	var full_value: int = int(definition.cost)
-	for cell: String in estate.cells(x, y, int(definition.width), int(definition.depth)): full_value += int(sim.cities[session.active_city].parcels.get(cell, {}).get("land_value", 0))
-	detail += "\nPROJECT  %s • %d × %d cells\nBuilding $%.2f  •  Additional land $%.2f  •  Total $%.2f\nCapacity %d %s  •  Full occupancy gross rent $%.2f / month\n\n%s" % [str(definition.name), int(definition.width), int(definition.depth), int(definition.cost) / 100.0, maxi(0, land_cost) / 100.0, (int(definition.cost) + maxi(0, land_cost)) / 100.0, int(definition.residential_capacity) if definition.use == "residential" else int(definition.job_capacity), "residents" if definition.use == "residential" else "jobs", (full_value * 12 / 1200) / 100.0, city_line]
+	for cell: String in project_cells:
+		var value: int = int(map.parcels.get(cell, {}).get("land_value", 0))
+		full_value += value
+		if not estate.land.has(cell):
+			additional_cells += 1
+			prices[value] = true
+	var project_error: String = estate.land_error(sim, session.active_company, x, y, int(definition.width), int(definition.depth), true, selected_property)
+	if map.is_road(x, y) or map.is_water(x, y):
+		detail = "LOCATION  %d, %d • %s\nPublic %s • Land cannot be purchased.\n" % [x, y, DisplayLabels.district(map, str(parcel.get("district", ""))), "road" if map.is_road(x, y) else "water"]
+	detail += "\nPROJECT  %s • %d × %d cells\n" % [definition.name, definition.width, definition.depth]
+	if project_error.is_empty() and land_cost >= 0:
+		detail += "Building %s\nAdditional land required: %d cells • %s\n%s\nTotal %s\n" % [CompanyReports.money(int(definition.cost)), additional_cells, CompanyReports.money(land_cost), "Cell prices vary across this footprint; total sums each unowned cell." if prices.size() > 1 else "Land already owned by your company is excluded.", CompanyReports.money(int(definition.cost) + land_cost)]
+	else:
+		detail += "Development unavailable: %s\n" % project_error
+	detail += "Capacity %s %s • Full occupancy gross rent %s / month\n\n%s" % [map.population_text(int(definition.residential_capacity) if definition.use == "residential" else int(definition.job_capacity)), "residents" if definition.use == "residential" else "jobs", CompanyReports.money(full_value * 12 / 1200), city_line]
 	property_details.text = detail
 	var owned: bool = not b.is_empty() and str(b.owner) == session.active_company
 	var unowned_property: bool = not b.is_empty() and str(b.owner).is_empty()
@@ -610,7 +638,7 @@ func refresh() -> void:
 		var regional_shipments: int = 0
 		for shipment: Dictionary in session.sim.logistics.shipments:
 			if shipment.mode == "regional": regional_shipments += 1
-		city_summary.text = "%s  •  Seed %s  •  Population %s / %s  •  Power %d%%\nCities: %s  •  Port %s  •  Regional shipments %d" % [active_map.display_name, active_map.generation.seed, active_map.population_text(), active_map.population_text(int(p.capacity)), p.purchasing_power, ", ".join(PackedStringArray(session.sim.cities.keys())), port_text, regional_shipments]
+		city_summary.text = "%s  •  Seed %s  •  Population %s / %s  •  Power %d%%\nCities: %s  •  Port %s  •  Regional shipments %d" % [active_map.display_name, active_map.generation.seed, active_map.population_text(), active_map.population_text(int(p.capacity)), p.purchasing_power, ", ".join(PackedStringArray(session.sim.cities.values().map(func(map: CityMap) -> String: return map.display_name))), port_text, regional_shipments]
 	if city_diagnostics != null and session.debug_unlocked:
 		var plot: Dictionary = session.sim.cities[session.active_city].plots.get(selected_id, {})
 		var point: Vector2i = city.preview_cell if not city.build_type.is_empty() else Vector2i(int(plot.get("x", 0)), int(plot.get("y", 0)))
@@ -634,28 +662,14 @@ func _refresh_managed_companies() -> void:
 		managed_company_selector.set_item_metadata(managed_company_selector.item_count - 1, id)
 		if id == session.active_company: managed_company_selector.select(managed_company_selector.item_count - 1)
 
-func slot_path(slot_number: int = 1) -> String:
-	return save_directory.path_join("slot_%d.json" % slot_number)
-
-func _save(slot_number: int = 1) -> void:
-	var success: bool = session.save_game(slot_path(slot_number))
-	_set_status(("Saved Slot %d." if success else "Save failed: %s") % ([slot_number] if success else [session.message]), "success" if success else "error")
-	if save_browser != null and save_browser.visible: _refresh_save_browser("save")
-	refresh()
-
-func _load(slot_number: int = 1) -> void:
-	if session.load_game(slot_path(slot_number)):
-		_build_city()
-		if not city.build_type.is_empty(): city.cancel_placement()
-		_refresh_facility_list()
-		var preferred: String = selected_id if session.sim.facility(selected_id) != null else "20_player"
-		select_facility(preferred if session.sim.facility(preferred) != null else "")
-		debug_panel.hide()
-		debug_entry.clear()
-		_set_status("Loaded Slot %d. Resume when ready." % slot_number, "success")
-	else:
-		_set_status("Load failed: " + session.message, "error")
-	refresh()
+func _on_game_loaded() -> void:
+	_build_city()
+	_refresh_facility_list()
+	select_facility("")
+	debug_panel.hide()
+	debug_entry.clear()
+	_set_status("Saved game loaded. Resume when ready.", "success")
+	_show_menu(false)
 
 func _build_dialogs() -> void:
 	overview = AcceptDialog.new()
@@ -671,7 +685,8 @@ func _build_dialogs() -> void:
 	_build_application_menu()
 	save_browser = Browser.new()
 	add_child(save_browser)
-	save_browser.slot_requested.connect(_on_browser_slot_requested)
+	save_browser.game_loaded.connect(_on_game_loaded)
+	save_browser.confirmed.connect(_return_to_menu)
 	save_browser.canceled.connect(_return_to_menu)
 	save_browser.close_requested.connect(_return_to_menu)
 	settings = AcceptDialog.new()
@@ -733,22 +748,6 @@ func _build_dialogs() -> void:
 	settings.canceled.connect(_return_to_menu)
 	settings.close_requested.connect(_return_to_menu)
 	settings.confirmed.connect(_return_to_menu)
-	overwrite_confirmation = ConfirmationDialog.new()
-	overwrite_confirmation.title = "Overwrite save"
-	save_browser.add_child(overwrite_confirmation)
-	overwrite_confirmation.confirmed.connect(func() -> void:
-		overwrite_confirmation.hide()
-		_save(pending_slot)
-		_refresh_save_browser("save"))
-	load_confirmation = ConfirmationDialog.new()
-	load_confirmation.title = "Load saved game"
-	save_browser.add_child(load_confirmation)
-	load_confirmation.confirmed.connect(func() -> void:
-		load_confirmation.hide()
-		_load(pending_slot)
-		if save_browser.visible: save_browser.hide()
-		_show_menu(false))
-
 func _build_application_menu() -> void:
 	app_menu = AcceptDialog.new()
 	app_menu.title = "Game Menu"
@@ -762,8 +761,7 @@ func _build_application_menu() -> void:
 	title_label.theme_type_variation = "TitleLabel"
 	column.add_child(title_label)
 	var subtitle: Label = Label.new()
-	subtitle.text = "Simulation advancement is paused while this menu is open."
-	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	subtitle.text = "Simulation is paused while this menu is open."
 	subtitle.theme_type_variation = "MetaLabel"
 	column.add_child(subtitle)
 	_button(column, "Resume", _resume_game)
@@ -787,7 +785,7 @@ func _show_menu(begin_pause: bool = true) -> void:
 	refresh()
 
 func _resume_game() -> void:
-	for dialog: Window in [app_menu, save_browser, settings, overwrite_confirmation, load_confirmation, return_confirmation]:
+	for dialog: Window in [app_menu, save_browser, settings, return_confirmation]:
 		if dialog != null: dialog.hide()
 	application_pause = false
 	refresh()
@@ -806,29 +804,7 @@ func _show_save_browser(browser_mode: String) -> void:
 	refresh()
 
 func _refresh_save_browser(browser_mode: String) -> void:
-	var values: Dictionary = {}
-	for slot_number: int in range(1, 4): values[slot_number] = Store.new().inspect_file(slot_path(slot_number))
-	save_browser.configure(browser_mode, values)
-
-func _on_browser_slot_requested(browser_mode: String, slot_number: int, summary: Dictionary) -> void:
-	pending_slot = slot_number
-	if browser_mode == "save":
-		if str(summary.get("state", "empty")) == "empty":
-			_save(slot_number)
-			return
-		overwrite_confirmation.dialog_text = "Overwrite Slot %d?\n\nExisting save: %s\n\nThis cannot be undone." % [slot_number, _summary_line(summary)]
-		overwrite_confirmation.popup_centered()
-		return
-	if str(summary.get("state", "empty")) != "valid":
-		_set_status("Load unavailable: " + str(summary.get("reason", "Empty slot.")), "error")
-		refresh()
-		return
-	load_confirmation.dialog_text = "Load Slot %d?\n\n%s\n\nCurrent unsaved progress will be replaced." % [slot_number, _summary_line(summary)]
-	load_confirmation.popup_centered()
-
-func _summary_line(summary: Dictionary) -> String:
-	if str(summary.get("state", "")) != "valid": return str(summary.get("reason", "Existing data"))
-	return "%s • %s" % [summary.get("company", "Player company"), summary.get("date", "Unknown date")]
+	save_browser.configure(browser_mode, save_directory, session)
 
 func _show_settings() -> void:
 	application_pause = true
@@ -860,7 +836,7 @@ func _update_company() -> void:
 	reports.refresh()
 
 func world_input_blocked() -> bool:
-	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition, property_confirm, app_menu, save_browser, overwrite_confirmation, load_confirmation, return_confirmation])
+	return GameInputPolicy.blocked(get_viewport(), [settings, overview, demolition, property_confirm, app_menu, save_browser, return_confirmation])
 
 func _refresh_facility_list() -> void:
 	facility_list.clear()
@@ -870,7 +846,7 @@ func _refresh_facility_list() -> void:
 		if f.city_id != session.active_city: continue
 		var definition: Dictionary = session.sim.catalog.facility_types.get(f.type_id, {})
 		var type_name: String = str(definition.get("name", f.type_id))
-		facility_list.add_item("%s • %s • %s" % [f.id, type_name, session.sim.companies[f.company_id].display_name])
+		facility_list.add_item(DisplayLabels.facility(session.sim, f))
 		facility_list.set_item_metadata(facility_list.item_count - 1, f.id)
 	if selected_id.is_empty(): facility_list.select(0)
 
@@ -910,7 +886,7 @@ func _build_construction(parent: Node) -> void:
 	build_category.theme_type_variation = "MetricLabel"
 	construction.add_child(build_category)
 	build_choices = OptionButton.new()
-	build_choices.tooltip_text = "Choose a catalog-defined facility type."
+	build_choices.tooltip_text = "Choose a facility type."
 	construction.add_child(build_choices)
 	for category: String in ["Retail", "Industrial", "Corporate"]:
 		build_choices.add_separator(category)
@@ -937,7 +913,7 @@ func _build_construction(parent: Node) -> void:
 	build_reason.custom_minimum_size = Vector2(400, 54)
 	construction.add_child(build_reason)
 	var hint: Label = Label.new()
-	hint.text = "Green: valid • Red: invalid\nLMB: build • RMB / Esc: cancel • Costs apply immediately"
+	hint.text = "Green: valid • Red: invalid\nClick: build • Right click: cancel • Esc: menu\nCosts apply immediately"
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	construction.add_child(hint)
 	var actions: HBoxContainer = HBoxContainer.new()
@@ -1011,7 +987,7 @@ func _place(x: int, y: int) -> void:
 		_refresh_facility_list()
 		city.cancel_placement()
 		select_facility(next_id)
-		_set_status("Built %s and selected %s." % [session.sim.catalog.facility_types[session.sim.facility(next_id).type_id].name, next_id], "success")
+		_set_status("Built " + DisplayLabels.facility(session.sim, session.sim.facility(next_id)) + ".", "success")
 	else:
 		build_reason.text = session.message
 		_set_status(session.message, "error")
@@ -1044,19 +1020,14 @@ func _set_status(message: String, kind: String = "normal") -> void:
 	status_kind = kind
 
 func _handle_escape() -> void:
-	if city != null and not city.build_type.is_empty():
-		city.cancel_placement()
-		return
-	if overwrite_confirmation != null and overwrite_confirmation.visible:
-		overwrite_confirmation.hide()
-		return
-	if load_confirmation != null and load_confirmation.visible:
-		load_confirmation.hide()
+	if property_confirm != null and property_confirm.visible:
+		property_confirm.hide()
 		return
 	if return_confirmation != null and return_confirmation.visible:
 		return_confirmation.hide()
 		return
 	if save_browser != null and save_browser.visible:
+		if save_browser.close_child(): return
 		_return_to_menu()
 		return
 	if settings != null and settings.visible:

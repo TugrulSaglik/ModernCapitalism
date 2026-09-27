@@ -52,8 +52,9 @@ For a Windows x86_64 release, install matching export templates and run:
 ```
 
 The executable and ZIP go into ignored `dist/`. See [release instructions](docs/RELEASING.md)
-for focused validation and packaging. Saves use three slots under Godot's
-application user-data directory. Preferences persist separately from games.
+for focused validation and packaging. Manage named save files in `user://saves/`
+from Title or the Game Menu, with no fixed slot limit. Create, rename, overwrite
+or delete saves in the save browser. Preferences persist separately from games.
 
 ## Controls
 
@@ -62,7 +63,8 @@ application user-data directory. Preferences persist separately from games.
 | Middle-mouse drag | Pan the city |
 | Mouse wheel | Zoom |
 | Left click | Select facility/property or place a building |
-| Right click / Escape | Cancel placement; Escape also closes dialogs |
+| Right click | Clear selected context or cancel placement |
+| Escape | Open Game Menu; close/back from dialogs |
 | Space | Pause/resume |
 | 1 / 2 / 3 / 4 | 1× / 2× / 4× / Max simulation speed |
 | Minimap click | Move camera |

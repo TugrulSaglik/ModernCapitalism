@@ -7,6 +7,7 @@ signal parcel_selected(x: int, y: int)
 signal port_selected
 signal placement_requested(x: int, y: int)
 signal placement_changed(reason: String)
+signal context_cleared
 signal placement_cancelled
 const CELL: float = 1.4
 var camera: Camera3D
@@ -311,11 +312,16 @@ func update_preview(x: int, y: int) -> void:
 	var info: Dictionary = session.sim.cities[session.active_city].parcel_info(x, y)
 	var detail: String = ""
 	if info.has("land_value"):
-		detail = "\n%s • Land $%.0f/cell%s" % [info.district, info.land_value / 100.0, " • Waterfront" if info.waterfront else ""]
+		detail = "\n%s • Land $%.0f/cell%s" % [DisplayLabels.district(session.sim.cities[session.active_city], str(info.district)), info.land_value / 100.0, " • Waterfront" if info.waterfront else ""]
 	placement_changed.emit(("Valid site — click to build" if preview_error.is_empty() else preview_error) + detail)
 
 func _update_camera() -> void:
-	camera.position = focus + Vector3(35, 35, 35)
+	# Keep the entire map ahead of the near plane, even with focus at a corner.
+	var extent: float = Vector2(map_width, map_depth).length() * CELL
+	var distance: float = extent + 32.0
+	camera.near = 0.1
+	camera.far = distance + extent + 64.0
+	camera.position = focus + Vector3.ONE.normalized() * distance
 	camera.look_at(focus)
 
 func pan(move: Vector3, delta: float) -> void:
@@ -372,20 +378,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		_pointer_preview(event.position)
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			camera.size = maxf(18.0, camera.size - 2.0)
+			camera.size = maxf(18.0, camera.size - 2.0 * event.factor)
 			if not build_type.is_empty(): _pointer_preview(event.position)
 		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			camera.size = minf(max_zoom, camera.size + 2.0)
+			camera.size = minf(max_zoom, camera.size + 2.0 * event.factor)
 			if not build_type.is_empty(): _pointer_preview(event.position)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			cancel_placement()
+			if not build_type.is_empty(): cancel_placement()
+			else: context_cleared.emit()
+			get_viewport().set_input_as_handled()
 		elif event.button_index == MOUSE_BUTTON_LEFT:
 			if not build_type.is_empty():
 				_pointer_preview(event.position)
 				placement_requested.emit(preview_cell.x, preview_cell.y)
 				return
 			var origin: Vector3 = camera.project_ray_origin(event.position)
-			var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(origin, origin + camera.project_ray_normal(event.position) * 200.0)
+			var query: PhysicsRayQueryParameters3D = PhysicsRayQueryParameters3D.create(origin, origin + camera.project_ray_normal(event.position) * camera.far)
 			var hit: Dictionary = get_world_3d().direct_space_state.intersect_ray(query)
 			if not hit.is_empty() and hit.collider.has_meta("facility_id"):
 				facility_selected.emit(str(hit.collider.get_meta("facility_id")))

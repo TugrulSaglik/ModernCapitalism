@@ -9,6 +9,7 @@ var map: CityMap
 func _ready() -> void:
 	custom_minimum_size = Vector2(168, 126)
 	size = custom_minimum_size
+	clip_contents = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	tooltip_text = "Click to move camera • Teal: player • Gold: selected"
 

@@ -7,7 +7,7 @@ export templates. No template installation or export retry was attempted.
 ## Startup and modes
 
 `project.godot` starts `scenes/title.tscn`. Title provides New Sandbox, Tutorial,
-Load Game, Settings and Quit. Load reuses the three-slot SaveBrowser and enters
+Load Game, Settings and Quit. Load reuses the shared dynamic SaveBrowser and enters
 GameScreen with the restored session. The in-game menu retains save/load/settings
 and adds confirmed Return to Title because unsaved progress may be lost.
 
@@ -157,3 +157,53 @@ visual fixtures, project metadata, export configuration and documentation.
 
 Manufacturer brand provenance, debt/taxes, traffic/transit, deeper AI personalities
 and more art/audio remain optional future extensions, not unfinished core milestones.
+
+## Final release-polish pass — September 2026
+
+This closes presentation issues on the completed roadmap; it adds no simulation
+systems. Context navigation now uses facility/product/company names and property
+types with district display names. Property statistics use real-person population
+units, and development quotes distinguish selected-cell value from the summed
+cost of additional footprint cells. Public roads/water explain why they cannot
+be purchased. Right click clears ordinary context or cancels placement; Escape
+opens Game Menu. Controls text matches that policy.
+
+The zoomed-out black band was caused by the orthographic camera staying too close
+to its focus: foreground terrain crossed behind the camera/near plane. Camera
+distance and far plane now scale with the map diagonal, and picking rays use the
+same far distance. The minimap is a clipped overlay anchored inside the city
+workspace. Wheel input respects gesture magnitude. Scrollbars have visible
+tracks/thumbs, and the Game Menu no longer expands excessively on first opening.
+
+Title and Game Menu share a dynamic save browser, with no fixed save-count cap.
+It discovers JSON files in `user://saves/`, newest first. Generated safe filenames
+are separate from editable label/timestamp metadata. Create, Rename, confirmed
+Overwrite, Load and confirmed single-file Delete retain the existing temporary
+write/replace behavior. Rename preserves authoritative session state. Compatible
+legacy slot files remain discoverable/loadable without migration; incompatible
+files remain visible with a reason, disabled Load and available Delete.
+
+Validation performed for this pass:
+
+- Startup/catalog baseline: 68 products.
+- Focused release-polish suite: **292 checks, 0 failures**. This covers saves,
+  labels/property output, input/modal handling and camera bounds/clipping on
+  192×144, 300×240 and 384×288 maps, using disposable test saves.
+- Targeted wheel/menu/scrollbar follow-up: **7 checks, 0 failures**.
+- Computer Use: Title and in-game dynamic browsers, scrolling beyond three saves,
+  named saves and all three legacy entries, legacy loading, Create/Rename/
+  Overwrite and disposable-save deletion. Incompatible saves were visibly
+  unloadable with Delete available. The final in-game Load check retained January
+  23 at 4× while the browser was open and after returning to Game Menu.
+- Computer Use: representative player/competitor facilities, unowned/owned
+  properties, vacant parcel and regional port; readable labels/statistics and
+  reconciled land costs; right-click clear/cancel and Escape menu. Maximum zoom,
+  map edges/corners and minimap navigation showed no band cutting valid terrain.
+- Final editor import completed with no script/parser errors. The sandbox could
+  not save the editor's separate AppData preferences; this did not block import.
+
+Economy schema **22**, Catalog **13**, Save format **2**, CityGenerator **3** remain
+unchanged. No historical suites, long integrations or city-generation battery
+were run for this polish pass. Broader UI-scale/tutorial/exported-build acceptance
+was not repeated in this continuation. Windows export and GitHub packaging remain
+a separate step; no export, commit, branch or publication was performed here.

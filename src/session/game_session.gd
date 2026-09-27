@@ -74,9 +74,9 @@ func submit(command: Dictionary) -> bool:
 		sim.process_commands()
 		var result: Dictionary = sim.command_results.back()
 		_refresh_active_company()
-		message = "Applied at current boundary: " + str(request.type) if result.accepted else str(result.error)
+		message = "Action completed." if result.accepted else str(result.error)
 		return bool(result.accepted)
-	message = "Queued for next day: " + str(request.type)
+	message = "Change scheduled for the next day."
 	return true
 
 func unlock_debug(password: String) -> bool:
@@ -142,7 +142,7 @@ func _refresh_active_company() -> void:
 func save_game(path: String) -> bool:
 	var store: SaveStore = Store.new()
 	var success: bool = store.write_file(path, snapshot())
-	message = "Saved: " + path if success else store.error
+	message = "Game saved." if success else store.error
 	return success
 
 func load_game(path: String) -> bool:
@@ -187,5 +187,5 @@ func load_game(path: String) -> bool:
 	time.seconds_per_day = timing.seconds_per_day
 	time.accumulator = timing.accumulator
 	debug_unlocked = false
-	message = "Loaded: " + path + ". Debug access is locked."
+	message = "Saved game loaded."
 	return true

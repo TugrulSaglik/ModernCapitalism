@@ -635,7 +635,7 @@ func _populate_transfer_controls(f: SimFacility) -> void:
 	transfer_destination.clear()
 	for other: SimFacility in session.sim.facilities:
 		if other.company_id == f.company_id and other != f and not session.sim.catalog.productless_behavior(session.sim._behavior(other)):
-			transfer_destination.add_item("%s • %s" % [session.sim.catalog.facility_types[other.type_id].name, other.id])
+			transfer_destination.add_item(DisplayLabels.facility(session.sim, other))
 			transfer_destination.set_item_metadata(transfer_destination.item_count - 1, other.id)
 			if other.id == selected_destination: transfer_destination.select(transfer_destination.item_count - 1)
 	if transfer_destination.selected < 0 and transfer_destination.item_count > 0: transfer_destination.select(0)
@@ -762,7 +762,7 @@ func refresh() -> void:
 
 func _refresh_header(f: SimFacility, owner: SimCompany, definition: Dictionary, own: bool) -> void:
 	header_title.text = str(definition.name)
-	header_meta.text = "%s • %s" % [owner.display_name, f.id]
+	header_meta.text = "%s • %s" % [owner.display_name, DisplayLabels.facility_location(session.sim, f)]
 	header_status.text = "OPERATING" if f.operating else "SUSPENDED"
 	header_status.theme_type_variation = "PositiveLabel" if f.operating else "WarningLabel"
 	operating.text = "Suspend" if f.operating else "Resume"
@@ -872,7 +872,7 @@ func _refresh_retail_line(f: SimFacility) -> void:
 	_set_metric(retail_line_metrics, "recent", "%d units" % recent)
 	_set_metric(retail_line_metrics, "unit_cost", "%s · %s" % [cost_label, CompanyReports.money(unit_cost)])
 	_set_metric(retail_line_metrics, "margin", CompanyReports.money(int(sales.get("revenue", 0)) - int(sales.get("cogs", 0))))
-	line_info.text = "Lines %d / %d • %s" % [f.assortment.size(), int(session.sim.catalog.facility_types[f.type_id].get("slots", 1)), selected]
+	line_info.text = "Lines %d / %d • %s" % [f.assortment.size(), int(session.sim.catalog.facility_types[f.type_id].get("slots", 1)), _product_name(selected)]
 	price.value = f.line_price(selected) / 100.0
 	apply_price.disabled = f.company_id != session.active_company
 	apply_stock.disabled = f.company_id != session.active_company
@@ -897,7 +897,7 @@ func _refresh_recipe(inputs: Dictionary) -> void:
 		row.add_child(quantity)
 
 func _refresh_legacy(f: SimFacility, owner: SimCompany, definition: Dictionary, behavior: String, own: bool) -> void:
-	info.text = "%s / %s\n%s | %s\nStorage: %d / %d units | free %d after reservations\nReplenishment targets: %s" % [f.id, owner.display_name, definition.name, "Operating" if f.operating else "Suspended", session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f), str(f.replenishment_targets)]
+	info.text = "%s / %s\n%s | %s\nStorage: %d / %d units | free %d after reservations\nReplenishment targets: %s" % [DisplayLabels.facility(session.sim, f), owner.display_name, definition.name, "Operating" if f.operating else "Suspended", session.sim.logistics.used(f), f.capacity, session.sim.logistics.free_capacity(session.sim, f), str(f.replenishment_targets)]
 
 func _refresh_research_overview(f: SimFacility, owner: SimCompany, definition: Dictionary) -> void:
 	var sim: Economy = session.sim
@@ -1164,8 +1164,8 @@ func _facility_label(facility_id: String) -> String:
 	if facility_id.begins_with("import:"): return "Global import • " + session.sim.cities[facility_id.trim_prefix("import:")].display_name
 	if facility_id.begins_with("export:"): return "External market • " + session.sim.cities[facility_id.trim_prefix("export:")].display_name
 	var facility: SimFacility = session.sim.facility(facility_id)
-	if facility == null: return facility_id
-	return "%s • %s • %s" % [session.sim.catalog.facility_types[facility.type_id].name, facility.id, session.sim.cities[facility.city_id].display_name]
+	if facility == null: return "Former facility"
+	return DisplayLabels.facility(session.sim, facility)
 
 func _availability(f: SimFacility, product_id: String) -> String:
 	if session.sim.can_configure(f.company_id, f.type_id, product_id): return "Available"
@@ -1255,7 +1255,7 @@ func _refresh_research(f: SimFacility, own: bool) -> void:
 	assign_research.disabled = not own or not error.is_empty() or (not f.research_project.is_empty() and sim.project_equal(f.research_project, project))
 	stop_research.disabled = not own or f.research_project.is_empty()
 	# Compatibility readback for focused pre-B3 smoke tests; primary presentation is structured above.
-	research_info.text = "%s\n%s\nProgress %.1f%%\nAssigned facility: %s" % [_project_display_name(project), status, _percent(progress, work), "None" if assigned.is_empty() else assigned]
+	research_info.text = "%s\n%s\nProgress %.1f%%\nAssigned facility: %s" % [_project_display_name(project), status, _percent(progress, work), "None" if assigned.is_empty() else _facility_label(assigned)]
 
 func _assigned_research_facility(company_id: String, project: Dictionary) -> String:
 	for other: SimFacility in session.sim.facilities:
@@ -1273,7 +1273,7 @@ func _research_state(f: SimFacility, owner: SimCompany, project: Dictionary, ass
 	if error.is_empty(): return "Researchable"
 	if error == "Already known.": return "Known"
 	if error.begins_with("Requires knowledge:"): return "Prerequisite missing — " + _display_id(error.trim_prefix("Requires knowledge:" ).strip_edges())
-	if error.begins_with("Assigned to "): return "Assigned — " + error.trim_prefix("Assigned to ")
+	if error.begins_with("Assigned to "): return "Assigned — " + _facility_label(error.trim_prefix("Assigned to ").trim_suffix("."))
 	if error.begins_with("Maximum ") or error.begins_with("Target must be "): return "Maximum level / invalid next level"
 	return error.trim_suffix(".")
 
